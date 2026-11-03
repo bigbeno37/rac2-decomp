@@ -1701,6 +1701,38 @@ reproduces retail's `sd a2..t3` + `swc1 f12..f18` save prologue **and** the fram
 
 ## 22. Vector copies: address materialisation is only part of the mismatch
 
+**Barlow/Joba storage and phase lifetimes, 3 November 2026 (retained):**
+`func_L04_0040DCA8` now owns its corners as quadword/float unions and its UVs
+as four pairs. Its former second UV cursor advanced beyond the eight-float
+allocation after the final iteration; the vertex walk also crossed member
+arrays. Correct pair/vertex indexing gives 728/740 bytes and 0/6 places in
+each release under default game G0. The historical 740-byte draft is not a
+source remedy: do not restore its invalid pointer advances to recover its size.
+`func_L04_0040D148` retains four aligned matrix rows, complete union vertices
+and unsigned alpha packing; those storage changes preserve its 1568/1584-byte
+instruction listing, with 0/2 in each USA release and no carried PAL identity.
+
+With game G0 and `-fno-expensive-optimizations`, a compound pulse argument in
+`func_L04_0040E460` reproduces its phase at +0x70..+0x90 and call slot +0x94
+in both USA v1.01 places. It preserves the arithmetic order, but the complete
+body is still 2068/2076 bytes, 0/2 in each USA release (PAL absent). Moving
+iterator acquisition before initialization gives 2076 bytes with different
+saved registers; separate iterator scopes and address-at-use forms give
+2068 and 2060 bytes. Keep the phase improvement; iterator/PRE, packed-color
+and later control-flow differences remain, without a full match or native gate.
+
+The other bounded rechecks preserve their baselines. `func_L04_0040C368`
+(game G8) is 1304/1304 bytes, 0/2 in each USA release: four spill words still
+differ. Normal/dump-enabled diagnostic objects agree; the GCSE table has 133
+buckets. A row cursor or shared copy source disturbs additional scheduling or
+spills; a next-index loop gives 1300 bytes, and an unsigned index changes the
+final compare. `func_L04_0040DF90` (game G0, `-g -fno-gcse`) is 696/696 bytes,
+0/2 in each USA release; earlier quotient snapshots and condition assignments
+give 692/688, while independent first-phase locals and a shared threshold tie.
+Both canonical identities are absent from PAL. Reopen on independently
+supported address/quotient lifetimes, not the tied forms or compiler overrides.
+All five markers remain `INCLUDE_ASM`; these are retained findings, not C credit.
+
 **Qualified packet and call-contract remedies, 25 October 2026:**
 The 2,192-byte Damosel beam uses the real 144-byte packet, clobbering
 `qcopy` transfers and corner addresses formed at use. Its color packing
@@ -3394,6 +3426,24 @@ with the level's own tables. The same repair covers `func_L04_00378838` (levels 
 `04:0029FE90` and `10:0029F960`), `func_L05_00367340`, `func_L12_0035A838`, `func_L14_0035F510`
 (pointer at `14:0028D180`) and `func_L20_0036AE68`: each starts with the same 16 bytes, has no
 reference to them, and matches in every release that has it as its level's copy of the same body.
+
+**3 November 2026, initialization-family follow-up ([draft PR #405](https://github.com/OpenRAC/rac2-decomp/pull/405), pending review):**
+`func_L01_0034B1C0`, `func_L03_003564C0` (levels 3 and 19),
+`func_L09_00352150` and `func_L23_0035CE90` have the same 16-byte entry
+residue. `FUNCTION_ENTRY_OFFSETS` preserves their names and original ends;
+the generated catalogues now describe their 272-byte bodies. USA v1.01 data
+pointers at `01:00288280`, `03:0028B7C0`, `19:0028A290`, `09:00289C80`
+and `23:0028B490` identify the corrected entries. Across all 14 carrying
+placements in US/PAL/US2, aligned data words point to the corrected entry,
+and no direct branch/jump or aligned word reaches the removed prefix.
+The C donor is `func_L00_00354DF8`, including the independently measured
+volatile list-pointer reload; each relative uses its own table symbols.
+All four use the game `-O2 -G8 -ffunction-sections` profile in shared units.
+`tools/check.py` passes at all 5 US, 5 PAL and 4 US2 placements;
+`tools/build.py all --strict` reports 28 programs OK in each release,
+with all 14 intended entries present in `placed.json` and no C fallback.
+The 340 unit tests, repository check and progress check pass in the container.
+The prior boundary-only notes in `nonmatching/levels/` remain as history.
 
 **Update, 29 October 2026 (pending review):** matched by the tiered-wave series; `func_002BC508` is C in `src/game/002BC508-g8.c` (`-O2 -G8 -ffunction-sections -g`), placed at 28 US, 28 US2 places (PAL catalogue has no function of this name); `func_002BEBC0` is C in `src/game/002BEBC0-hazard-labels.c` (`-O2 -G0 -ffunction-sections -frac2-hazard-labels`), placed at 28 US, 28 US2 places (PAL catalogue has no function of this name); `func_002C3B08` is C in `src/game/002BF6F0.c` (`-O2 -G0 -ffunction-sections -g`), placed at 28 US, 28 US2 places (PAL catalogue has no function of this name); `func_L00_003B3158` is C in `src/levels/shared/L00_003B3158-shard.c` (`-O2 -G0 -ffunction-sections -frac2-zero-ti-por -fno-gcse`), placed at 27 US, 27 US2 places (PAL catalogue has no function of this name); `func_L02_003D26B0` is C in `src/levels/02_maktar_nebula/L02_003D26B0-aim-g8.c` (`-O2 -G8 -ffunction-sections -frac2-keep-block-order`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L02_003F1BA8` is C in `src/levels/02_maktar_nebula/L02_003DB310-aim-g8.c` (`-O2 -G8 -ffunction-sections -frac2-keep-block-order`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L02_0040BBD8` is C in `src/levels/02_maktar_nebula/L02_0040A4A8-aim-g8.c` (`-O2 -G8 -ffunction-sections -frac2-keep-block-order`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L05_00441F30` is C in `src/levels/shared/L05_00441F30-g8.c` (`-O2 -G8 -ffunction-sections`), placed at 4 US, 4 US2 places (PAL catalogue has no function of this name); `func_L07_00378898` is C in `src/levels/07_siberius/L07_002BE770-rotation-g8.c` (`-O2 -G8 -ffunction-sections`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L07_00416510` is C in `src/levels/shared/L07_00416510-g8.c` (`-O2 -G8 -ffunction-sections`), placed at 4 US, 4 US2 places (PAL catalogue has no function of this name); `func_L11_00449C70` is C in `src/levels/11_joba/L11_004465F8-aim-g8.c` (`-O2 -G8 -ffunction-sections -frac2-zero-ti-por -frac2-keep-block-order`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L11_0044C850` is C in `src/levels/11_joba/L11_004465F8-aim-0044C850-g8.c` (`-O2 -G8 -ffunction-sections -frac2-zero-ti-por -frac2-keep-block-order`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L11_004530E0` is C in `src/levels/11_joba/L11_004465F8-aim-004530E0-g8.c` (`-O2 -G8 -ffunction-sections -frac2-zero-ti-por -frac2-keep-block-order`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L11_004566C0` is C in `src/levels/11_joba/L11_00453358-aim-g8.c` (`-O2 -G8 -ffunction-sections -frac2-zero-ti-por -frac2-keep-block-order`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L12_00429D60` is C in `src/levels/shared/L12_003E1CB0-g8.c` (`-O2 -G8 -ffunction-sections`), placed at 3 US, 3 PAL, 3 US2 places; `func_L18_0042FBC8` is C in `src/levels/18_damosel/L18_0042FBC8-g8.c` (`-O2 -G16 -Wa,-G16 -ffunction-sections -g`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L18_00447128` is C in `src/levels/18_damosel/L18_00447128-g8.c` (`-O2 -G8 -ffunction-sections`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L19_003D2E38` is C in `src/levels/19_grelbin/L19_002CAAB0-g8.c` (`-O2 -G8 -ffunction-sections`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L23_0041B9F0` is C in `src/levels/23_damosel_orbit/L23_0041B9F0-g8.c` (`-O2 -G8 -ffunction-sections -frac2-gcse-unsplit-edges`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name); `func_L30_003E1BA0` is C in `src/levels/30_insomniac_museum/L30_003E1BA0-g8.c` (`-O2 -G8 -ffunction-sections -Wa,-G32`), placed at 1 US, 1 US2 places (PAL catalogue has no function of this name). The measurements above are kept as history.
 
