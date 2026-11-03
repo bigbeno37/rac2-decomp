@@ -222,7 +222,7 @@ INCLUDE_ASM("asm/levels", func_L08_003DB518);
 
 
 
-INCLUDE_ASM("asm/levels", func_L08_003F6610);
+/* func_L08_003F6610 is matched in its own unit, L08_003F6610-g8.c. */
 
 /* func_L08_0041E4F8 is defined in L08_0041E4F8-flags-g8.c. */
 

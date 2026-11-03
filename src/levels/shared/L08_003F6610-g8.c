@@ -1,28 +1,6 @@
-/* GPT-6.1 Sol, high effort (v1275, 29 October 2026).
- * Best: 1820/1820 bytes, 0/2 USA v1.01 places, default -O2 -G8
- * -ffunction-sections. Final check: instruction at +0x4 differs in both places.
- * 18 check.py invocations (one C89 syntax failure), plus one regalloc run.
- * Register allocation still swaps owner/state s4/s5; the position pointer spills
- * instead of occupying fp, and nearest/random loop setup and scheduling differ.
- * Separate case-local counters reproduce retail's initialization-case allocation.
- * Preincrement search from -1 avoids the old peeled first iteration. Explicit
- * nearest-target pointer walking, split target-copy branches, separate float
- * lifetimes, and the measured 0x3DA3D70B flight constant recover retail's size.
- * The effect prototype now follows the existing mixed integer/FP declaration;
- * func_L08_003F6018 returns a pointer, as its matched implementation establishes.
- * No linked build: this is a near miss, not a match. All declarations are below.
- * Negative probes: -fno-rerun-loop-opt, -fno-thread-jumps and
- * -frac2-keep-block-order left peeling intact in the earlier for-loop body;
- * -fno-strength-reduce and -fno-expensive-optimizations did not match either.
- * With explicit pointer walking and case-local state, -fno-strength-reduce gives
- * 1816 bytes; the retained default profile gives 1820. Do not repeat these probes.
- * Next: use allocator/lifetime evidence to recover fp for the position pointer
- * without prolonging it across the guards, then revisit search-loop entry.
- * Compile this draft in its own -g8.c source unit.
- */
 #include "common.h"
 typedef int TI128 __attribute__((mode(TI)));
-extern u8 D_00189EA0[] __attribute__((sda));
+extern u8 D_00189EA0[];
 extern void func_00282CF0(void *,void *,void *);
 extern void func_00282D30(void *,void *,float);
 extern void func_00282CC0(void *,void *,void *);
@@ -36,7 +14,7 @@ extern u8 D_L08_001B9B00[];
 extern u8 *D_L08_001FE7C0[];
 extern u8 *D_L08_001B2ACC __attribute__((sda));
 extern float D_L08_001B0B5C __attribute__((sda));
-extern u8 D_L08_001AC5E0[];
+extern u8 D_L08_001AC5E0[] MACRO_ADDR;
 extern void func_0029F338(void *);
 extern int func_002A8600(void **,int,int,int);
 extern int func_00282978(void *);
@@ -105,7 +83,6 @@ void func_L08_003F6610(u8 *m)
         break;
     case 2: {
         u8 *chosen;
-        u8 *position;
         float f;
         if(m[0x60]&2) {
             m[0x20]=1;
@@ -114,42 +91,38 @@ void func_L08_003F6610(u8 *m)
         }
         if(func_0029F530(m)!=12.0f) break;
         chosen=0;
-        position=m+0x10;
         if(p[0x132]) {
             int i;
             float best, d;
-            int *target=((FVars *)p)->targets;
             best=100000.0f;
-            for(i=3;i>=0;i--,target++) {
-                int k=*target;
-                if(k!=-1) {
-                    u8 *obj=D_L08_001B2ACC+k*128;
+            for(i=0;i<4;i++) {
+                if(((FVars *)p)->targets[i]!=-1) {
+                    u8 *obj=D_L08_001B2ACC+((FVars *)p)->targets[i]*128;
                     d=func_00282E48(D_00189EA0,obj+0x30);
                     if(d<best) {chosen=obj;best=d;}
                 }
             }
             if(!chosen) {
-                func_00282CF0(&frame.target,p+0xc0,position);
+                func_00282CF0(&frame.target,p+0xc0,(m+0x10));
                 func_00282D30(&frame.target,&frame.target,0.5f);
                 if(E_F(p,0x120)>3.0f) func_00282FB8(&frame.target,&frame.target,3.0f);
                 if(func_00282DF0(&frame.target)<3.0f) func_00282F20(&frame.target,&frame.target,3.0f);
+                func_00282CC0(&frame.target,&frame.target,(m+0x10));
             } else qcopy(&frame.target,chosen+0x30);
         } else {
             int k=func_002A7820(0,3);
             int i;
-            i=-1;
-            while(++i<4) {
-                int target;
-                target=E_I(p,0x140+((i+k)%4)*4);
-                if(target!=-1) {
-                    chosen=D_L08_001B2ACC+target*128;
+            for(i=0;i<4;i++) {
+                int slot=(i+k)%4;
+                if(((FVars *)p)->targets[slot]!=-1) {
+                    chosen=D_L08_001B2ACC+((FVars *)p)->targets[slot]*128;
                     break;
                 }
             }
             if(!chosen) {
                 float radius=E_F(p,0x120);if(radius<3.0f) radius=3.0f;
                 func_L02_0031E9E8(&frame.target,radius);
-                func_00282CC0(&frame.target,&frame.target,position);
+                func_00282CC0(&frame.target,&frame.target,(m+0x10));
             } else qcopy(&frame.target,chosen+0x30);
         }
         if(chosen) {
@@ -160,7 +133,7 @@ void func_L08_003F6610(u8 *m)
         }
         {float height=func_002A89A8(&frame.target,0,0.5f);
         if(height!=0.0f) E_F(&frame.target,8)=height;}
-        func_00282CF0(&frame.direction,&frame.target,position);
+        func_00282CF0(&frame.direction,&frame.target,(m+0x10));
         f=func_00282DF0(&frame.direction)/D_L08_001B0B5C<0.08000000566f ? func_00282DF0(&frame.direction)/D_L08_001B0B5C : 0.08000000566f;
         func_00282F20(&frame.direction,&frame.direction,f);
         func_0029FCC0(m,0,&frame.velocity);
@@ -169,8 +142,8 @@ void func_L08_003F6610(u8 *m)
         func_00282CC0(&frame.velocity,&frame.velocity,&frame.step);
         E_F(&frame.direction,8)=func_L00_0031CDD0(&frame.velocity,&frame.target,0,f,-0.002722222358f);
         func_L08_003F6018(m,&frame.velocity,&frame.direction);
-        ((FVars *)p)->count++;
         ((FVars *)p)->timer=((FVars *)p)->delay;
+        ((FVars *)p)->count++;
         break;
     }
     case 3:
