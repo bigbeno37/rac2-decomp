@@ -455,7 +455,7 @@ INCLUDE_ASM("asm/levels", func_L00_00425560);
 
 /* func_L00_00425A98 is in a separate compilation unit. */
 
-INCLUDE_ASM("asm/levels", func_L00_00425CD0);
+/* func_L00_00425CD0 is in L00_004224D0-g8.c (-G8). */
 
 /* Walks the 64x64 owner table and dispatches every type-5 entry of each populated block. */
 /* One 0x30-byte entry of a collision-grid cell (layout as in L00_002D7940-grid.c);
