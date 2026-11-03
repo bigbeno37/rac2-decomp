@@ -918,5 +918,8 @@
 #define ProbeLedgeGrab                   func_L01_002AE128
 #define UpdateOwnedParticleTrails        func_003054E8
 #define DrawNativeQuads                  func_00300AA8
+#define DrawAndReleaseObjectParticles    func_00329488
+#define DrawQuadFaces                    func_0032C2E8
+#define StartAttachedEffect              func_0032D758
 
 #endif /* NAMES_H */
