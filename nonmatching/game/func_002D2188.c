@@ -1,3 +1,14 @@
+/* v2370 (Claude Opus 5.5, 2026-11-04): code below unchanged (580/592). Measurement only, not source: the
+ * rac2-unused-save probe `if (D_001B23A0 == 1) w = 1.0f;` (w a float that is overwritten before it is read,
+ * so flow1 deletes the store) placed (A) before func_002CE5D0, (B) between `w = scale*330+.5; y0 = (s32)w;`
+ * and the 332 chain, and (C) after y1 gives 592/592 with retail's 0x30 frame and unused $s1 (cse's shared
+ * constant-1 pseudo spans the func_002CE5D0 call, and the tests vanish at flow2), plus retail's serial chains
+ * (f3 then f1 cvt scratch, nop before the second mul). The reload route is ruled out: no s-reg is a reload
+ * candidate while $2..$15 are free. Remaining differences are all sched2 orders: the prologue (swc1 f20 before
+ * sd s1, ori s0 in the first delay slot), the third draw's delay slot (mov.s f16), the sltu pair before
+ * func_002CE5D0, and t1/a2/t0 after the chains. All four need the splits to survive sched2 and leave no code,
+ * which is the open construct of the unused-save family (a test on registers that stay live anyway?).
+ */
 /* 2 November 2026, remaining-function review: nonmatching; no linked credit.
  * Profile: -O2 -G8 -fno-expensive-optimizations -ffunction-sections -fno-builtin.
  * US check: 580/592 bytes, 0/28 placements.

@@ -1,3 +1,12 @@
+/* v2370 (Claude Opus 5.5, 2026-11-04): same 576/576, 10 words; mechanisms traced in the dumps.
+ * - Early status $a0: block 3's fallback load r99 (local $v0) inherits $v1 from the D_001F2840 base r92
+ *   (r92 = lo_sum of the $v1 lui; expand_preferences merges at r99's REG_DEAD r92). r99 conflicts with
+ *   status (the jump1 `status = -1` sits before its test) and ranks lower (6666 < 7777), so
+ *   regs_someone_prefers drops $v1 for status. A status with priority < 6666 (separate from cost) frees it.
+ * - Base $v1: block 19's only locals are the index chain ($v0) and the base, so the base takes $v1.
+ *   Retail's $a0 needs a local in $v1 born at the lbu (a cost temporary with a deleted no-op copy, or a
+ *   vanished value); combine merges every cost temporary tried. A block-local table pointer ties.
+ */
 /* Closer B, 2026-11-01: 576/576, 10 words: declare status at function scope and use it for cost. That
  * gives retail's slot copy and 0x5A in a1. Left: base and status swapped (v1/a0, including the two early
  * status words at +0x60/+0x64), and item in v0 instead of a0 at +0x1D8/+0x1E4.
