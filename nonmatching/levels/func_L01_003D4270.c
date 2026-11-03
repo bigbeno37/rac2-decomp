@@ -1,20 +1,27 @@
-/* sol-high retained attempt, USA v1.01, pinned game compiler, default -G8.
- * check.py: 1424 bytes versus 1428; 0 of 3 places match.
- * Typed trigger/pool records and separate camera locals recover retail's
- * s1/s2/s0 assignments. Ordinary TI assignments recover folded quadword
- * destinations and avoid the old helper block merging. Reversing the +0x45
- * condition recovers the retail conditional store.
- * Remaining: state-test branch/likely-load layout, address-register allocation,
- * copy/scalar scheduling in the two camera paths, and reset-store scheduling.
- * Typed anchor/moby forms tie; a position union adds a saved register (1436).
- * -fno-gcse gives 1432 with the wrong 0x50 frame and does not recover the tests.
- * Next: independent original state-control-flow or vector type evidence.
+/* opus-1 retained attempt (Claude Opus 5.5), USA v1.01, pinned game compiler,
+ * flags of src/levels/shared/L01_00397110.c.
+ * check.py: 1424 bytes versus 1428; 0 of 3 places match. An aligned diff has
+ * 6 differing rows, all in the state tests; everything else matches.
+ * Fixed versus sol-high: d->pool (a load, not a user local) in the first and
+ * last pool tests lets thread_jumps send the p==0 branch to the epilogue;
+ * p=d->pool inside the anchor and final arms keeps the pointer in s1; the Row
+ * type plus the incomplete sda array read D_L01_001B264C[0][i] gives retail's
+ * lui/lw macro load and address order; qcopy at the +0x30 site; reset order.
+ * Remaining: retail keeps the `!active && d->state` arm's own load (v0), which
+ * reorg copies into three beql delay slots (create, cam1 and cam2 tests), and
+ * cam1 has its own lw v1. Here GCSE PRE deletes that load (reaching reg placed
+ * at the cam1 test head, one shared lw v1), so the function is 1 insn short.
+ * `d->state && !active` is worse (18 rows).
+ * Next: find why retail's GCSE leaves that load alone (a different expression,
+ * or availability through the cam2 test killed).
  * All required declarations are below. No linked-build claim.
  */
 #include "common.h"
 extern char D_00189EA0[];
-extern char *D_L01_001B264C NOT_SDA;
-extern char *ref_L01_003D4270_00 __attribute__((sda));
+typedef int Quad __attribute__((mode(TI)));
+typedef struct Row { Quad q0; char pad[0x20]; Quad centre; char rest[0x40]; } Row;
+extern Row *D_L01_001B264C[] __attribute__((sda));
+extern Row *ref_L01_003D4270_00 __attribute__((sda));
 extern char *D_L01_001FE180[];
 extern char D_L01_001B94C0[];
 extern int func_002ACBC8(void *, int);
@@ -34,7 +41,6 @@ extern int func_00283DB8(void *, float);
 #define I(p,o) (*(int *)((char *)(p)+(o)))
 #define F(p,o) (*(float *)((char *)(p)+(o)))
 #define B(p,o) (*(unsigned char *)((char *)(p)+(o)))
-typedef int Quad __attribute__((mode(TI)));
 typedef struct Pool {
     float f0, f4, f8, fc, f10, f14;
     unsigned char b18, b19;
@@ -67,9 +73,9 @@ void func_L01_003D4270(char *m)
     if (d->conditions[2]!=-1 && func_002A8508(d->conditions[2],-1)) clear=0;
     if (d->conditions[3]!=-1 && func_002A8508(d->conditions[3],-1)) clear=0;
     if (B(m,0x20)) {
-        p=d->pool;
-        if (p && (!active || clear)) {func_L00_002D7140(p); d->pool=0;}
-        else if (!p && active && !clear && d->target==-1) {
+
+        if (d->pool && (!active || clear)) {func_L00_002D7140(d->pool); d->pool=0;}
+        else if (!d->pool && active && !clear && d->target==-1) {
             Pool *created;
             created=func_L00_002D70A0(d->b33);
             d->pool=created;
@@ -82,13 +88,12 @@ void func_L01_003D4270(char *m)
             created->s1a=d->b30; created->b1e=d->b31; created->b1f=d->b32; created->b18=d->b46;
             if(d->f40!=-1) created->f34=d->f40;
             if(d->anchor!=-1) {
-                if(d->b49) created->pos=*(Quad *)(ref_L01_003D4270_00+(d->anchor<<7));
-                else {func_00282CF0(pos,D_L01_001B264C+(d->anchor<<7)+0x30,D_00189EA0); created->pos=*(Quad *)(pos);}
+                if(d->b49) created->pos=ref_L01_003D4270_00[d->anchor].q0;
+                else {func_00282CF0(pos,&D_L01_001B264C[0][d->anchor].centre,D_00189EA0); created->pos=*(Quad *)(pos);}
             }
         } else if(active && !d->state && d->target!=-1) {
-            char *camera;
+            char *camera=D_L01_001FE180[d->target];
             *(Quad *)(pos)=*(Quad *)(D_00189EA0); pos[2]+=1.25f;
-            camera=D_L01_001FE180[d->target];
             rot[2]=func_00283248(pos[0]-F(camera,0x10),pos[1]-F(camera,0x14));
             rot[1]=-func_00283248(func_00282E80(camera+0x10,pos),pos[2]-F(camera,0x18)); rot[0]=0;
             func_00335438(D_L01_001B94C0,D_L01_001B94C0+0x10,3,120,0);
@@ -96,20 +101,21 @@ void func_L01_003D4270(char *m)
         } else if(active && d->state) {
             char *camera;
             if(d->state==1 && (func_L01_0042A568()&1)) {d->state=2;func_L01_0042A6F0(1,0);}
-            *(Quad *)(pos)=*(Quad *)(D_00189EA0); pos[2]+=1.25f;
             camera=D_L01_001FE180[d->target];
+            *(Quad *)(pos)=*(Quad *)(D_00189EA0); pos[2]+=1.25f;
             rot[2]=func_00283248(pos[0]-F(camera,0x10),pos[1]-F(camera,0x14));
             rot[1]=-func_00283248(func_00282E80(camera+0x10,pos),pos[2]-F(camera,0x18)); rot[0]=0;
             func_00335370(camera+0x10); func_003353C8(rot);
         } else if(!active && d->state) {func_003355A8(1);d->state=0;}
-        else if(p && d->anchor!=-1) {
-            if(d->b49) p->pos=*(Quad *)(ref_L01_003D4270_00+(d->anchor<<7));
-            else {func_00282CF0(pos,D_L01_001B264C+(d->anchor<<7)+0x30,D_00189EA0);p->pos=*(Quad *)(pos);}
+        else if(d->pool && d->anchor!=-1) {
+            p=d->pool;
+            if(d->b49) p->pos=ref_L01_003D4270_00[d->anchor].q0;
+            else {func_00282CF0(pos,&D_L01_001B264C[0][d->anchor].centre,D_00189EA0);p->pos=*(Quad *)(pos);}
         }
-        p=d->pool;
-        if(p) {
+        if(d->pool) {
+            p=d->pool;
             if(!d->b47 && d->anchor!=-1) {
-                *(Quad *)(pos)=*(Quad *)(ref_L01_003D4270_00+(d->anchor<<7)+0x30);pos[3]=1;
+                qcopy(pos,&ref_L01_003D4270_00[d->anchor].centre);pos[3]=1;
                 if(func_00283DB8(pos,255.0f)!=-1) {
                     d->b47=1;
                     if(d->b45) d->pool->f14=d->f28;
@@ -119,5 +125,5 @@ void func_L01_003D4270(char *m)
             }
             p->f10=d->f2c*0.01745329424738884f;
         }
-    } else {d->b47=0;d->pool=0;d->state=0;B(m,0x30)=255;B(m,0x20)=1;}
+    } else {d->pool=0;d->state=0;d->b47=0;B(m,0x20)=1;B(m,0x30)=255;}
 }
