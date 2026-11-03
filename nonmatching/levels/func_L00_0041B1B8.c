@@ -1,20 +1,25 @@
-/* GPT-6.1 Sol high worker, 29 October 2026: USA v1.01 near miss.
- * Best check: 1656 compiled / 1672 retail bytes, 0/27 placements.
- * Profile: -O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier.
- * Frame 0x2D0 and saved register set now agree. Differences remain in the
- * third packet's initialization, pointer spills/copy setup, loop padding
- * and preservation of the raw preceding index before wrapping it to 34.
- * Retain the contiguous four-vector basis and copy the second layer's own
- * endpoint vertices after drawing: the earlier draft got both wrong.
- * Array packets, separate packets and typed ring/state views tied exactly;
- * an explicit first-point pointer and -g did not close the differences. Explicit
- * qcopy inhibits ordinary decay-constant hoisting; -fmove-all-movables
- * hoists 6.0f as well and adds an unwanted saved FP register. -fno-gcse
- * worsens allocation. Next: explain real pointer and raw-index lifetimes.
- * 0x700024A9/0x70002CA9 are compiler-reachable por clears, not evidence of
- * handwritten assembly. The full declarations needed are included below.
+/* Claude Opus 5.5 (opus-1), 4 November 2026: USA v1.01 near miss.
+ * Best check: 1672 compiled / 1672 retail bytes, 0/27 places; first
+ * difference at +0x254 (cdiff: 126 rows differ, most of them a one-slot shift).
+ * Profile (own unit, e.g. L00_0041ABB8-trail-g8.c):
+ *   -O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
+ * Fixed since the sol-high draft: frame, size, all three packet inits (glow
+ * needs tag[0] = 0 before its colour chain; chained colour stores), the raw
+ * preceding index in $s0 (next = index - 1; if (next < 0) next = 34; plus a
+ * separate index = index - 1 < 0 ? 34 : index - 1), spill-slot order (the loop
+ * counter declared in a scoped block), and the movz/movn wraps.
+ * Still differs: before the first basis call ours reloads &first from its
+ * spill slot (lw $a2,0x230($sp)); retail keeps $a2. The qcopy stores
+ * invalidate reload_cse's spill-slot equivalence, so retail's call-1 argument
+ * is probably a separate sp+0x210 pseudo (deleted as a no-op), while the
+ * spilled copy feeds call 3 and basis[3]. That extra load shifts everything
+ * after it by one slot, which removes retail's loop-alignment nop at 0x41B58C.
+ * Not found yet: the source shape that splits that pseudo. Moving the basis
+ * calls into a static inline helper made it worse (1664 bytes). In an
+ * earlier diff, sched2 also issued lw $a1,0x240 before addiu $a0,$sp,0x90
+ * for streak.v[0] = streak.v[2] (retail has the opposite order).
+ * One declaration initializer (p). The full declarations are included below.
  */
-
 #include "common.h"
 typedef int TI128 __attribute__((mode(TI)));
 typedef union { TI128 q; float f[4]; } TrailVector;
@@ -41,7 +46,7 @@ void func_L00_0041B1B8(char *self, float width)
     /* The vector-transform helper consumes all four consecutive columns. */
     TrailVector basis[4], narrowOffset, wideOffset, first, second;
     TrailState *p = *(TrailState **)(self + 0x68);
-    int index, prev, next, i;
+    int index, next;
     float half;
     if (p->count == 0) return;
     core.tag[1] = ref_L00_0041B1B8_0(10);
@@ -57,8 +62,8 @@ void func_L00_0041B1B8(char *self, float width)
     glow.tag[1] = ref_L00_0041B1B8_0(43);
     glow.tag[2] = 0xFF9000000260LL;
     glow.tag[3] = 0x5000000068LL;
-    glow.color[0] = glow.color[1] = glow.color[2] = glow.color[3] = 0x55103080;
     glow.tag[0] = 0;
+    glow.color[0] = glow.color[1] = glow.color[2] = glow.color[3] = 0x55103080;
     half = width * 0.5f;
     narrowOffset.q = 0;
     narrowOffset.f[3] = 1.0f;
@@ -98,31 +103,34 @@ void func_L00_0041B1B8(char *self, float width)
     ref_L00_0041B1B8_6(&glow.v[1],&glow.v[0],-1.0f);
     ref_L00_0041B1B8_7(&glow.v[0],&glow.v[0],&basis[0]);
     ref_L00_0041B1B8_7(&glow.v[1],&glow.v[1],&basis[0]);
-    for (i = 1; i < p->count; i++) {
-        core.v[2].q = narrowOffset.q; ref_L00_0041B1B8_6(&core.v[3],&core.v[2],-1);
-        glow.v[2].q = wideOffset.q; ref_L00_0041B1B8_6(&glow.v[3],&glow.v[2],-1);
-        prev=index-1;
-        next=prev>=0?prev:34;
-        first.q = D_L00_001B144C[index].position.q;
-        second.q = D_L00_001B144C[next].position.q;
-        ref_L00_0041B1B8_3(&basis[0],&second,&first); ref_L00_0041B1B8_4(&basis[0],&basis[0],1);
-        ref_L00_0041B1B8_3(&basis[1],&D_L00_001B8DC0,&first);
-        ref_L00_0041B1B8_5(&basis[2],&basis[1],&basis[0]); ref_L00_0041B1B8_4(&basis[2],&basis[2],1);
-        ref_L00_0041B1B8_5(&basis[1],&basis[0],&basis[2]); basis[3].q = first.q;
-        ref_L00_0041B1B8_7(&core.v[2],&core.v[2],&basis[0]); ref_L00_0041B1B8_7(&core.v[3],&core.v[3],&basis[0]);
-        ref_L00_0041B1B8_7(&glow.v[2],&glow.v[2],&basis[0]); ref_L00_0041B1B8_7(&glow.v[3],&glow.v[3],&basis[0]);
-        streak.v[2].q = core.v[2].q; streak.v[3].q = core.v[3].q;
-        ref_L00_0041B1B8_8(&core,0,0); ref_L00_0041B1B8_8(&streak,0,0); ref_L00_0041B1B8_8(&glow,0,0);
-        core.v[0].q = core.v[2].q; core.v[1].q = core.v[3].q;
-        /* Each draw may change its packet; advance each layer separately. */
-        streak.v[0].q = streak.v[2].q; streak.v[1].q = streak.v[3].q;
-        glow.v[0].q = glow.v[2].q; glow.v[1].q = glow.v[3].q;
-        index=prev; if(index<0) index=34;
-        width*=0.94f; half*=0.94f;
-        core.color[0]=core.color[2]; core.color[1]=core.color[2];
-        streak.color[0]=streak.color[2]; streak.color[1]=streak.color[2];
-        glow.color[0]=glow.color[2]; glow.color[1]=glow.color[2];
-        narrowOffset.f[2]=ref_L00_0041B1B8_1(half,width); wideOffset.f[2]=narrowOffset.f[2]*6;
+    {
+        int i;
+        for (i = 1; i < p->count; i++) {
+            core.v[2].q = narrowOffset.q; ref_L00_0041B1B8_6(&core.v[3],&core.v[2],-1);
+            glow.v[2].q = wideOffset.q; ref_L00_0041B1B8_6(&glow.v[3],&glow.v[2],-1);
+            next = index - 1;
+            if (next < 0) next = 34;
+            first.q = D_L00_001B144C[index].position.q;
+            second.q = D_L00_001B144C[next].position.q;
+            ref_L00_0041B1B8_3(&basis[0],&second,&first); ref_L00_0041B1B8_4(&basis[0],&basis[0],1);
+            ref_L00_0041B1B8_3(&basis[1],&D_L00_001B8DC0,&first);
+            ref_L00_0041B1B8_5(&basis[2],&basis[1],&basis[0]); ref_L00_0041B1B8_4(&basis[2],&basis[2],1);
+            ref_L00_0041B1B8_5(&basis[1],&basis[0],&basis[2]); basis[3].q = first.q;
+            ref_L00_0041B1B8_7(&core.v[2],&core.v[2],&basis[0]); ref_L00_0041B1B8_7(&core.v[3],&core.v[3],&basis[0]);
+            ref_L00_0041B1B8_7(&glow.v[2],&glow.v[2],&basis[0]); ref_L00_0041B1B8_7(&glow.v[3],&glow.v[3],&basis[0]);
+            streak.v[2].q = core.v[2].q; streak.v[3].q = core.v[3].q;
+            ref_L00_0041B1B8_8(&core,0,0); ref_L00_0041B1B8_8(&streak,0,0); ref_L00_0041B1B8_8(&glow,0,0);
+            core.v[0].q = core.v[2].q; core.v[1].q = core.v[3].q;
+            /* Each draw may change its packet; advance each layer separately. */
+            streak.v[0].q = streak.v[2].q; streak.v[1].q = streak.v[3].q;
+            glow.v[0].q = glow.v[2].q; glow.v[1].q = glow.v[3].q;
+            index = index - 1 < 0 ? 34 : index - 1;
+            width*=0.94f; half*=0.94f;
+            core.color[0] = core.color[1] = core.color[2];
+            streak.color[0] = streak.color[1] = streak.color[2];
+            glow.color[0] = glow.color[1] = glow.color[2];
+            narrowOffset.f[2]=ref_L00_0041B1B8_1(half,width); wideOffset.f[2]=narrowOffset.f[2]*6;
+        }
     }
     basis[3].q = second.q;
     ref_L00_0041B1B8_7(&core.v[2],&core.v[2],&basis[0]); ref_L00_0041B1B8_7(&core.v[3],&core.v[3],&basis[0]);
