@@ -1,24 +1,18 @@
-/* Tier: sol-high (task v1231), USA v1.01 game profile -O2 -G8 -ffunction-sections.
- * Retained check.py result: 1708 bytes versus 1700; 0 of 5 places match.
- * A scalar/untyped variant reached 1700 bytes but had worse packet allocation.
- * Compared with the earlier 1772-byte draft, this retains measured 0x1190-byte
- * grid records and two contiguous five-word GS alpha-state views. Explicit
- * small-data views preserve their full 20-byte extents. Splitting the two
- * packed-alpha accumulators restores the retail v0/v1/a0/a1 packet sequence.
- * Calling FloatToInt inside the branches restores the retail shared-call tail.
- * Still different: 1024.0f is hoisted before the blend call; early UV products,
- * the s5/s6 corner-loop allocation and its delay slot differ. The alpha add
- * sinks into a branch slot, leaving a two-instruction cursor store where
- * retail has a GP store, and the tile loop gains one alignment nop.
- * Countdown/index/pointer corner loops tie; separate alpha-result locals and
- * cursor byte/word increments tie. -fno-strict-aliasing did not fix the packet.
- * Next useful experiment: establish the original packet-cursor/GS field views
- * and UV update grouping. No linked build was run; placement symbols remain
- * unvalidated. All required declarations are below.
- *
- * closer D, 1 November 2026: all 240 orders of the uv statements stay at 74-78. 1024.0f (insn 1227) is ready at
- * t=1 of the block and, at priority 2, passes the blend call in sched1; retail issues it first after
- * func_00283D38. A do/while(0) barrier is worse (114), so this is not a block or loop-note boundary.
+/* Tier: opus-1 (task v2352), USA v1.01 game profile -O2 -G8 -ffunction-sections (built as a separate *-g8.c unit).
+ * check.py: 1700 bytes versus 1700; 0 of 5 places match; first difference at +0xac (the blend call).
+ * Fixed since the 1708-byte sol-high draft: reading pos->reverse into a local before the packet cursor's
+ * += 16 lets the cursor store fill the beqz delay slot as a gp store (size 1700, no alignment nop); RAC1's
+ * corners[j] index form restores retail's addiu s3 / counter order after the first corner-loop call.
+ * Still different: (1) retail moves nothing from after func_002A7798 (blend) above it: i+1 (addiu s0) and
+ * the hoisted 1024.0f stay after it, and 1024.0f follows func_00283D38. A loop-note barrier right after the
+ * call (do{}while(0) probe, not allowed) reproduces this (126 -> 123 differing rows), so retail likely has a
+ * block or loop-note boundary there; calling it inside the reverse arms changes the select instead.
+ * (2) UV product/store order. (3) corner loop swaps s5/s6: global priority near_bits 4*20/330 = 2424 loses
+ * to the j counter 3*11/130 = 2538; near_bits = 0 issues about 14 insns earlier than in retail (live <= 315
+ * would flip it); splitting `near_bits <<= 8;` flips j but moves near_bits to s4. (4) the non-reverse
+ * twice >= 1.0f arm puts constant 2 in v0 where retail uses v1.
+ * Earlier (sol-high closer D, 1 Nov): all 240 orders of the uv statements stayed close.
+ * All required declarations are below. No linked build was run; placement symbols remain unvalidated.
  */
 #include "common.h"
 /* Adapted from RAC1 render_water_grids, GPL-3.0, with RAC2 blend/GS setup. */
@@ -71,11 +65,10 @@ void func_L04_003A21F8(WaterGrid *pos, s32 count) {
     f32 x_offset, y_offset, x_end, y_end, z;
     float blend, twice, alpha, v, upper, lower, interpolated_alpha;
     float fade, scroll0, scroll1, uv;
-    f32 (*corner)[4];
     u64 state0, state1;
     u32 near_bits, far_bits;
     s32 mask;
-    s32 i, j, mode;
+    s32 i, j, mode, reverse;
     s32 height_index, index, alpha_index;
     f32 *height;
     u64 *data;
@@ -124,8 +117,8 @@ void func_L04_003A21F8(WaterGrid *pos, s32 count) {
         corners[3][3] = 1.0f;
         near_bits = 0;
         far_bits = 0;
-        for (j = 0, corner = corners; j < 4; j++, corner++) {
-            func_00282CF0(near_clip, *corner, D_L04_001B9680);
+        for (j = 0; j < 4; j++) {
+            func_00282CF0(near_clip, corners[j], D_L04_001B9680);
             func_00282D30(far_clip, near_clip, 1024.0f);
             func_00282D30(near_clip, near_clip, 1024.0f);
             func_002830C0(far_clip, far_clip, D_L04_001B9680 - 0x80);
@@ -175,8 +168,9 @@ void func_L04_003A21F8(WaterGrid *pos, s32 count) {
         D_L04_001B2C48.words[1] = 0;
         D_L04_001B2C48.words[2] = 0x11000000;
         D_L04_001B2C48.words[3] = 0x50000005;
+        reverse = pos->reverse;
         D_L04_001B2C48.bytes += 16;
-        if (pos->reverse) {
+        if (reverse) {
             if (twice<=1.0f) { ref_L04_003A21F8_01.b=1; ref_L04_003A21F8_01.alpha=func_00283CF0(lower*70.0f); }
             else { ref_L04_003A21F8_01.b=2; ref_L04_003A21F8_01.alpha=func_00283CF0(upper*170.5f); }
         } else if (twice>=1.0f) { ref_L04_003A21F8_01.b=2; ref_L04_003A21F8_01.alpha=func_00283CF0(upper*170.0f); }
