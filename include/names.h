@@ -211,6 +211,7 @@
 #define SetPalMode                       func_0027B440
 #define PredictMineImpact                func_L00_003AE550
 #define FontPrintWindow                  func_0027FC70
+#define draw_nanotech_ball               func_003146C0
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20

@@ -1,31 +1,12 @@
-/* functional: high. Near-miss draft within a few instructions of retail: differences are register allocation, scheduling and instruction shape. */
-/* Closer B, 2026-11-01: MACRO_ADDR on D_001B24C0 fixes both call setups: 1588/1588, 4 words, the s1/s2 swap
- * of the v and u iterators. Allocno priorities: v 14 refs over 42 insns, u 14 over 41, so u wins; retail
- * needs v first, with v still read first (swapping the sets also swaps which address gets the spill).
- * Ties: declaration order, increment order, v++ pairs, a scoped pointer copy for the second store.
- */
-/* Tier: sol-high, task v1099.
- * Best: 1588/1588 bytes, 0/28 USA v1.01 places; first difference +0x108.
- * Profile: -O2 -G8 -ffunction-sections -g (current pinned toolchain).
- * Fifteen instruction words differ outside relocation fields: +0x108, +0x110,
- * +0x118, +0x140, +0x144, +0x148, +0x14C, +0x518, +0x520, +0x598,
- * +0x59C, +0x5A4, +0x5B4, +0x5C0, +0x5C8. These are call setup for the
- * second func_002B00D8/center add and swapped s1/s2 UV iterators.
- * Improvements over the earlier draft: sequential texture[3] |= expressions
- * recover GS packing without the unavailable no-reduce-tree-depth option;
- * separate color branches recover color-store order and sphere allocation.
- * A distinct surface_owner reused for the class test recovers qcopy operands;
- * UV bases formed inside the loop recover spill slots; SDATA names the actual
- * GP-relative index array. All declarations required are retained below.
- * Tied: typed Moby fields, a position temporary, two FP argument interleavings,
- * a displacement temporary and UV declaration order. Repeated center setup in
- * both state branches grows to 1668 bytes; indexed UVs shrink to 1568 bytes.
- * Next: evidence for a different center-copy expression or UV pointer lifetime.
- * No linked build attempted. Adapted from RAC1 draw_nanotech_ball (GPL-3.0).
- */
 #include "common.h"
-typedef struct { float x,y,z; } BallVec3;
-typedef struct { u32 points[4][4]; u32 colors[4]; float texcoords[8]; u64 texture[4]; } __attribute__((aligned(16))) BallQuad;
+
+typedef struct { float x, y, z; } BallVec3;
+typedef struct {
+    u32 points[4][4];
+    u32 colors[4];
+    float texcoords[8];
+    u64 texture[4];
+} __attribute__((aligned(16))) BallQuad;
 extern float D_001AF12C __attribute__((sda));
 extern float D_001AF250 __attribute__((sda));
 extern float D_001AF260 __attribute__((sda));
@@ -83,7 +64,6 @@ void func_003146C0(unsigned char *moby) {
     char *env_corners;
     char *outer, *inner;
     float *u, *v;
-    float *v_base, *u_base;
 
     quad.texture[1] = func_0027C878(D_001AF244);
     quad.texture[2] = 0xff9000000260ULL;
@@ -95,9 +75,9 @@ void func_003146C0(unsigned char *moby) {
     quad.texture[0] = 0;
     func_002FC560(0x47, 0x53001);
     if (moby[0x20] == 1) {
-        unsigned char *owner = *(unsigned char **)(moby + 0xB8);
-        qcopy(moby + 0x10, owner + 0x10);
-        qcopy(vars + 0x10, owner + 0x10);
+        unsigned char *parent = *(unsigned char **)(moby + 0xB8);
+        qcopy(moby + 0x10, parent + 0x10);
+        qcopy(vars + 0x10, parent + 0x10);
         func_002B00D8(moby + 0x10, vars + 0x10, vars + 0x10, -0.5f);
     }
     forward = basis;
@@ -140,14 +120,9 @@ void func_003146C0(unsigned char *moby) {
             sphere_colors[j] = quad.colors[0];
         }
     }
-    func_00281810(0x94, D_00229C70,
-                                sphere_colors, D_00267AF0, 1);
-    func_00281810(0x6d, D_00229C70 + 0x6d8,
-                                sphere_colors + 0x92,
-                                D_00267AF0 + 0x490, 1);
-    func_00281810(0x24, D_00229C70 + 0xbe8,
-                                sphere_colors + 0xFE,
-                                D_00267AF0 + 0x7f0, 1);
+    func_00281810(0x94, D_00229C70, sphere_colors, D_00267AF0, 1);
+    func_00281810(0x6d, D_00229C70 + 0x6d8, sphere_colors + 0x92, D_00267AF0 + 0x490, 1);
+    func_00281810(0x24, D_00229C70 + 0xbe8, sphere_colors + 0xFE, D_00267AF0 + 0x7f0, 1);
     quad.texture[1] = func_0027C878(0xb);
     quad.texture[3] = 0x8000000048ULL;
     color = func_00283CF0(pulse * 64.0f + 128.0f);
@@ -187,7 +162,7 @@ void func_003146C0(unsigned char *moby) {
         quad.texcoords[7] = 1.0f;
         func_00280B90(&quad, basis, 0);
     }
-    if (func_00312E10((u8 *)moby)) {
+    if (func_00312E10(moby)) {
         unsigned char *surface_owner;
         quad.texture[1] = func_0027C878(D_001AF25C);
         quad.colors[3] = 0x107f7f7f;
@@ -208,14 +183,16 @@ void func_003146C0(unsigned char *moby) {
             env_corners = D_00268C10;
         else
             env_corners = D_00268B10;
+        /* Taking the first texcoord's address before the loop makes gcse insert its
+         * base ahead of the second one's (retail's preheader and stack-slot order). */
+        v = &quad.texcoords[0];
         for (i = 0; i < 4; i++) {
-            v = &quad.texcoords[0];
             u = &quad.texcoords[1];
+            v = &quad.texcoords[0];
             row = (short *)(i * 8 + (u32)rows);
             corner = (char *)quad.points;
             for (j = 3; j >= 0; j--) {
-                func_002830C0(corner, env_corners + (*row++) * 16,
-                                       basis);
+                func_002830C0(corner, env_corners + (*row++) * 16, basis);
                 func_00282CF0(view_dir, corner, D_001B5340);
                 corner += 16;
                 view_dir[1] = view_dir[2];
