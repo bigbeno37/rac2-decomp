@@ -1,3 +1,19 @@
+/* 4 November 2026, Opus 5.5 xhigh (opus-2), task v2338, on v2/c02 (upstream + #348):
+ * best rule-compliant result unchanged: 140/140 bytes, 0 of 28 places, 16 of 35 cdiff rows (the
+ * plain C below, or the file's own `extern float D_001B23A4[] __attribute__((sda));`, which already
+ * gives retail's `lui $at,0x1B; lwc1 $f0,0x23A4($at)`). The wrapper form noted below is still
+ * 28 of 28 here. Its sched1 table shows what any legal construct has to reproduce: `a0 = 0x2D4F`
+ * must not issue at t=4 next to the D_001B23A4 load (that interleave alone swaps $f1/$f2), and
+ * must wait for the fix's result (t=16), so `a1 = y` is ready as soon as func_00288FB8 returns.
+ * Pass order in this cc1: sched1, reload, flow2, peephole2, sched2, and only then jump2
+ * (cross-jump), so any label that survives to sched1 leaves no word. But the only values live
+ * there are y and the text pointer (func_0027C540, func_0029C530 and func_0027C660 are void
+ * in C), and no natural test on them has arms that compile alike.
+ * Also measured: y inside the argument list (same bytes); an inline
+ * draw_centered_text(x, y, id) wrapper (same bytes); `scale = 329.0f;` without the wrapper (same
+ * bytes); its own unit with -fno-schedule-insns (worse: 18 rows, moves in expand order
+ * a0, a2, a1, a3, t0). Lands only if maintainers accept the macro-shaped do { } while (0).
+ */
 /* 3 November 2026, Opus 5.5 xhigh (opus-1), task v2126, on v2/c04 (upstream + #348):
  * best rule-compliant result unchanged: 140/140 bytes, 0 of 28 places (the plain C below).
  * The wrapper form is still exact here, 28 of 28 (cdiff.py): with the file's own
