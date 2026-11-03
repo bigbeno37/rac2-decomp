@@ -1,22 +1,21 @@
 /*
- * Tier: GPT-6.1 Sol, high effort; USA v1.01 game compiler, -O2 -G8
- * -ffunction-sections (a filename ending in -g8.c supplies the -G8 profile).
- * Best check.py: 1448/1476 bytes, 0/27 places match; nine checks this task.
- * Frame size 0x110 and vector/list/count/timer offsets match. Saved-register
- * allocation, initial loop guard, reaction-state branching and scheduling differ.
- * Typed resident-global fields recover the retained high-half base register.
- * Byte-offset macros must cast to char *: the earlier draft's F(out,8) read
- * offset 0x20 of an int array instead of its actual vector z at offset 8.
- * Interleaved integer/FP arguments preserve the callee's physical EE interface
- * and reproduce the query call's f16-before-t2 ordering.
- * Three reaction-condition wordings (mixed signedness, separate goto conditions,
- * and an explicit local byte value) emitted identical code in the 1440-byte
- * qcopy_nc variant; stopped that line of investigation on the tie.
- * TImode qcopy/barrier variants were 1432 bytes; moving index initialization
- * before the calls lost the correct frame size. No linked check for this body.
- * Next useful experiment: recover typed component/state access and real loop
- * induction structure to retain separate comparisons and the two constant
- * registers (retail saves fp and holds reaction states 1 and 2 across calls).
+ * Tier: Claude Opus 5.5, xhigh effort; USA v1.01 game compiler, -O2 -G8
+ * -ffunction-sections (put it in a file ending in -g8.c for the -G8 profile).
+ * Best check.py: 1468/1476 bytes, 0/27 places (about 15 compiles this task).
+ * Matches now: D_L00_00262570 read as a 0xe0-byte struct array (mult/addu/lwc1
+ * 0x54); one list[i] load per use via qcopy_nc in the loop; active=1 after
+ * the query call; reaction test (p && st==1) || st==2 gives retail's beqz p /
+ * lbu-in-slot / beql / andi 0xff / bne; constants 7/2/1 held in saved regs.
+ * Missing 8 bytes:
+ *  1. Loop guard: retail tests a separate zero register (s1, set before the
+ *     three calls: slt s1,s1,v0; beqz) while the counter is s6=0 in a jal
+ *     slot. Here one i=0 is shared and combine folds the guard into blez.
+ *     A second zero local (n=0) keeps the guard on n through cse1/gcse/loop,
+ *     but gcse cprop turns its later uses into 0, so cse2 makes i canonical
+ *     again (make_regs_eqv last-use rule) and the fold returns.
+ *  2. Retail has a nop between lwc1 $f0,0x54 and div.s. gcc only prints
+ *     #nop comments, so this nop comes from the assembler; the cause is unknown.
+ * Saved registers also differ: retail o=s4, q=s3, o+16=s5, plus prologue order.
  * All required declarations follow.
  */
 #include "common.h"
@@ -51,7 +50,7 @@ extern int D_L00_001A8F00 __attribute__((nosda));
 extern int D_00138324 __attribute__((nosda));
 extern int D_L00_001B0F90 __attribute__((sda));
 extern unsigned char D_00139593 __attribute__((nosda));
-extern char D_L00_00262570[];
+extern struct { char pad[0x54]; float f54; char pad58[0xe0-0x58]; } D_L00_00262570[];
 extern float D_L00_0025C64C __attribute__((nosda));
 extern char D_L00_0029FBE0[];
 extern char D_L00_001B8FF0[];
@@ -90,7 +89,7 @@ void func_L00_00408E58(char *o)
             B(o,32)=2;
             I(q,4)=D_L00_001B0F90;
         } else func_002E5CF8(4,0,o);
-        F(q,0)=1.0f/F(D_L00_00262570+D_00139593*224,0x54);
+        F(q,0)=1.0f/D_L00_00262570[D_00139593].f54;
     } else if(B(o,32)==2) {
         if(func_00282948(q+16)) { B(o,32)=4; I(q,16)=30; I(q,20)=0; }
         if(I(q,16)==10) {
@@ -114,16 +113,18 @@ void func_L00_00408E58(char *o)
             func_002A75E0(o,4,0,3,0);
         } else func_002E6EF8(func_L00_00409480,o);
     } else if(B(o,32)==3) {
+        i=0;
         qcopy(v,D_L00_001B8FF0);
         timer=(int *)(q+4);
         func_00282A88(list,128);
         func_L00_0037E000(o);
         func_002AF580(o+16,v,&count,list,32,0,3.1415929794311523f,1.047197699546814f,40.0f,0.0f,0.0f,0,0);
-        for(i=0;i<count;i++) {
+        for(;i<count;i++) {
             char *p;
-            int active=1;
-            qcopy(out,list[i]+16);
+            int active;
+            qcopy_nc(out,list[i]+16);
             p=func_002AB1F0(list[i]);
+            active=1;
             if(p) {
                 F(out,8)+=F(p,16)*1.5f;
                 if(F(p,0)>100.0f) active=0;
@@ -134,7 +135,7 @@ void func_L00_00408E58(char *o)
                 if(*(short *)(list[i]+0xaa)==0x1002) B(list[i],32)=7;
             }
             if(active) {
-                if(p && ((unsigned int)(B(p,14)-1)<2)) {
+                if((p && B(p,14)==1) || B(p,14)==2) {
                     func_L00_00416F68(out,0,0);
                     I(q,28)++;
                     func_002A6C58(list[i],0,3);
