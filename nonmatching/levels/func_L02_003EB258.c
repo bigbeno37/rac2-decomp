@@ -1,16 +1,20 @@
-/* GPT-6.1 Sol (high), 2026-10-29: 1004/1004 bytes, 0/1 USA v1.01 places.
- * Profile: -O2 -g -mno-split-addresses -G8 -ffunction-sections
- * -frac2-qcopy -frac2-qcopy-barrier. Frame 0x230 matches retail.
- * A real two-float struct assignment reproduces the unaligned blend copy;
- * distinct source UV columns retain the scalar accesses and address classes.
- * Direct UV indexing avoids long-lived source pointers. Independent phase
- * indices, whole-packet byte cursors and step + -1.0f recover the loop shape.
- * Remaining: four initial spill slots, $s7/$fp exchanged between source-V and
- * destination-U cursors, and the vertex-loop increment schedule. First mismatch
- * +0x6C. A UVColumn struct ties; a single source table loses the absolute V base;
- * an explicit destination-UV pointer gives 972 bytes/frame0x220 and is worse.
- * Next: destination-U, normal and matrix pointer ownership/allocation order.
- * Declarations required are included below. No linked build.
+/* Claude Opus 5.5 (xhigh), 2026-11-03, task v2261: 1004/1004 bytes, 0/1 USA v1.01 places,
+ * 16 differing instructions (was 23). Profile (own unit, e.g. L02_003EB258-g8.c):
+ * -O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -mno-split-addresses -g
+ * (-g is needed: without it 996 bytes; -mno-split-addresses makes no difference here).
+ * New: `vertex += 16, i++` (pointer before index) fixes the vertex-loop increment schedule.
+ * Remaining, both allocation only:
+ * 1. Entry spill slots: retail 0x198..0x1A4 = sp+0x50, +0x140, +0x150, +0x180; ours put sp+0x50
+ *    last. These are gcse PRE reaching regs (numbered in bucket order); raw hash of (plus fp C) =
+ *    14030+C, table 103 buckets here. Only 111 buckets (max_cuid 220..223, about 16 more insns at
+ *    gcse than this C) gives retail's order; 105/107 do not, so five declaration inits cannot fix it.
+ * 2. $s7/$fp: V-source cursor (la D_L02_001B0D6C) gets $fp, destination-U cursor (sp+0x50) $s7.
+ *    The V cursor's init has a REG_EQUAL constant, so update_equiv_regs doubles its live length
+ *    (99 -> 198): priority 27/198 = 1363 < U-dest 14/102 = 1372. Retail order needs U-dest live
+ *    exactly 103 (1359, still above the spilled V-dest giv 1346), i.e. its sched1 copy one insn
+ *    earlier. Moving step/normal/vertex inits, or U/V statement order, does not help (V first is worse).
+ * Both point to a source with more gcse-time insns around the vertex loop (inline helper?).
+ * Indexed packet[k].vertex[i] form: 1116 bytes, frame 0x240 (worse). No linked build.
  */
 #include "common.h"
 typedef int Quad __attribute__((mode(TI)));
@@ -59,7 +63,7 @@ void func_L02_003EB258(char *actor) {
     *(Quad *)normal = 0;
     normal[3] = 1.0f;
     step = 2.0f / (float)count;
-    for (i = 0, vertex = (char *)&packet; i < 4; i++, vertex += 16) {
+    for (i = 0, vertex = (char *)&packet; i < 4; vertex += 16, i++) {
         packet[0].uv[i][0] = D_L02_001B0D68[i][0];
         packet[0].uv[i][1] = D_L02_001B0D6C[i][0];
         packet[1].uv[i][0] = D_L02_001B0D68[i+4][0] + *(float *)(state + 0x18);
