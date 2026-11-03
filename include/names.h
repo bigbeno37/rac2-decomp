@@ -927,5 +927,6 @@
 #define UpdateWeatherParticles           func_L01_00399510
 #define UpdateBouncingExplosive          func_L00_003F4210
 #define UpdateShipWeapons                func_L05_00443D08
+#define MeshDrawFourSigns                func_L00_003B4560
 
 #endif /* NAMES_H */
