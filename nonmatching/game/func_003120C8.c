@@ -1,29 +1,18 @@
-/* Tier: sol-high, task v1032. USA v1.01, all 28 placements.
- * Best check.py: 1324 bytes / expected 1328; 0 of 28 places match.
- * Profile: -O2 -G8 -ffunction-sections -frac2-keep-block-order.
- * First mismatch +0x12C: a branch targets the redundant iterator move instead
- * of the following instruction. At +0x2CC retail has beql and a GP score load
- * into v0; this draft uses beq and v1. Retail's absolute score path loads v0
- * then copies to v1; this draft loads directly to v1, omitting four bytes.
- * That missing move accounts for the remaining size difference and shifts the
- * rest of the function. The type dispatch, particle argument setup, data
- * allocation and subsequent relative instruction sequence are now reproduced.
- * keep-block-order plus an opening switch/default goto fixes the first dispatch.
- * The inner switch needs case 3: adjacent to default:. qzero_nc fixes data to
- * s3 and scratch to s2. NOT_SDA on D_0018C0B0 fixes the hero-pointer load.
- * A truthful FP-first tail on func_002B0A68 keeps GP/FP bank order and moves 255
- * into the delay slot. Snapshotting type before updating the counter fixes the
- * load/store schedule. GP/absolute score views bind to the same canonical int.
- * gcse-unsplit-edges, strict-aliasing, -g, int/long score and assignment-in-test
- * do not close the score join. fno-gcse worsens to 1296 bytes on this new source.
- * Next: explain the score-join copy and branch-likely using allocator evidence.
- * All required declarations are below. No linked build was run.
+/*
+ * func_003120C8 - tier opus-1 (v2267). Best check.py: 1328/1328 bytes, 0/28 places; the only
+ * difference is one branch offset at +0x12C (beqz on data->0xA4 lands on the join's
+ * `daddu a1,s1` instead of just past it; retail stole it into the delay slot from the target).
+ * Build: own file with `-O2 -G8 -ffunction-sections -frac2-keep-block-order`.
+ * Declarations: plain externs D_001B1688/D_001B24AC/D_001B24B0/D_001B1A80 (macro loads; read
+ * D_001B1A80 in each test for retail's PRE copy + gp beql slot), D_001AF0F8/D_001AF0FC with
+ * __attribute__((sda)), D_0018C0B0 NOT_SDA, the prototypes below.
+ * Still differs: reorg fills the beqz from the fall-through (EQ test -> mostly_true_jump 0);
+ * retail behaves as if predicted taken (steal p=self from target, merge the arm duplicate).
+ * Writing p=self in an else arm fixes the branch, but sched2 then hoists the arm's copy.
  */
 #include "common.h"
 extern int D_001B1688, D_001B24AC, D_001B24B0;
-extern int D_001B1A80 NOT_SDA;
 extern int D_001B1A80;
-#define rewardScoreGP D_001B1A80
 extern int D_001AF0F8 __attribute__((sda)),D_001AF0FC __attribute__((sda));
 extern char *D_0018C0B0 NOT_SDA;
 extern char *D_001AD7EC;
@@ -44,7 +33,7 @@ void func_003120C8(unsigned char *self,int effect,unsigned char *source)
 {
     float position[4],direction[4],velocity[4];
     unsigned char *data=PTR(self,0x68),*p;
-    int i,amount,kind,score;
+    int i,amount,kind;
     if(func_00282C30(D_001B1688-D_001B24AC)>=2) {
         switch (*(short *)(self+0xAA)) {
         case 0x1FA: func_002E5DA0(0,0,self,0x1F4); break;
@@ -77,20 +66,14 @@ death_sound_done:
     if(source) qcopy(direction,source+0x10);
     else func_00282CF0(direction,self+0x10,D_0018C0B0+0x10);
     if(func_00282C30(D_001B1688-D_001AF0F8)>=241) {D_001AF0FC=0;D_001AF0F8=D_001B1688;}
-    else {
-        if(D_001B1688 == D_001AF0F8) {
-            score = rewardScoreGP;
-            goto choose_amount;
-        }
+    else if(D_001B1688 != D_001AF0F8) {
         func_002AA340(&D_001AF0FC,0,func_00282C30(D_001B1688-D_001AF0F8)>>2);
         D_001AF0F8=D_001B1688;
     }
-    score=D_001B1A80;
-choose_amount:
-    if(score>=251 && D_001AF0FC<5) amount=4;
-    else if(score>=201 && D_001AF0FC<10) amount=3;
-    else if(score>=151 && D_001AF0FC<15) amount=2;
-    else amount=score>=101 && D_001AF0FC<20;
+    if(D_001B1A80>=251 && D_001AF0FC<5) amount=4;
+    else if(D_001B1A80>=201 && D_001AF0FC<10) amount=3;
+    else if(D_001B1A80>=151 && D_001AF0FC<15) amount=2;
+    else amount=D_001B1A80>=101 && D_001AF0FC<20;
     if(amount) {
         int type;
         kind=0;
