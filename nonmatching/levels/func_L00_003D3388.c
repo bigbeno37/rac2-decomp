@@ -8,6 +8,15 @@
  * Indexed, pointer-index-first and integer-address-index-first wordings tied;
  * see docs/MATCHING-BLOCKERS.md section 28. Reopen with new layout evidence.
  * All needed declarations are included below. No linked build was run.
+ * opus-1, 2026-11-03 (v2314), no closer: D_L00_00247300 is D_L00_00247310 - 16
+ * (one 6x5 point table; "247300[i][j]" is the previous point [i][j - 1]).
+ * One symbol with [j - 1] gives retail's offset-first addu at all three sites,
+ * but cse2 relates la(sym-16) and la(sym) and drops retail's second lui/addiu
+ * (197 rows). [j + -1] keeps both la's (non-canonical 0xFFFFFFF0 offset) but
+ * expands as i*80 + (j*16 + la), base first again (the same 3 addu). Also tied
+ * or worse: &D[i][j] - 1, (&D[i][j])[-1], D[i] + (j - 1), unsigned j,
+ * struct { pts[5]; } rows, flat &D_L00_00247300[i * 5 + j] (+80 bytes).
+ * Wanted: (i*80 + la(sym-16)) + j*16 with an offset cse cannot relate.
  */
 #include "common.h"
 typedef int ArcQuad __attribute__((mode(TI)));
