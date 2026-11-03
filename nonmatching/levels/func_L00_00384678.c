@@ -1,35 +1,30 @@
-/* 2 November 2026:
- * func_L00_00384D40 returns its allocated object pointer. Correct that ignored return
- * declaration from the matched callee. The current qualified profile still emits 1448/1448
- * bytes, 0/27 US placements; table HIGH reuse, copied-pointer allocation and FP constant
- * ordering remain. No complete match.
- */
-/* GPT-6.1 Sol high, v1127, USA v1.01: 1448/1448 bytes, 0/27 places.
- * Profile: -O2 -G8 -ffunction-sections -frac2-zero-ti-por
+/* 3 November 2026, Claude Opus 5.5 (opus-1), v2286, USA v1.01:
+ * 1448/1448 bytes, 0/27 places, 60 of 362 side-by-side rows differ (155 in
+ * the incoming draft; relocations included); first rejected insn +0xA4.
+ * Profile: file named *-g8.c, -O2 -G8 -ffunction-sections -frac2-zero-ti-por
  *          -frac2-qcopy -frac2-qcopy-barrier -g -frac2-gcse-unsplit-edges.
- * Sixteen check.py trials and one regalloc.py inspection (two diagnostic
- * compiles). The retained draft has 155 differing side-by-side lines,
- * versus 338 in the incoming 1452-byte draft; relocated addresses/calls
- * are included in those counts. The first rejected instruction is +0x9C.
- * The 0xC0 frame, saved registers and vector-pointer spills at 0x40/0x44
- * now agree. Direct array/union addresses let the compiler split vector
- * pointer lifetimes; separate scan/reset/main/final counters recover the
- * loop allocations. SDATA gives the two measured GP-relative vectors.
- * Unsplit GCSE edges recover the initial scan's branch/layout; an explicit
- * lower clamp bound keeps the third FP constant live across the last loop.
- * Remaining: table HIGH is retained in s0 across early calls, instead of
- * using a3 then rebuilding it; this changes timer/copy registers and loop
- * setup. The last loop assigns zero/half to f22/f21 instead of f21/f22,
- * and por/float materialization and the scalar store/table load exchange
- * order. Ordinary TI copy and qcopy/qcopy_nc do not resolve the HIGH reuse.
- * Disabling GCSE, rerun-CSE, or CSE branch following did not improve it.
- * Explicit half initialization hoisted two extra FP constants. Rewriting
- * the lower assignment and using an aligned-array TI clear tied this draft.
- * Reopen on independently supported address/constant lifetime evidence.
- * The signed 32-bit mask prototype follows retail's sign-extended -1;
- * the matched callee consumes only its low 32 bits in the mask operation.
- * All required declarations and measured partial layouts follow below.
- * 0x700014A9 is por v0,zero,zero: it is not handwritten-code evidence.
+ * Indexing all four table loops (D_L00_00232A60[i], no tile pointers) fixes
+ * the table HIGH reuse: loop.c strength reduction builds each giv start after
+ * gcse, so every loop gets the fresh lui/addiu that retail has.
+ * Remaining:
+ *  1. s0/s1 swap of the gp vector address PRE copy versus &st->timer: gcse
+ *     numbers reaching regs in hash-bucket order (bucket = hash % ((max_cuid/2)|1),
+ *     table size 165 here); a size of 161/167/171, or a priority change, would
+ *     put the gp-address pseudo first.
+ *  2. Final loop: retail hoists 0.5 -> f22 and the clamp zero -> f21 (compare
+ *     `c.lt.s $f12,$f21`, but `t = 0` stays `mtc1 $zero,$f12`), so the zero is a
+ *     loop.c-hoisted temp moved after 0.5 in loop pass 2. This draft uses the
+ *     `lower` user var instead, which gives f21/f22 swapped. With a literal
+ *     `t < 0.0f` the zero (life 1, savings 1) is "not desirable": the measured
+ *     pass-2 threshold T is 60 or 61 (62 - 3 per move does not fit), so after
+ *     the 0.5 hoist the pass-2 loop must count <= 57-58 insns. The index loop
+ *     counts 60: a flow (use (const_int 0)) nop after the last call (it is
+ *     followed by the continue label) and the pre-dbra slt exit test are the
+ *     only invisible insns. Reading flags into an int local drops the HImode
+ *     zero_extend (61 -> 60); a pointer + count-down loop reaches 59 but brings
+ *     back HIGH reuse (176 rows). Neither hoists the zero.
+ * Reopen with a construct that removes 2-3 RTL insns from the final loop
+ * without changing its asm, or that lengthens the zero temp's life.
  */
 #include "common.h"
 
@@ -89,8 +84,6 @@ void func_L00_00384678(char *obj)
     float vc[4] __attribute__((aligned(16)));
     int all, i, hit, pick;
     int scan, remaining, count;
-    char **reset;
-    char **tile;
     float t, lower;
 
     st = *(Board_384678 **)(obj + 0x68);
@@ -109,10 +102,10 @@ void func_L00_00384678(char *obj)
         st->timer = 0x2D;
         st->drop = 0.5f;
         st->rounds++;
-        for (reset = D_L00_00232A60, remaining = 23; remaining >= 0; remaining--, reset++) {
-            ((Tile_384678 *)*reset)->flags &= ~0x41;
-            ((Tile_384678 *)*reset)->flags |= 0x1000;
-            *(s32 *)(*reset + 0x98) = *(s32 *)(((Tile_384678 *)*reset)->cls + 0x10);
+        for (remaining = 0; remaining < 24; remaining++) {
+            ((Tile_384678 *)D_L00_00232A60[remaining])->flags &= ~0x41;
+            ((Tile_384678 *)D_L00_00232A60[remaining])->flags |= 0x1000;
+            *(s32 *)(D_L00_00232A60[remaining] + 0x98) = *(s32 *)(((Tile_384678 *)D_L00_00232A60[remaining])->cls + 0x10);
         }
     }
     if (st->timer != 0 && st->timer % 5 == 0)
@@ -130,36 +123,36 @@ void func_L00_00384678(char *obj)
         st->sway = D_L00_001AEE04 * 0.016666668f;
 
     hit = 0;
-    for (tile = D_L00_00232A60, i = 0; i < 24; i++, tile++) {
+    for (i = 0; i < 24; i++) {
         func_00282D30(va.f, D_L00_001AEDF0, (float)(i / 8));
         func_00282D30(vb, D_L00_001AEDE0, (float)(i % 8));
         func_00282CC0(va.f, va.f, vb);
         func_00282CC0(va.f, va.f, base);
-        func_00283098((*tile) + 0x10, va.f, D_L00_001B8DC0 + 0x230);
-        func_00282CC0((*tile) + 0x10, (*tile) + 0x10, D_L00_001B8DC0);
-        *(float *)((*tile) + 0x2C) = *(float *)(((Tile_384678 *)*tile)->cls + 0x24) * D_L00_001AED60;
-        if ((((Tile_384678 *)*tile)->flags ^ 1) & 1) {
+        func_00283098(D_L00_00232A60[i] + 0x10, va.f, D_L00_001B8DC0 + 0x230);
+        func_00282CC0(D_L00_00232A60[i] + 0x10, D_L00_00232A60[i] + 0x10, D_L00_001B8DC0);
+        *(float *)(D_L00_00232A60[i] + 0x2C) = *(float *)(((Tile_384678 *)D_L00_00232A60[i])->cls + 0x24) * D_L00_001AED60;
+        if ((((Tile_384678 *)D_L00_00232A60[i])->flags ^ 1) & 1) {
             hit++;
-            if (func_002A9640(*tile, -1, 0)) {
+            if (func_002A9640(D_L00_00232A60[i], -1, 0)) {
                 if (!func_002A77E0(3))
-                    func_002E5CF8(0, 0, *tile);
-                ((Tile_384678 *)*tile)->flags |= 0x41;
-                ((Tile_384678 *)*tile)->flags &= 0xEFFF;
-                *(s32 *)((*tile) + 0x98) = 0;
-                *(u8 *)((*tile) + 0xA8) = 0xFF;
-                func_00282F20(vc, (*tile) + 0xE0, 0.05f);
-                func_00282CC0(vc, vc, (*tile) + 0x10);
-                func_L00_003851A0(*tile, vc);
+                    func_002E5CF8(0, 0, D_L00_00232A60[i]);
+                ((Tile_384678 *)D_L00_00232A60[i])->flags |= 0x41;
+                ((Tile_384678 *)D_L00_00232A60[i])->flags &= 0xEFFF;
+                *(s32 *)(D_L00_00232A60[i] + 0x98) = 0;
+                *(u8 *)(D_L00_00232A60[i] + 0xA8) = 0xFF;
+                func_00282F20(vc, D_L00_00232A60[i] + 0xE0, 0.05f);
+                func_00282CC0(vc, vc, D_L00_00232A60[i] + 0x10);
+                func_L00_003851A0(D_L00_00232A60[i], vc);
             }
-            func_002A05A8(*tile);
-            func_002A0F48(*tile);
+            func_002A05A8(D_L00_00232A60[i]);
+            func_002A0F48(D_L00_00232A60[i]);
         }
     }
     pick = func_002A77E0(hit);
     if (hit != 0 && func_00282948(&st->liftTimer)) {
         lower = 0.0f;
-        for (tile = D_L00_00232A60, count = 23; count >= 0; count--, tile++) {
-            if (!((((Tile_384678 *)*tile)->flags ^ 1) & 1))
+        for (count = 0; count < 24; count++) {
+            if (!((((Tile_384678 *)D_L00_00232A60[count])->flags ^ 1) & 1))
                 continue;
             if (--pick != 0)
                 continue;
@@ -171,10 +164,10 @@ void func_L00_00384678(char *obj)
             st->liftTimer = func_L00_0031D620(1, 0xF0, t);
             va.q = 0;
             va.f[2] = 0.05f;
-            func_00283098(va.f, va.f, *tile + 0xC0);
-            func_00282CC0(va.f, va.f, *tile + 0x10);
-            func_00282F20(vb, *tile + 0xC0, D_L00_001AEDB8 * 0.016666668f);
-            func_L00_00384D40(*tile, va.f, vb);
+            func_00283098(va.f, va.f, D_L00_00232A60[count] + 0xC0);
+            func_00282CC0(va.f, va.f, D_L00_00232A60[count] + 0x10);
+            func_00282F20(vb, D_L00_00232A60[count] + 0xC0, D_L00_001AEDB8 * 0.016666668f);
+            func_L00_00384D40(D_L00_00232A60[count], va.f, vb);
         }
     }
 }
