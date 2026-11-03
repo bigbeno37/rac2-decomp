@@ -1,18 +1,24 @@
-/* GPT-6.1 Sol high, task v0862, 29 October 2026.
- * USA v1.01: 1176/1164 bytes, 0/8 placements; default -O2 -G0
- * -ffunction-sections. Reproduced in a separate unit and the original unit.
- * Separate polygon/loop variables per algorithm phase recover the 0x190
- * frame and the traversal's saved registers. A grouped center/edge scratch
- * record recovers center at stack +0x100 and edge outputs at +0x110..0x11C.
- * The SDA count declaration recovers the mixed absolute/GP count accesses.
- * Still different: visited-base spill, count-increment scheduling, descending
- * neighbor initialization, adjacency-slot loop peeling and constant lifetime,
+/* Claude Opus 5.5 xhigh (opus-1), task v2317, 3 November 2026.
+ * USA v1.01: 1160/1164 bytes, 0/8 placements, 187/291 cdiff rows differ;
+ * default -O2 -G0 -ffunction-sections, reproduced in the original unit (the
+ * earlier v0862 draft recompiles here to 1176 bytes, 218/294 rows differ).
+ * Change from v0862: neighbor-slot search A written as while/continue. The
+ * cause is the LOOP_TEST_THRESHOLD (30) logic. stmt.c expand_end_loop rolls
+ * the exit test only up to the break when the break is insn <= 30;
+ * jump.c duplicate_loop_exit_test peels when the exit code is <= 30 insns
+ * and has no CODE_LABEL. Both for-form slot loops are 29 insns, so both
+ * were peeled. Retail peels only B; A is a real loop entered in the middle:
+ * aligned top-test label, 255 and the row base not hoisted, bnel back with
+ * slot++ in the delay slot. The while/continue form keeps a found-block
+ * label, but its break is insn 31, so only the test rolls and A is
+ * bottom-tested. A natural A form with the break at <= 30 insns that keeps
+ * a label (or otherwise refuses duplication) should give retail A exactly.
+ * Also still different (carried over from v0862): visited-base spill at
+ * +0x12C, count-increment scheduling, descending neighbor initialization,
  * final vector address materialization, and vertex-loop allocation/order.
- * An explicit visited pointer recovers the +0x12C spill but induces an extra
- * adjacency spill and a 0x1A0 frame. Earlier slot initialization, while-search
- * wording, shared outer indices, qcopy/qcopy_nc, -frac2-qcopy and -fno-gcse
- * did not improve this retained draft. Next useful evidence: original slot
- * search/control-flow shape that avoids hoisting 255 across adjacency calls.
+ * Declarations needed: the externs and L02RegionLink below; the unit already
+ * declares func_00282E80(void *, void *) and TI128, so drop those copies
+ * when inserting.
  */
 
 #include "common.h"
@@ -83,13 +89,15 @@ int func_L02_0032E508(void *unused, int start, L02RegionLink *regions, int capac
                 *(int *)(D_L02_001FF1C0[regions[nodeA].index] + (scratch.connectionA << 4) + 0x1C) = 0;
                 *(int *)(D_L02_001FF1C0[regions[nodeB].index] + (scratch.connectionB << 4) + 0x1C) = 0;
                 {
-                    int slotA;
-                for (slotA = 0; slotA < 4; ++slotA) {
-                    if (regions[nodeA].neighbors[slotA] == 0xFF) {
-                        regions[nodeA].neighbors[slotA] = nodeB;
-                        regions[nodeA].edges[slotA] = scratch.connectionA;
-                        break;
+                    int slotA = 0;
+                while (slotA < 4) {
+                    if (regions[nodeA].neighbors[slotA] != 0xFF) {
+                        ++slotA;
+                        continue;
                     }
+                    regions[nodeA].neighbors[slotA] = nodeB;
+                    regions[nodeA].edges[slotA] = scratch.connectionA;
+                    break;
                 }
                 }
                 {
