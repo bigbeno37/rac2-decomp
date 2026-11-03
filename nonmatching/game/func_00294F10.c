@@ -1,21 +1,29 @@
-/* Claude Opus 5.5 (xhigh), task v2065 (from v2058's partial unit), USA v1.01.
- * Best: 1452/1452 bytes, 0/28 places. Profile: -O2 -G64 -Wa,-G64
- * -ffunction-sections -g (own unit; -G0 -g gave the same size before the
- * resource fixes). Exact from the TOC test through the end except the
- * func_0029D4D0 setup: per-arm `size << 7` lets jump2 cross-jump the arms'
- * shared sll (retail a0 temp); the two later sizes are separate scoped locals
- * (local-alloc single-death rule -> s0, 7 saved GPRs like retail); the else
- * tail lists [0x28/4] last because sched1 pulls the store carrying the base's
- * REG_DEAD forward. Loop 2 reads x0 and writes ax through SDATA aliases only
- * (all-alias gives the exact body but gp at every offset; canonical-only adds
- * two lui).
- * Remaining: (1) prologue: retail loads func_00295C50's argument before
- * v0 = -1; (2) coefficient loops: FPR choice for x0/y0/v0 (ours f5/f6/f7,
- * retail f7/f5/f6) and loop-2 load/store order (retail bx, ax, by, ay); (3)
- * retail computes &D_001A95B8 into s2 and does the arg moves before the
- * [0x238/4] store, ahead of func_0029D4D0 (ours sets s2 after the call);
- * (4) 32x32 mask loop: 256.0f before 15.5f, i in v1 with i+1 copied back,
- * address i*4 + j/8 + (D_001C4FA0 + 0x1B0) in that order, one nop fewer.
+/* Claude Opus 5.5 (xhigh), tier opus-2, task v2366, USA v1.01.
+ * Best: 0/28 places, 1452/1452 bytes, 130 of 363 rows differ (49 not
+ * relocation-only). Profile: -O2 -G64 -Wa,-G64 -ffunction-sections -g, in its
+ * own unit (e.g. src/game/00294BC8-uimap-g64.c plus a cflags.txt line).
+ * RAC1 counterpart: initialize_level_map_archive in
+ * src/overlays/shared/level_runtime_and_menus.c of the RAC1 decomp.
+ * Matched since the v2065 draft (82 real diffs here): the whole 32x32 mask
+ * loop (MapBitGrid exclusion[32][4] at 0x1B0, scoped int i, j so i sits in v1
+ * and i+1 is copied back in the bnez slot, `lim = 256.0f` held in a local so
+ * its load comes before the hoisted 15.5f), and the else-tail store order.
+ * Remaining:
+ * (1) prologue: retail order is addiu v1,s6,%lo(D_001C4FA0), then
+ *     lui/lw a0 = D_001A79F0_3[0], then v0 = -1; ours loads a0 before the
+ *     base addiu (storing -1 before reading v gives -1 before the load);
+ * (2) loop 1 matches except FPRs: x0/y0/v0 are f5/f6/f7, retail f7/f5/f6.
+ *     That is global alloc of the shared function-scope floats; their live
+ *     lengths come from loop 2, so it probably follows (3);
+ * (3) loop 2 (MACRO_ADDR tables): retail loads x0,u0,x1,u1,y0,y1,v0,v1 and
+ *     issues the sx division before the y/v subtractions (giv pointers and
+ *     store order bx, ax, by, ay already match);
+ * (4) func_0029D4D0 setup: retail does the a0/a1 moves, the [0x238/4] store
+ *     and addiu s2 = &D_001A95B8 before the jal; ours stores first and sets
+ *     s2 after the call (sched1: the lo_sum's priority is 31, the call's 34).
+ * Tried and worse: RAC1-style scoped float initializers in loop 1 only, in
+ * loop 2 only (60 real diffs each), or in both (177 rows). A heap_tag local set
+ * before func_0029D4D0 (as in RAC1) is neutral and kept.
  * All declarations needed by this standalone draft are included. Not linked.
  */
 #include "common.h"
@@ -55,12 +63,19 @@ extern void func_00282B50(void *, void *, int);
 extern void func_00297730(char *, unsigned char *, int);
 extern void func_00297400(u8 *, u8 *, short *);
 
+typedef struct {
+    u8 pad0[0x1B0];
+    u8 exclusion[32][4];
+} MapBitGrid;
+
 void func_00294F10(void)
 {
-    int i, j;
+    int i;
     float x0, y0, x1, y1, u0, v0, u1, v1;
     char *scratch, *packed;
     int bytes;
+    int v;
+    char *heap_tag;
 
     D_001C4FA0[4] = 1;
     { int i; for (i = 0; i < 21; i++) {
@@ -68,8 +83,9 @@ void func_00294F10(void)
         ((float *)D_001C4FA0)[0xB4 / 4 + i] = 0.65f;
         D_001C4FA0[0x15C / 4 + i] = D_00256028[i][1];
     } }
+    v = D_001A79F0_3[0];
     D_001C4FA0[0x238 / 4] = -1;
-    func_00295C50(D_001A79F0_3[0]);
+    func_00295C50(v);
     { int i; for (i = 0; i < 21; i++) {
         float sx, sy;
         x0 = D_00255C30[i].x0;
@@ -122,20 +138,21 @@ void func_00294F10(void)
         }
         D_001C4FA0[0x238 / 4] = func_002EED58(packed, bytes, 0x3C00, D_001A95A0);
         D_001C4FA0[0x240 / 4] = bytes;
+        heap_tag = D_001A95B8;
         func_0029D4D0(packed, scratch);
         {
             int size = ((int *)scratch)[1] - ((int *)scratch)[0];
-            D_001C4FA0[0] = (int)func_0028B2B8(size, 0, D_001A95B8, 0x2EB);
+            D_001C4FA0[0] = (int)func_0028B2B8(size, 0, heap_tag, 0x2EB);
             func_00282B50((void *)D_001C4FA0[0], scratch + ((int *)scratch)[0], size);
         }
         D_001C4FA0[0] += 8;
         D_001C4FA0[1] = D_001C4FA0[0];
         {
             int size = ((int *)scratch)[2] - ((int *)scratch)[1];
-            D_001C4FA0[5] = (int)func_0028B2B8(size, 0, D_001A95B8, 0x2FC);
+            D_001C4FA0[5] = (int)func_0028B2B8(size, 0, heap_tag, 0x2FC);
             func_00282B50((void *)D_001C4FA0[5], scratch + ((int *)scratch)[1], size);
         }
-        D_001C4FA0[2] = (int)func_0028B2B8(0x1000, 0, D_001A95B8, 0x303);
+        D_001C4FA0[2] = (int)func_0028B2B8(0x1000, 0, heap_tag, 0x303);
         for (i = 0; i < 8; i++) {
             D_001C4FA0[0x30 / 4 + i * 4] = -1;
             D_001C4FA0[0x34 / 4 + i * 4] = -1;
@@ -146,15 +163,15 @@ void func_00294F10(void)
             func_00297730((char *)D_001C4FA0[3], D_0018D278 + (D_001C4FA0[0x230 / 4] << 11), D_001C4FA0[5]);
         else
             func_00297400((u8 *)D_001C4FA0[3], (u8 *)D_001C4FA0[0], (short *)D_001C4FA0[1]);
-        for (i = 0; i < 32; i++) {
+        { int i, j; float lim = 256.0f; for (i = 0; i < 32; i++) {
             float dy = 15.5f - (float)i;
             float dy2 = dy * dy;
             for (j = 0; j < 32; j++) {
                 float dx = 15.5f - (float)j;
-                if (dx * dx + dy2 > 256.0f)
-                    ((u8 *)D_001C4FA0)[0x1B0 + i * 4 + j / 8] |= 1 << (j % 8);
+                if (dx * dx + dy2 > lim)
+                    ((MapBitGrid *)D_001C4FA0)->exclusion[i][j / 8] |= 1 << (j % 8);
             }
-        }
+        } }
     } else {
         D_001C4FA0[0] = 0;
         D_001C4FA0[2] = 0;
