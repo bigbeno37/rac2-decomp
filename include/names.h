@@ -899,5 +899,7 @@
 #define DrawNearbyObjectRadar            func_L08_004207D0
 #define DrawTaperedTwoLayerRibbon        func_L00_003BCF88
 #define UpdateSteeringInput              func_L05_00442A58
+#define WalkPathPickNext                 func_L22_003A2E50
+#define WalkPathSetCurrent               func_L22_003A2E10
 
 #endif /* NAMES_H */

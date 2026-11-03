@@ -122,7 +122,7 @@ int func_L22_003A2DF8(int bit, float value) {
     return (bits.u >> bit) & 1;
 }
 
-void func_L22_003A2E10(char *a0, unsigned short a1) {
+void func_L22_003A2E10(char *a0, int a1) {
     char *p = *(char **)(a0 + 0x68);
     unsigned short old = *(unsigned short *)(p + 0x354);
     int i = (short)*(short *)(p + 0x35E);
@@ -134,7 +134,121 @@ void func_L22_003A2E10(char *a0, unsigned short a1) {
     *(unsigned short *)(p + 0x354) = a1;
 }
 
-INCLUDE_ASM("asm/levels", func_L22_003A2E50);
+extern char D_00189EA0[];
+extern void func_002F3AB0(void *, void *, void *);
+extern float func_002F3C40(void *, void *);
+extern int func_0031FC88(int);
+extern int func_L22_003A6128(float);
+extern float func_002F3B88(void *, void *);
+extern float func_002F39F0(float);
+extern void func_002F3BB0(void *, void *, void *);
+extern void func_0032A5F8(void *, void *, int);
+extern void func_002F3D60(void *, void *, float);
+struct PathIds {
+    char pad[0x2A0];
+    int ids[32];
+};
+void func_L22_003A2E50(char *obj, int mode, int filter, float bits) {
+    int ids[4];
+    char *points[4];
+    union Endpoint { int value; unsigned short half[2]; } ends[4];
+    char a[16], b[16], c[16], d[16], e[48], f[48];
+    char *p = *(char **)(obj + 0x68);
+    int count, i, selected, blocked, end, id;
+    char *rec;
+    float best, score;
+    count = func_L22_003A2CB8(bits, (int)obj, ids, filter);
+    if (!count) {
+        int direction = *(short *)(p + 0x352);
+        *(short *)(p + 0x352) = -direction;
+        return;
+    }
+    if (!mode) {
+        id = ids[func_0031FC88(count)];
+        end = func_L22_003A2D58(obj, id, *(short *)(p + 0x354));
+        *(short *)(p + 0x352) = end == 0 ? 1 : -1;
+        *(short *)(p + 0x356) = end;
+        func_L22_003A2E10(obj, id);
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        id = ids[i];
+        ends[i].value = func_L22_003A2D58(obj, id, *(short *)(p + 0x354));
+        rec = (char *)D_L22_001FE940[((struct PathIds *)p)->ids[id]];
+        if (!ends[i].value) points[i] = rec + *(int *)rec * 16;
+        else points[i] = rec + 16;
+    }
+    selected = 0;
+    switch (mode) {
+    case 1: {
+        int j, rejected;
+        best = 30000.0f;
+        for (j = 0; j < count; j++) {
+            rejected = 0;
+            if (filter) rejected = func_L22_003A6128(*(float *)(points[j] + 12));
+            score = func_002F3C40(points[j], *(void **)(p + 0x3AC));
+            if ((score < best && !rejected) || count == 1) {
+                selected = j;
+                best = score;
+            }
+        }
+        break;
+    }
+    case 3: {
+        int k, rejected;
+        best = -30000.0f;
+        for (k = 0; k < count; k++) {
+            rejected = 0;
+            if (filter) rejected = func_L22_003A6128(*(float *)(points[k] + 12));
+            func_002F3AB0(a, D_00189EA0, obj + 0x10);
+            func_002F3AB0(b, points[k], obj + 0x10);
+            score = func_002F3B88(a, b);
+            if ((best < score && !rejected) || count == 1) {
+                selected = k;
+                best = score;
+            }
+        }
+        break;
+    }
+    case 2:
+    default: {
+        float bias = -0.35f;
+        float closest = 30000.0f;
+        int n;
+        for (n = 0; n < count; n++) {
+            blocked = 0;
+            if (filter) blocked = func_L22_003A6128(*(float *)(points[n] + 12));
+            func_002F3AB0(a, p + 0x3F0, p + 0x400);
+            func_002F3AB0(b, points[n], p + 0x400);
+            func_002F3D60(c, a, 1.0f);
+            func_002F3D60(d, b, 1.0f);
+            qcopy(e, c);
+            qcopy(f, d);
+            qcopy_nc(e + 32, obj + 0xE0);
+            qcopy_nc(f + 32, obj + 0xE0);
+            func_002F3BB0(e + 16, e + 32, e);
+            func_002F3BB0(f + 16, f + 32, f);
+            func_0032A5F8(e, p + 0x200, 0);
+            func_0032A5F8(f, p + 0x200, 0);
+            score = func_002F39F0(func_002F3B88(e, f) - bias);
+            if ((score < closest && !blocked) || count == 1) {
+                selected = n;
+                closest = score;
+            }
+        }
+        break;
+    }
+    }
+    if (ends[selected].value == 0) {
+        id = ids[selected];
+        *(short *)(p + 0x352) = 1;
+    } else {
+        id = ids[selected];
+        *(short *)(p + 0x352) = -1;
+    }
+    *(short *)(p + 0x356) = ends[selected].half[0];
+    func_L22_003A2E10(obj, id);
+}
 
 
 
