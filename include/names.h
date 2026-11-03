@@ -911,5 +911,6 @@
 #define SpawnAimedProjectile             func_L00_00409E48
 #define LaunchSpawnerMobyUpdate          func_L04_003EE090
 #define RefreshMissionMenuItems          func_0029B910
+#define UpdateBankedOrientation          func_002EE000
 
 #endif /* NAMES_H */
