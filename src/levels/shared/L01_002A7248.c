@@ -535,7 +535,7 @@ void func_L01_002B4DA0(int force)
     }
 }
 
-INCLUDE_ASM("asm/levels", func_L01_002B5EA0);
+/* func_L01_002B5EA0 is in L01_002A7248-collide-g8.c. */
 
 /* func_L01_002B6948 is in L01_002B6948-velocity.c. */
 

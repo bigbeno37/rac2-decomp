@@ -213,6 +213,7 @@
 #define FontPrintWindow                  func_0027FC70
 #define draw_nanotech_ball               func_003146C0
 #define follow_camera_build_view         func_L00_00425560
+#define Camera_ResolveBlockedView        func_L01_002B5EA0
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
