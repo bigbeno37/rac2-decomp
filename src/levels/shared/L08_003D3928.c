@@ -149,7 +149,7 @@ void func_L08_003D3928(void *owner, void *pos)
     }
 }
 
-INCLUDE_ASM("asm/levels", func_L08_003D39F0);
+/* func_L08_003D39F0 is defined in L08_003D3928-g8.c. */
 
 /* One resident word, two states, and a 16-byte table entry: hands the entry to
    func_L00_00326048 with an alpha of 0x3D7A35E0. */

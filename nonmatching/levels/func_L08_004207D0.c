@@ -1,14 +1,19 @@
-/* 2 November 2026, remaining-function review: nonmatching; no linked credit.
- * Profile: -O2 -G8 -ffunction-sections -g -frac2-zero-ti-por.
- * US check: 1144/1156 bytes, 0/2 placements.
- * Current matched projection-state helpers00300090/003000C0 return s32;00300100 is void. Correcting the first two ties at 1144/1156,0/2. Full48-byte matrix buffers and wide colors are preserved.
+/* opus-1; USA v1.01; -O2 -G8 -ffunction-sections -g -frac2-zero-ti-por
+ * (own -g8 unit). Best: 1156/1156 bytes, 0/2 places (130 of 289 aligned
+ * rows differ). Closer than the 1144/1152-byte drafts: the u64 colour local
+ * restores retail's extendsidi2 before the texture call, and testing then
+ * re-reading the list entry gives retail's lw/beqz/daddu cursor copy and
+ * loop padding; D_L08_001B1BA8 is s32.
+ * Remaining: sched1 floats the 0.8/-0.8/0 constant sets (no dependences)
+ * up between the three func_00336D50 calls; retail sets them, and all
+ * argument moves of each icon draw, only after that draw's y chain, with
+ * the trunc temp in v1 (mine v0), x loaded into f1 (mine f12), constants
+ * 0.8=f22/-0.8=f23 (swapped here), second/state in s3/s4 (mine s2/s3).
+ * Retail looks as if each icon draw had a scheduling barrier after its y
+ * computation; no allowed construct for that was found. An inline icon
+ * helper with literal constants was worse (1168 bytes).
+ * All declarations needed by this standalone draft follow below.
  */
-/* func_L08_004207D0: retained near miss, 30 October 2026.
-   Profile: -O2 -G8 -ffunction-sections -g -frac2-zero-ti-por.
-   Complete radar UI with two 48-byte matrices. Retail func_002833F0 and func_002836E8 each write exactly three quadwords. Signed 32-bit dynamic color is sign-extended into the actual 64-bit RGBA parameter; texture descriptors retain 64 bits. Frame/allocation and rounding/scheduling remain.
-   No linked match is claimed.
-*/
-
 #include "common.h"
 typedef union { s32 q __attribute__((mode(TI))); f32 f[4]; } Vector;
 extern u8 *D_L08_001A904C MACRO_ADDR, *D_L08_001B29DC MACRO_ADDR;
@@ -19,7 +24,7 @@ extern s32 D_L08_001B1B94 __attribute__((sda)), D_L08_001B1B98 __attribute__((sd
 extern f32 D_L08_001B1B9C __attribute__((sda));
 extern s32 D_L08_001B1BA0 __attribute__((sda));
 extern f32 D_L08_001B1BA4 __attribute__((sda));
-extern u32 D_L08_001B1BA8 __attribute__((sda));
+extern s32 D_L08_001B1BA8 __attribute__((sda));
 extern u16 *D_L08_001FB660[];
 extern u8 D_L08_001B9D30[];
 extern s32 func_L08_00300090(void), func_L08_003000C0(void);
@@ -43,7 +48,7 @@ void func_L08_004207D0(u8 *object)
     u16 *cursor;
     f32 y, distance, scale, size, x;
     s32 alpha;
-    s32 color;
+    u64 color;
     u64 texture;
     func_L08_00300090();
     func_L08_00300100();
@@ -64,8 +69,8 @@ void func_L08_004207D0(u8 *object)
     func_L08_003000C0();
     anchor = *(u8 **)(state + 0x1B0);
     if (!anchor) return;
+    if (!D_L08_001FB660[anchor[0x21]]) return;
     cursor = D_L08_001FB660[anchor[0x21]];
-    if (!cursor) return;
     do {
         entry = D_L08_001B29DC + ((*cursor & 0x7FFF) << 8);
         if (!entry || entry[0x20] == 0xFE || entry[0x20] == 0xFD || *(s16 *)(entry + 0xAA) == 0x96A) return;
@@ -87,9 +92,9 @@ void func_L08_004207D0(u8 *object)
             else if (size < 0.0f) size = 0.0f;
             x = difference.f[0] + D_L08_001B1B84;
             y = (f32)(s32)((D_L08_001B1B88 - difference.f[1]) * D_L08_001B3244 + 0.5f);
-            color = D_L08_001B1BA8 | ((u32)alpha << 24);
+            color = D_L08_001B1BA8 | (alpha << 24);
             texture = func_0027C878(D_L08_001B1BA0);
-            func_L05_003008C0(x, y, size, size, 0, 0, D_L08_001B1B94, D_L08_001B1B98, (u64)(s64)color, texture);
+            func_L05_003008C0(x, y, size, size, 0, 0, D_L08_001B1B94, D_L08_001B1B98, color, texture);
         }
     } while ((s16)*cursor++ >= 0);
 }

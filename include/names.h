@@ -894,5 +894,6 @@
 #define InitPathMotion                   func_L00_004291A0
 #define play_streamed_frames             func_002F5FB8
 #define draw_large_text_edge_faded       func_002F97A0
+#define DrawNearbyObjectRadar            func_L08_004207D0
 
 #endif /* NAMES_H */
