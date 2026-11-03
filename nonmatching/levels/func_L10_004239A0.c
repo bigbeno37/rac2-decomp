@@ -32,7 +32,24 @@
    func_001157AC (46-, 131- and 210-row) retail moves the length last (delay slot) and the
    other arguments first (a3,a1,a0,a2 / a1,a0,a2,a3,t1,t0), here the length move is taken
    first (class-3 preference after the call); in the 210-row and the first 294-row retail
-   allocates the 210/294 constant f0 and the D84 chain f1 (elsewhere the reverse). */
+   allocates the 210/294 constant f0 and the D84 chain f1 (elsewhere the reverse).
+
+   Opus-2 (v2263), recompiled here: still 32 masked rows (29 + 3 gp relocations), unchanged.
+   The overseer's vanished-helper-test lead (func_002D3D88's scaled_screen_* helpers) does
+   NOT apply: no register holds D_L10_001B2D80 at the sprite rows or the 210-row, so the test
+   has no live input. Measured: (1) `y = round; if (mode == 1) return y + adjust; return y;`
+   with adjust 0 vanishes before sched1 (no split at all; frame grows to 0xF0); (2) the boot
+   shape `if (mode == 1) return (int)(v*S+0.5f) + adjust; return (int)(v*S+0.5f);` keeps a
+   split, but `lui; lw D80; li 1` stay behind (jump2 deletes only the jump) and cse stops at
+   the join, so every constant becomes block-local (267/278 rows differ). Without the
+   do/while(0) (plain `if (D80 == 1) scaled = sy - 2;`) the split dies at flow2 and sched2
+   interleaves the draw set-up into the rounding chain: 55 masked rows. In this cc1, flow
+   merges blocks unless a label is preserved, and haifa-sched's only code-free barriers are
+   LOOP_BEG/END, EH_REGION and SETJMP notes, so retail's sched2 barrier most likely comes from
+   a do/while(0) macro in the original. A separate `length = func_001157AC(text);` statement
+   does not change the 46-row argument order. sched2 (-fsched-verbose-5) on the 46-row: all
+   five moves priority 31, chosen by dependents count (a1 6, a3 6, t0 5, a2 5, a0 3), so a0
+   goes last; retail's a3, a1, a0, t0 needs a0 to have more dependents or an earlier LUID. */
 #include "common.h"
 extern s32 D_001A7340[] __attribute__((sda));
 extern u8 *D_L10_001A904C[] __attribute__((sda));
