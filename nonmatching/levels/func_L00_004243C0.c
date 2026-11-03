@@ -1,22 +1,19 @@
 /*
- * Tier: sol-high (v1110), USA v1.01.
+ * Tier: opus-1 (Claude Opus 5.5, v2290), USA v1.01; based on sol-high (v1110).
  * Profile: -O2 -G8 -ffunction-sections -g, separate -g8.c unit.
- * Best rechecked result: 1404/1404 bytes, 0/27 places, first mismatch +0x8.
- * Separate restoration pointer, entry and counter locals recover camera in fp,
- * loop temporaries in s5/s6/s7, and the final six-instruction restoration loop.
- * The hold-label control flow plus a real unsigned timer snapshot recovers the
- * timer region's ordering and signed conversion at the hold path. Separate
- * division source lines and -g restore both measured pairs of pre-divide nops.
- * Typed global views and a scoped distance/minimum snapshot recover the camera
- * object's base addressing and avoid the distance reload after timer storage.
- * Remaining: initial target pointer spills at entry rather than at loop entry,
- * shifting the pointer/flag/count stack slots; prologue and call scheduling,
- * early-skip loop branch, and retained timer-pointer allocation differ.
- * Adding a timer pointer recovers part of that region but swaps movement/state
- * registers and grows to 1412 bytes. A loop-local target alias and aggregate
- * vector scratch each tie their plain forms. No linked build run.
- * Required declarations are included below. Next: recover the initial target's
- * lifetime/spill transition and timer-pointer lifetime without fake dependencies.
+ * Best checked result: 1404/1404 bytes, 0/27 places, first mismatch +0x64,
+ * 188 of 351 rows differ (sol-high draft: +0x8, 309 rows).
+ * New: `goal=base+176` assigned at the top of the scan loop (not `target`)
+ * goes through gcse PRE/cprop as a copy of the target pseudo and loop.c
+ * hoists it, so target lives in s3 with a preheader store, as in retail.
+ * Remaining: slot order is scan 0x60, hidden 0x64, goal copy 0x68; retail
+ * has goal copy 0x60, scan 0x64, hidden 0x68 (its scan/hidden look like
+ * late-numbered loop.c givs, but a for(i) array-index loop spills the
+ * fp+16 address of b at an extra slot). The hide path reloads hidden after
+ * the numhidden update instead of incrementing it right after the store,
+ * so its branch is one instruction longer. Also differs: base+... address
+ * order at entry (s1/s3/s2) and later call/timer scheduling.
+ * Required declarations are included below.
  */
 #include "include_asm.h"
 extern char D_L00_001B8E20[],D_L00_001BF220[];
@@ -54,12 +51,13 @@ void func_L00_004243C0(char *obj)
     State243 *state=(State243 *)(base+496);
     char *camera=D_L00_001B8E20;
     char a[16],b[16],c[16],d[16],e[16];
-    char **scan,**hidden;
     char *m,*axis;
     int count,n,blocked=0,numhidden=0,type,i;
     float distance=move->distance-state->offset+1.5f;
     float dot,t;
     unsigned short timer;
+    char *goal;
+    char **scan,**hidden;
     func_00282D08(a,target,camera-96,0.5f);
     count=func_00277F48(a,1,D_L00_00189E20.owner,0,distance*0.5f);
     if(count>0) {
@@ -67,16 +65,16 @@ void func_L00_004243C0(char *obj)
         hidden=D_L00_0025B9A0;
         n=count;
         do {
+            goal=base+176;
             m=*scan;
             if(I(m,152) && (!func_L00_0031BE88(m)||S(m,170)==2923)) {
                 type=S(m,170);
                 if(type!=2234 && type!=3335 && type!=4304 && type!=1143 && type!=11) {
-                    *hidden=m;
+                    *hidden++=m;
                     numhidden++;
                     I(m,152)=0;
-                    hidden++;
                 } else {
-                    func_00282CF0(b,m+16,target);
+                    func_00282CF0(b,m+16,goal);
                     axis=camera+48;
                     dot=func_00282DB0(axis,b);
                     func_00282D30(c,axis,dot);
