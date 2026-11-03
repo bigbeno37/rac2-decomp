@@ -1,3 +1,15 @@
+/* Tier opus-1 (Claude Opus 5.5 xhigh), 3 November 2026. Build at -O2 -G8 -ffunction-sections
+ * (e.g. as src/levels/shared/L00_002D3798-g8.c). check.py: 1248/1260 bytes, 0/27 places; cdiff 242/343 rows
+ * differ (C4 below: 244 on this compiler). Now matching: the speed test (c.lt.s f1,f0; nop; bc1f; FE0 via $gp
+ * in the delay slot; FE4 as lui at / lwc1), 0.02f in f1 and rebuilt in f2 after the angle store.
+ * How: FE4 = incomplete sda array (extern float D_L00_001A7FE4[] sda, read [0]) gives the unsplit macro load;
+ * FE0 = extern const sda scalar so jump.c's `if (c) x=a; else x=b;` -> `x=b; if (c) x=a;` transform may move
+ * it (modified_between_p treats non-unchanging MEMs as modified). If that transform fires before cse2, cse2
+ * merges 0.02f (f20). The dead `state=0` in the then-arm blocks it until flow1 deletes the store, so it fires
+ * only in jump2 (after sched2), as retail's f1 sharing implies. A plain temp copy does not work (cse1 folds it).
+ * Left: f in f0 / 0.00029 in f12 (retail f1 / f0, mul.s right after the mtc1), s3/s4/s5 rotation
+ * (retail s3 = src, s4 = D_00189E20 high then D_0018B334, s5 = hero), D_001A7A44 loaded into v1, 3 insns short.
+ */
 /* Closer C4, 1 November 2026: 1248/1260 under -O2 -G8 -ffunction-sections with plain data NOT_SDA, 80 rows, most of them a rotation
  * (retail s3 = src, s4 = the D_00189E20 high then D_0018B334, s5 = hero). The tuning floats are an if/else: with `f = a; if (...) f = b`
  * cse skips the then-block and keeps 0.02f in f20, where retail rebuilds it in f2. Left: D_L00_001A7FE4 as `lui at` / lwc1, FE0 through
@@ -57,7 +69,7 @@ extern Hero5940 D_00189E20;
 extern char D_L00_001B8FF0[], D_L00_001B8DC0_data[], D_L00_001BF220[];
 extern unsigned char D_001A7A44 NOT_SDA;
 extern int D_L00_001B19C8 NOT_SDA;
-extern float D_L00_001A7FE0 __attribute__((sda)); extern float D_L00_001A7FE4 NOT_SDA;
+extern const float D_L00_001A7FE0 __attribute__((sda)); extern float D_L00_001A7FE4[] __attribute__((sda));
 extern float D_L00_001A7CE0 __attribute__((sda)), D_L00_001A7CE4 __attribute__((sda));
 extern Quad1269 D_L00_001B8DD0;
 extern int func_L00_002ADED8(int);
@@ -104,7 +116,7 @@ void func_L00_002D5940(void) {
  qcopy_nc(offset,src);
  offset[0]+=D_00189E20.offset;
  if (D_001A7A44 && !func_L00_002D6418()) offset[1]=-offset[1];
- if (D_00189E20.speed<=0.02f) f=D_L00_001A7FE0; else f=D_L00_001A7FE4;
+ if (D_00189E20.speed>0.02f) { f=D_L00_001A7FE4[0]; state=0; } else f=D_L00_001A7FE0;
  func_002AA2E8(&D_0018B334,f*0.0002908882452175021f,0.006981317885220051f);
  hero = (Hero5940 *)((char *)&D_0018B334 - 0x1514);
  hero->angle=func_00283B98(hero->angle,hero->angleVelocity);
