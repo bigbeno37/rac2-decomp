@@ -1,129 +1,114 @@
-/* Reconstruction retained 30 October 2026; not a linked match.
- * Profile: -O2 -G8 -ffunction-sections.
- * 1316/1276 bytes; orientation branches and pointer lifetime/register allocation differ.
- * Reopen with real projectile/weapon record types and helper-bank scheduling evidence.
- * ABI/bounds: Four GPR arguments and four FP arguments retained, with the final FP input unused. Allocation returns a pointer; effect-slot helper returns int. All three local vectors are complete quads.
- * Local checks and release presence are recorded in the shared NMC index.
- * Semantic equivalence has not been validated by the functional gate.
+/*
+ * opus-1, Claude Opus 5.5; USA v1.01; needs a -g8 unit (default -O2 -G8 -ffunction-sections,
+ * no cflags line needed): the ring index D_L00_001AF7A0 is read through $gp.
+ * Best check.py: 1276/1276 bytes, 0 of 27 places match; 3 instructions differ, all at +0x2EC:
+ * the flag constant 1 for data->enabled/data->active (sb 0x26/0x27) is in v0, retail v1.
+ * The store order now matches: the shared constant `on` (also used by obj->mode and
+ * obj->blocked) keeps the constant live past the flag stores, so sched1 no longer
+ * puts the REG_DEAD store first. The remaining difference is reload's round-robin:
+ * `on` is spilled (REG_EQUIV 1) and reloaded at each use; before the flags,
+ * last_spill_reg is a0 (pos reload), so the spill set {v0,v1,a0} wraps to v0. Retail
+ * needs one more v0 spill-register allocation between the pos reload and the flags.
+ * The likely candidate is the hero-block `lui v0,%hi(D_00189E20)` as a reload of a
+ * spilled PRE reaching register; here it is local pseudo 129 and gcse inserts
+ * 229=high at the end of the hero block. Hero accesses written through a local
+ * pointer give the same code. Tried without effect: -fno-gcse (breaks the prologue),
+ * -frac2-gcse-unsplit-edges, a literal 1 at obj->blocked with `on` kept live via the
+ * func_002AFFD8 argument (store order regresses).
+ * All required declarations are included below.
  */
 #include "common.h"
 
-typedef float LaunchVector[4] __attribute__((aligned(16)));
-extern int D_L00_001AF7A0 __attribute__((sda));
-extern u8 D_00139583[];
-extern unsigned char D_L00_00262570[];
-extern unsigned char D_00189E20[];
-extern int D_L00_001A8FF0;
-extern unsigned char D_L00_001BF220[];
-extern unsigned char D_L00_0023B710[];
-extern unsigned char D_L00_001B1FB0[];
-extern unsigned char *func_0029EFD0(int);
-extern void func_00282CC0(void *, void *, void *);
-extern void func_00282CD8(void *, void *, void *);
-extern void func_00282CF0(void *, void *, void *);
-extern void func_00282D30(void *, void *, float);
-extern void func_00282DD8(void *, void *, void *);
-extern void func_00282F20(void *, void *, float);
-extern float func_00282DB0(void *, void *);
-extern float func_002A7878(float, float);
-extern float func_002A78D8(float, float);
-extern float func_002A7940(void);
-extern void func_L00_0037FA90(void *, void *, float, float, float);
-extern void func_002AFFD8(void *, void *, int);
-extern unsigned char *func_002AB1F0(void *);
+typedef struct SpawnObject SpawnObject;
+typedef struct {
+ float position[3]; SpawnObject *owner, *target;
+ float scale, speed, spread, turn; unsigned short life;
+ unsigned char enabled, active; float phase; int material;
+ float basis[4], argument[4]; int sound;
+} SpawnData;
+struct SpawnObject {
+ char pad0[0x10]; float position[4];
+ unsigned char state; char pad21[0xB]; float radius;
+ unsigned char alpha, mode; unsigned short group, flags;
+ char pad36[0x32]; SpawnData *data; char pad6c[0x50];
+ unsigned char blocked; char padbd[3];
+ float forward[4], right[4], up[4];
+};
+extern SpawnObject *func_0029EFD0(int);
+extern void func_00282D30(void *,void *,float);
+extern void func_00282CC0(void *,void *,void *);
+extern void func_00282CF0(void *,void *,void *);
+extern void func_00282F20(void *,void *,float);
+extern void func_00282DD8(void *,void *,void *);
+extern float func_00282DB0(void *,void *);
+extern void func_L00_0037FA90(void *,void *,float,float,float);
+extern float func_002A7878(float,float),func_002A78D8(float,float),func_002A7940(void);
+extern void func_002AFFD8(void *,void *,int);
+typedef struct { unsigned char pad[0xB], kind; unsigned char gap[0x12]; unsigned short flags; } TargetState;
+extern TargetState *func_002AB1F0(void *);
 extern int func_00283CF0(float);
-extern int func_002761F8(void *, void *, int, void *, int);
-extern void func_L00_003ACC88(void *, void *);
-extern void func_002A0F48(void *);
-extern void func_002ACA50(void *, void *, int);
-extern int func_002FED90(void *, void *, float, float, float);
-
-/* Allocates and aims a projectile, preserving the independent integer and FP
- * argument banks (four pointers/integers and four floats, the last unused). */
-unsigned char *func_L00_003AB9C0(unsigned char *owner, void *position,
-    unsigned char *target, void *color, float reach, float low, float high, float unused)
+extern int func_002761F8(void *,void *,int,void *,int);
+extern void func_L00_003ACC88(void *,void *);
+extern void func_002A0F48(void *),func_002ACA50(void *,void *,int);
+extern int func_002FED90(void *,int,float,float,float);
+typedef int Quad __attribute__((mode(TI)));
+typedef struct { char pad[0x50]; float speed; char tail[0x8C]; } Material;
+extern Material D_L00_00262570[];
+extern int D_L00_001AF7A0 __attribute__((sda));
+extern unsigned char D_00139583 NOT_SDA;
+extern char D_L00_001B8FF0[] __attribute__((sda)),D_L00_001BF220[],D_L00_0023B710[],D_L00_001B1FB0[] __attribute__((sda));
+typedef struct {
+ char pad0[0x750]; float up[4], forward[4];
+ char pad770[0xD90]; int aiming; char pad1504[0xD8C];
+ SpawnObject *target; char pad2294[0x258]; short mode;
+} HeroState;
+extern HeroState D_00189E20;
+#define HERO ((char *)&D_00189E20)
+#define F(p,o) (*(float *)((p)+(o)))
+#define I(p,o) (*(int *)((p)+(o)))
+#define P(p,o) (*(char **)((p)+(o)))
+#define B(p,o) (*(unsigned char *)((p)+(o)))
+#define H(p,o) (*(unsigned short *)((p)+(o)))
+SpawnObject *func_L00_003AB9C0(SpawnObject *owner,char *pos,SpawnObject *target,char *arg,float scale,float lo,float hi)
 {
-    LaunchVector predicted, direction, projection;
-    unsigned char *object = func_0029EFD0(0x5da);
-    unsigned char *vars, *info, *hero = D_00189E20;
-    float speed;
-    if (!object) return 0;
-    object[0x30] = 255;
-    object[0x31] = 1;
-    object[0x20] = 0;
-    *(u16 *)(object + 0x32) = 255;
-    *(u16 *)(object + 0x34) |= 0x100;
-    vars = *(unsigned char **)(object + 0x68);
-    if ((u32)D_L00_001AF7A0 >= 9) D_L00_001AF7A0 = 0;
-    *(int *)(vars + 0x2c) = D_L00_001AF7A0;
-    D_L00_001AF7A0 = (D_L00_001AF7A0 + 1) % 8;
-    speed = *(float *)(D_L00_00262570 + D_00139583[0] * 0xe0 + 0x50) * 0.016666668f;
-    qcopy(object + 0x10, position);
-    if (target) {
-        func_00282D30(direction, target + 0xe0, reach);
-        func_00282CC0(predicted, target + 0x10, direction);
-    } else qzero(predicted);
-    if (*(short *)(hero + 0x24ec) == 1) {
-        func_00282F20(object + 0xc0, owner + 0xd0, -1.0f);
-        func_00282D30(object + 0xd0, owner + 0xc0, -1.0f);
-        qcopy(object + 0xe0, owner + 0xe0);
-    } else if (target) {
-        func_00282CF0(object + 0xc0, predicted, object + 0x10);
-        func_00282F20(object + 0xc0, object + 0xc0, 1.0f);
-        func_00282DD8(object + 0xd0, object + 0xc0,
-            *(unsigned char **)(hero + 0x2290) + 0xe0);
-        func_00282F20(object + 0xd0, object + 0xd0, 1.0f);
-        func_00282DD8(object + 0xe0, object + 0xd0, object + 0xc0);
-    } else {
-        qcopy(object + 0xc0, hero + 0x760);
-        if (*(int *)(hero + 0x1500))
-            func_L00_0037FA90(object + 0xc0, position, 1.0f, 75.0f, 0.52359885f);
-        func_00282DD8(object + 0xd0, object + 0xc0, hero + 0x750);
-        func_00282F20(object + 0xd0, object + 0xd0, 1.0f);
-        func_00282DD8(object + 0xe0, object + 0xd0, object + 0xc0);
-    }
-    *(float *)(object + 0xec) = *(float *)(object + 0xdc) = *(float *)(object + 0xcc) = 0.0f;
-    *(void **)(vars + 0xc) = owner;
-    *(float *)(vars + 0x1c) = func_002A7878(low, high);
-    if (target) *(float *)(vars + 0x1c) = 0;
-    *(float *)(vars + 0x20) = func_002A78D8(6.0f, 10.0f);
-    *(float *)(vars + 0x18) = speed;
-    *(float *)(vars + 0x28) = func_002A7940();
-    vars[0x26] = vars[0x27] = 1;
-    *(void **)(vars + 0x10) = target;
-    qcopy(vars + 0x30, object + 0xc0);
-    qcopy(vars + 0x40, color);
-    if (D_L00_001A8FF0) {
-        func_002AFFD8(object + 0x10, direction, 1);
-        func_00282D30(projection, direction, func_00282DB0(direction, vars + 0x30));
-        func_00282CF0(vars + 0x30, vars + 0x30, projection);
-    }
-    if (target) {
-        info = func_002AB1F0(target);
-        if (info) {
-            *(u16 *)(info + 0x1e) |= 0x80;
-            if (info[0xb]) vars[0x26] = 0;
-        }
-    }
-    *(short *)(vars + 0x24) = func_00283CF0(75.0f / speed);
-    if (target) {
-        func_00282D30(direction, target + 0xe0, reach);
-        func_00282CC0(direction, target + 0x10, direction);
-        *(float *)(vars + 0) = direction[0];
-        *(float *)(vars + 4) = direction[1];
-        *(float *)(vars + 8) = direction[2];
-        *(float *)(vars + 0x14) = reach;
-    }
-    qcopy(direction, owner + 0x10);
-    direction[2] = ((float *)position)[2];
-    if (func_002761F8(direction, position, 0, *(void **)(hero + 0x2290), 0)) {
-        object[0xbc] = 1;
-        qcopy(object + 0x10, D_L00_001BF220);
-    }
-    func_L00_003ACC88(object, D_L00_0023B710 + *(int *)(vars + 0x2c) * 64);
-    func_002A0F48(object);
-    func_002ACA50(object, D_L00_001B1FB0, 0x1f);
-    *(float *)(object + 0x2c) *= 2.5f;
-    *(int *)(vars + 0x50) = func_002FED90(object, 0, 1.0f, 1.0f, 1.0f);
-    return object;
+ char v[16] __attribute__((aligned(16))), w[16] __attribute__((aligned(16))), tmp[16] __attribute__((aligned(16)));
+ SpawnObject *obj=func_0029EFD0(0x5da);
+ SpawnData *data; float *basis;
+ float speed;
+ unsigned char on=1;
+ if(obj) {
+ obj->alpha=255; obj->mode=on; obj->state=0; obj->group=255; obj->flags|=0x100;
+ data=obj->data;
+ if((unsigned)D_L00_001AF7A0>=9) D_L00_001AF7A0=0;
+ { int index=D_L00_001AF7A0; data->material=index; D_L00_001AF7A0=(index+1)%8; }
+ speed=((Material *)(D_00139583 * 0xE0 + (char *)D_L00_00262570))->speed*(1.0f/60.0f);
+ qcopy(obj->position,pos);
+ if(target){func_00282D30(w,target->up,scale);func_00282CC0(v,target->position,w);}else qzero(v);
+ {
+ if(D_00189E20.mode==1){
+  func_00282F20(obj->forward,owner->right,-1.0f);func_00282D30(obj->right,owner->forward,-1.0f);qcopy(obj->up,owner->up);basis=obj->forward;
+ }else if(target){
+  float *direction=obj->forward;
+  func_00282CF0(direction,v,obj->position);func_00282F20(direction,direction,1.0f);
+  func_00282DD8(obj->right,direction,D_00189E20.target->up);func_00282F20(obj->right,obj->right,1.0f);func_00282DD8(obj->up,obj->right,direction);basis=direction;
+ }else{
+  qcopy(obj->forward,HERO+0x760);basis=obj->forward;
+  if(D_00189E20.aiming)func_L00_0037FA90(basis,pos,1.0f,75.0f,0.52359885f);
+  func_00282DD8(obj->right,basis,HERO+0x750);func_00282F20(obj->right,obj->right,1.0f);func_00282DD8(obj->up,obj->right,basis);
+ }
+ }
+ obj->forward[3]=obj->right[3]=obj->up[3]=0.0f;data->owner=owner;
+ data->spread=func_002A7878(lo,hi);if(target)data->spread=0;
+ data->turn=func_002A78D8(6.0f,10.0f);data->speed=speed;data->phase=func_002A7940();
+ data->enabled=on;data->target=target;data->active=on;qcopy(data->basis,basis);qcopy(data->argument,arg);
+ if(I(D_L00_001B8FF0,0)){
+  float projection; func_002AFFD8(obj->position,w,1);projection=func_00282DB0(w,data->basis);func_00282D30(tmp,w,projection);func_00282CF0(data->basis,data->basis,tmp);
+ }
+ if(target){TargetState *state=func_002AB1F0(target);if(state){state->flags|=0x80;if(state->kind)data->enabled=0;}}
+ data->life=func_00283CF0(75.0f/speed);
+ if(target){func_00282D30(w,target->up,scale);func_00282CC0(w,target->position,w);data->position[0]=F(w,0);data->position[1]=F(w,4);data->position[2]=F(w,8);data->scale=scale;}
+ *(Quad *)w=*(Quad *)(owner->position);F(w,8)=F(pos,8);
+ if(func_002761F8(w,pos,0,D_00189E20.target,0)){obj->blocked=on;qcopy(obj->position,D_L00_001BF220);}
+ func_L00_003ACC88(obj,D_L00_0023B710+(data->material<<6));func_002A0F48(obj);func_002ACA50(obj,D_L00_001B1FB0,31);
+ obj->radius*=2.5f;data->sound=func_002FED90(obj,0,1.0f,1.0f,1.0f); } return obj;
 }
