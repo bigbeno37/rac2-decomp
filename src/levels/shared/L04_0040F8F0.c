@@ -273,7 +273,7 @@ void func_L04_00415EE8(u8 *owner, f32 *pos, f32 *to, f32 *from)
 
 /* func_L04_00416018 is defined in L04_0040F8F0-g8.c. */
 
-INCLUDE_ASM("asm/levels", func_L04_004167B0);
+/* func_L04_004167B0 is defined in L04_0040F8F0-anim-g8.c. */
 
 INCLUDE_ASM("asm/levels", func_L04_00416E38);
 

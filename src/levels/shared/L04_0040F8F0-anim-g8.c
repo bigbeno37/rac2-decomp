@@ -1,7 +1,5 @@
-/* GPT-6.1 Sol high worker, USA v1.01, game -O2 -G8 -g -ffunction-sections.
- * 1676/1672 bytes, 0/2 places. FP allocation differs in animation-rate normalization; D_001A7A41 has a redundant high-half address construction hoisted into the clock guard and uses v1 rather than v0 for the byte. Earlier 1672-byte trials had an incorrect angle/counter guard. Native initial quadword copies, non-clobbering matrix copies and typed object fields recover the remaining transfer patterns. Counter increment is conditional on the angle test; reset is inside the distance guard. Final trail/state updates are outside the object guard.
- * Required declarations and types are included below. No linked match claimed.
- */
+/* func_L04_004167B0 needs -G8 and -g (the line labels give the nop pair before its
+ * div.s), so it has a unit of its own; see config/cflags.txt. */
 #include "common.h"
 typedef int Quad1006 __attribute__((mode(TI)));
 typedef struct { char pad0[0x24]; float scale; } Model1006;
@@ -48,8 +46,9 @@ extern float func_002AA898(void *,float,void *,float,float,float,int);
 extern char *D_L04_001B24DC;
 extern float D_0018C2D8 NOT_SDA;
 extern float D_00138288 NOT_SDA;
-extern float D_0018A128 NOT_SDA;
-extern unsigned char D_001A7A41[] __attribute__((sda));
+extern float D_0018A138 NOT_SDA;
+/* Read as D_001A7A40[1]: an sda array at a nonzero offset is one unsplit lui+lbu pair. */
+extern unsigned char D_001A7A40[] __attribute__((sda));
 extern unsigned char D_00139605 NOT_SDA;
 extern int D_L04_001A8FE8 __attribute__((sda));
 extern Object1006 *D_L04_001B08F4 __attribute__((sda));
@@ -68,12 +67,10 @@ extern void func_002A91F0(void *,void *);
 extern void func_L04_0040C368(void *);
 extern void func_L04_00416390(char *,void *,void *,float);
 
-static __inline__ float AnimationRate1006(float rate, float period) { return rate / period; }
-
 void func_L04_004167B0(char *m,char *s) {
  float v[4] __attribute__((aligned(16)));
  float mat[16] __attribute__((aligned(16)));
- float a,b,c,target,scale,d,angle; Object1006 *obj;
+ float a,b,c,target,scale,d,angle,period=0.5f; Object1006 *obj;
  if(!B(m,0xbc)) return;
  a=F(s,0x30c)+F(s,0x27c);
  if(a<0.083333336f) a=0.083333336f;
@@ -113,7 +110,7 @@ void func_L04_004167B0(char *m,char *s) {
    }
   } else func_00282948(s+0x36c);
   if(obj->anim<2) {
-   obj->animSpeed=AnimationRate1006(F(s,0x30c)*3.0f,0.5f);
+   obj->animSpeed=F(s,0x30c)*3.0f/period;
    if(F(s,0x30c)>0.33333334f) obj->animSpeed*=3.0f;
   }
   if(B(m,0xbc)==5) {
@@ -132,7 +129,7 @@ void func_L04_004167B0(char *m,char *s) {
     if(I(s,0x3b4)>=601) I(s,0x3b4)=0;
    }
   }
-  if(D_001A7A41[0]) F(s,0x430)=2.5f; else F(s,0x430)=1.0f;
+  if(D_001A7A40[1]) F(s,0x430)=2.5f; else F(s,0x430)=1.0f;
   func_002AEC48(obj,s+0x3c0,0,0.08f,0.5f);
   if(!D_L04_001B08F4) {
    if(D_00139605) D_L04_001B08F4=func_0029EFD0(0x12df); else D_L04_001B08F4=func_0029EFD0(0x50a);
@@ -153,7 +150,7 @@ void func_L04_004167B0(char *m,char *s) {
   }
  }
   if(D_L04_001B08F0) {
-   *(Quad1006 *)v=*(Quad1006 *)(m+0x10);v[2]=D_0018A128;*(Quad1006 *)mat=*(Quad1006 *)(m+0x10);
+   *(Quad1006 *)v=*(Quad1006 *)(m+0x10);v[2]=D_0018A138;*(Quad1006 *)mat=*(Quad1006 *)(m+0x10);
    func_L04_00416390(m,mat,s+0x290,F(s,0x30c)+F(s,0x27c));
   }
   F(s,0x6c0)=func_00283B98(F(s,0x6c0),(F(s,0x30c)+F(s,0x27c)*4.0f)*0.2f+0.01f);
