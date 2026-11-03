@@ -29,6 +29,14 @@
  * form. Needs a compiler/tooling fix (count a symbolic macro load or store
  * by the words the assembler emits); not reachable from the C here.
  *
+ * Recompiled 4 November 2026 (opus-2, task v2374): unchanged, 112/108.
+ * Controls: ref_01 nosda (split reload, 2 RTL insns) in a -G8 -fno-gcse
+ * unit: loop.c hoists and shares the %hi (wrong registers, 108 bytes); a
+ * goto loop keeps the %hi in place but loop.c then no longer hoists 0xFFFF
+ * and 0xFF (104 bytes). Retail hoists both constants, so its loop was a
+ * real loop that kept the reload as the one-insn macro lw: the pad count
+ * is the only blocker.
+ *
  * Key wording points: the record fields as struct members (a fixed scalar
  * global and a varying struct member do not conflict, so the reload is
  * scheduled before the increment); the stores written 0x16, 0x14, 0x1F

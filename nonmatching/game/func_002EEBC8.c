@@ -16,6 +16,15 @@
  * (count symbolic macro loads/stores/la by assembled words); no source
  * construct removes it without a barrier. Declarations: as below.
  *
+ * Claude Opus 5.5 (opus-2), 4 November 2026 (task v2374): body unchanged,
+ * still 320/320 bytes, 0/1 places, +0x64. Split-address control: passing a
+ * plain (non-sda) alias of D_001A7240 to func_0011D810 makes the loop's
+ * address HIGH+LO_SUM (2 RTL insns), but gcse PRE hoists the HIGH to the
+ * entry into $s0 (332 bytes); with goto loops in a -fno-gcse unit it stays
+ * in the loop, yet reorg then moves the split lui into the bgez and bnel
+ * delay slots (a macro la is never a slot candidate). Retail's nop slots
+ * show the loop held the macro la, so only the pad count is wrong.
+ *
  * Earlier: GPT-6.1 Sol (high), 29 October 2026: 320/320 bytes, 0/1 places.
  * Default -O2 -G0 -ffunction-sections, current pinned compiler.
  * Carry from orch/main: first difference +0x64, one excess polling-loop nop;
