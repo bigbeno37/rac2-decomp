@@ -313,8 +313,7 @@ void func_L05_00430BF0(Vec16_Fc936841d *object, int index)
 
 /* func_L05_004431A0 is defined in L05_004431A0.c. */
 
-INCLUDE_ASM("asm/levels", func_L05_004432E0);
-
+/* func_L05_004432E0 is defined in L05_00428350-camera-g8.c. */
 /* func_L05_00443740 is defined in L05_00443740-g8.c. */
 
 /* Folds the object's two turn rates out of its parent's rotation into the moby, then
