@@ -915,5 +915,6 @@
 #define UpdateBankedOrientation          func_002EE000
 #define UpdateBoltGroundedPose           func_00301F18
 #define BeginPreviewTransition           func_002FF0D8
+#define ProbeLedgeGrab                   func_L01_002AE128
 
 #endif /* NAMES_H */
