@@ -374,7 +374,7 @@ int func_00302440(char *obj, char *obj2)
 
 
 
-INCLUDE_ASM("asm/game", func_00302470);
+
 
 INCLUDE_ASM("asm/game", func_00302848);
 

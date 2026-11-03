@@ -1,3 +1,19 @@
+/* 4 November 2026, Claude Opus 5.5 (v2376), default G8 (-O2 -G8 -ffunction-sections):
+ * 468/468 bytes, 0/28 places; only one spot differs (5 lines, order only): the
+ * func_002C2210 setup loads a1 (D_001AE92C, gp) before a2 (lui a2; lw a2, D_001AE904)
+ * and la t1; retail has a2, la t1, then a1.
+ * Fixed here: the func_002A7878 f12/f13 spot and the func_00283D38 a0/f12 spot. Plain
+ * small arrays/scalars at their measured extents replace the 16-byte sda arrays:
+ * D_001AE8E8[2] (8E8/8EC floats, the [1] read is a length-2 CONST macro that stays out
+ * of the jal slot), D_001AE904[2] (904/908), and unmarked scalars D_001AE924, D_001B1688,
+ * D_001AE914, D_001AE918, D_001AE90C, D_001AE8F8 (end-of-file .extern: gas emits the
+ * absolute lui/op form, the gp form only in a delay slot).
+ * The residual: sched1 and sched2 tie the two loads (prio 4, one dependent each) and pick
+ * by RTL order, which is argument order. Retail's order fits f12, f13 and a2 being loaded
+ * by separate (uncombined) precomputed insns and a1 combined into its move; no natural
+ * source for that found. The real func_002C2210 parameter order (float, float, float,
+ * Quad *, ...) gives 464 bytes (f14 moves up, a2 load into the jal slot).
+ */
 /* 3 November 2026, second pass, current qualified compiler, default G8:
  * Fresh baseline: 468/468 bytes, 0/28 USA places, first mismatch +0x174.
  * The only remaining region is 00283D38's colour-load / f12 call setup.
@@ -53,18 +69,16 @@ extern s32 D_001AE928 __attribute__((sda));
 extern float D_001AE920 __attribute__((sda));
 extern s32 D_001AE92C __attribute__((sda));
 extern float D_001AE8F0 __attribute__((sda));
-extern float D_001AE8E8 __attribute__((sda));
-extern s32 D_001AE904[4] __attribute__((sda));
-extern float D_001AE924[4] __attribute__((sda));
+extern float D_001AE8E8[2];
+extern s32 D_001AE904[2];
+extern float D_001AE924;
 extern char D_001A8BD0[16] __attribute__((sda));
 extern u8 *D_001F0000[];
-extern s32 D_001B1688[4] __attribute__((sda));
-extern float D_001AE8EC[];
-extern s32 D_001AE914[4] __attribute__((sda));
-extern s32 D_001AE918[4] __attribute__((sda));
-extern s32 D_001AE908[4] __attribute__((sda));
-extern s32 D_001AE90C[4] __attribute__((sda));
-extern float D_001AE8F8[4] __attribute__((sda));
+extern s32 D_001B1688;
+extern s32 D_001AE914;
+extern s32 D_001AE918;
+extern s32 D_001AE90C;
+extern float D_001AE8F8;
 
 extern s32 func_002A77E0(s32);
 extern void *func_002C2210(char *, float, float, s32, s32, float, s32, s32, char *, s32);
@@ -93,18 +107,18 @@ void func_00302848(char *obj, s32 quiet)
             k = -D_001AE928;
         else
             k = D_001AE928;
-        func_002C2210(first, D_001AE920, D_001AE924[0], D_001AE92C, D_001AE904[0], 0.0f, 2, k, D_001A8BD0, 0);
+        func_002C2210(first, D_001AE920, D_001AE924, D_001AE92C, D_001AE904[0], 0.0f, 2, k, D_001A8BD0, 0);
     }
     pos = obj + 0x10;
     puff = func_002C2FD8(pos, D_001AE900, *(u8 *)(rec + 0x41), 0, 0, 2, 0, D_001AE8F0);
     if (puff != 0)
         puff[2] = *D_001F0000[0x98E];
-    if (quiet == 0 && (D_001B1688[0] & 1)) {
+    if (quiet == 0 && (D_001B1688 & 1)) {
         func_002A7A00(&vec, 0.0f, 0.05f);
         func_00282CC0(&vec, &vec, pos);
-        zero.f[2] = -(func_002A7878(D_001AE8E8, D_001AE8EC[0]) * 0.016666668f);
-        tint = func_002A7820(D_001AE914[0], D_001AE918[0]);
-        color = func_00283D38(D_001AE908[0], D_001AE90C[0], func_002A7878(0.0f, 1.0f));
-        func_002C3150(&vec, &zero, color, tint, func_002A77E0(0xFF), 0, D_001AE8F8[0]);
+        zero.f[2] = -(func_002A7878(D_001AE8E8[0], D_001AE8E8[1]) * 0.016666668f);
+        tint = func_002A7820(D_001AE914, D_001AE918);
+        color = func_00283D38(D_001AE904[1], D_001AE90C, func_002A7878(0.0f, 1.0f));
+        func_002C3150(&vec, &zero, color, tint, func_002A77E0(0xFF), 0, D_001AE8F8);
     }
 }

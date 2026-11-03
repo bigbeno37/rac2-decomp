@@ -1,22 +1,3 @@
-/*
- * Claude Opus 5.5, USA v1.01, 2026-11-03 (task v2192).
- * Profile: -O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier (separate unit:
- * the same-file callee func_003022A0 stays in 00300618.c).
- * check.py: 984/984 bytes, 0 of 28 places; only 4 register words differ: the two 0x40
- * constants (byte updateDistance 0x30, halfword drawDistance 0x32) take a2/a3 where retail
- * has a3/a2. Everything else, including the early exit, agrees.
- * Early exit: retail's two-word absolute lui/lw + lui/sw with `ld s0` in the b slot is the
- * sda/MACRO_ADDR symbol at a nonzero offset (D_001A7A10[1], the int at 0x1A7A14 that
- * src/levels/shared/L00_003EA0E0.c also updates beside D_001A7A10). Plain/sda int = $gp form;
- * an incomplete array without MACRO_ADDR splits HIGH/LO_SUM and shares the lui.
- * Store block: the field order life, updateDistance, visible, state, drawDistance gives
- * retail's store order and t0 for 1 (sched2 orders the stores by later uses of their
- * registers). Writing drawDistance before updateDistance lets cse merge the two 0x40
- * constants. All 60 orders with update before draw put the byte 0x40 in a2; local-alloc
- * would need the halfword constant (born later) to have the shorter life. Reopen with a
- * different block shape (parent/flags statements, constant sources), not field orders.
- * Existing name: SpawnBoltByValue.
- */
 #include "common.h"
 
 typedef int ParticleWord __attribute__((mode(TI)));
@@ -114,9 +95,12 @@ BoltSpawnObject *func_00302470(BoltSpawnObject *source, void *position, void *ve
     parent=source;
     if (parent) while (parent->parent) parent=parent->parent;
     object->parent=parent;
+    object->life=0x14;
     object->flags|=0x100;
-    object->life=0x14; object->updateDistance=0x40; object->visible=1; object->state=1;
+    object->updateDistance=0x40;
     object->drawDistance=0x40;
+    object->visible=1;
+    object->state=1;
     object->scale=object->objectClass->scale*scale;
     func_002833F0(orientation,&object->rotation);
     func_002AEC18(object,ref_00302470_01);

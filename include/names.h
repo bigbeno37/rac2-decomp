@@ -912,5 +912,6 @@
 #define LaunchSpawnerMobyUpdate          func_L04_003EE090
 #define RefreshMissionMenuItems          func_0029B910
 #define UpdateBankedOrientation          func_002EE000
+#define UpdateBoltGroundedPose           func_00301F18
 
 #endif /* NAMES_H */
