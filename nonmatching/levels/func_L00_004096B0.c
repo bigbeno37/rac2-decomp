@@ -1,3 +1,18 @@
+/* opus-1 (Claude Opus 5.5), task v2360, 4 November 2026.
+ * Best: 1944/1944 bytes, 0/27 US places, 17 non-relocation words differ (down from 28).
+ * Profile: -O2 -G8 -ffunction-sections -frac2-hazard-labels -g -frac2-zero-ti-por (alone in its own unit;
+ * the sibling L00_004096B0-g8.c has conflicting func_002AB1F0 / D_L00_00262570 declarations).
+ * Fixed: the query float block. `float query_range, query_radius = 1.5f;` declared at the top of the
+ * query block (a once-set, once-used constant pseudo that update_equiv_regs sinks to its use after
+ * sched1), with stores in the order range, shape, kind, radius, scale, owner, flags, reserved, extra.
+ * Retail's range store then precedes li.s 1.5 and both share f0. Reusing query_range for 1.5 made it
+ * global ($f2); the if/else range form flipped the branch to bnez and moved &shape into block 3 (35).
+ * Left: (1) shape copy 0x40975C..0x40977C + sw 0x84: retail %hi=v1, &shape=a1, scratches v0/a0; here
+ * %hi=v0, &shape=v1, scratches a0/a1. sched1 puts the range load (D_FAC) between the copy and the
+ * state+0x24 test load, so no local in v0 follows the copy; swapping the shape/range source lines
+ * gives identical code. (2) the triggered spill reloads at 0x409CE0..0x409D4C use a1/a2 for a2/a3
+ * (reload round-robin one step behind; probably follows from (1), since the copy's scratches are reloads).
+ */
 /* 2 November 2026:
  * Correct func_0032C700 to return its allocated object pointer. Retained 1944/1944 bytes, 0/27
  * US placements. Moving the range field ahead of radius does not repair the float-constant/store
@@ -140,7 +155,7 @@ void func_L00_004096B0(char *object)
     func_002AFFD8(position, (char *)&direction, 1);
     func_00300190(position, position);
     if (*(unsigned char *)(object + 0x20) == 0) {
-        float query_range;
+        float query_range, query_radius = 1.5f;
 
         qcopy(&previous, position);
         func_00282CC0(position, position, state);
@@ -153,12 +168,12 @@ void func_L00_004096B0(char *object)
         qcopy(&query.previous, &previous);
         qcopy(&query.position, position);
         qcopy(&query.velocity, state);
+    query.range = query_range;
     query.shape = shape;
-    query.radius = 1.5f;
+    query.kind = 3;
+    query.radius = query_radius;
     query.scale = (D_L00_001B0FA0 - 1.0f) + 1.0f;
     query.owner = object;
-    query.kind = 3;
-    query.range = query_range;
     query.flags = 0;
     query.reserved = 0;
     query.extra = 0;
