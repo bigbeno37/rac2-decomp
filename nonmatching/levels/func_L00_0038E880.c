@@ -1,3 +1,22 @@
+/* 4 November 2026, opus-1 (Claude Opus 5.5, xhigh effort): closer draft, 1936/1952 bytes, 0/27 US places; masked
+ * diff 171 differing rows against 204 at the start of this attempt (same default game compiler). Built as its own
+ * unit because L00_0037E898.c declares func_00282DF0, func_00282F20 and func_002BF728 differently.
+ * Solved here:
+ * - Shake: one store through `?:` gives retail's tail exactly: the 0x1C base is shared before the branch, and reorg
+ *   copies the joined store into the delay slot of the jump.
+ * - height + 0.5: `float half = 0.5f;` declared at the top of the first loop's body has a long lifetime, so loop.c
+ *   hoists the constant and cse2 turns it into a copy of func_002A89A8's 0.5 (retail's mov.s $f26, $f20). The add
+ *   stays in the loop, as in retail. A literal 0.5f keeps the add but reloads 0.5 in every iteration.
+ * Still different:
+ * - Retail's `daddu $fp, $zero, $zero` before the first loop is an extra zero pseudo with no use, which moves
+ *   &point/&drift to s5/s6.
+ * - Second-loop colours. Retail's RTL is t1 = b << 16, t2 = (g << 8) | 0x7F000000, t3 = t1 | t2 (hoisted, spilled
+ *   to 0xC4), then | r (cprop'd to ori 0x60). `0x7F000000 | (b << 16) | (g << 8)` gives that grouping through fold's
+ *   associate step. The final `| r` stays outside only if r's type differs, because the CYGNUS
+ *   reduce_expression_tree_depth (fold-const.c) rebalances four same-type operands into (b<<16 | r) | (g<<8 | C).
+ *   With unsigned r, though, cse2 here folds t3 to 0x7F7F6000, while retail keeps the `or`. Colour 2 needs
+ *   ((b >> 1) << 16 | (g >> 1) << 8) | (r >> 1), with r >> 1 = 0x30 held in fp. Spill slots 0xC4/0xCC follow from this.
+ */
 /* 2 November 2026: retained 1944/1952 bytes, 0/27 US placements with the current default game compiler. Correct the ignored pointer returns of func_00308600 and func_002BF728, and the integer return of func_002E5DA0, from their current matched definitions. Evaluate the random lifetime before the second weapon-table read, as retail does; this fixes that call/read ordering without a barrier. Channel halving through a shared unsigned local expands to 1980 bytes and is not retained. Remaining: colour packing/spills, height-plus-half hoisting and register allocation. No complete match. */
 /* 1 November 2026 (closer a3): 93 words, 1944/1952 with a pointer local for the second table read (no madd). The
  * colours: `int r = 96;` as the only variable with literal g, b, a gives retail's first loop exactly (hoisted
@@ -140,11 +159,11 @@ void func_L00_0038E880(char *object, BurstVector *velocity, BurstVector *normal)
     height = func_002A89A8(&random, 0, 0.5f);
     ground = func_002A8A20(&random);
     if (height != ground && height - ground < 1.2f) {
-        int r = 96, g = 96, b = 127, a = 22;
-        float half = 0.5f;
+        int r = 96;
         {
             int i;
             for (i = 99; i >= 0; --i) {
+                float half = 0.5f;
                 float radius, angle;
                 point.q = 0;
                 point.f[0] = func_002A7878(-0.012500001f, 0.012500001f);
@@ -161,16 +180,17 @@ void func_L00_0038E880(char *object, BurstVector *velocity, BurstVector *normal)
                 point.f[2] = height + half;
                 drift.f[2] -= radius;
                 func_L00_0033AA40(&point, &drift, 0, func_002A7878(0.25f, 1.0f), height,
-                (r | (g << 8) | (b << 16) | (a << 24)), 1.0f / 180.0f, (r | (g << 8) | (b << 16)), 1);
+                (0x16000000 | (0x7F << 16) | (0x60 << 8) | r), 1.0f / 180.0f, ((0x7F << 16) | (0x60 << 8) | r), 1);
             }
         }
         {
             int i;
+            int r = 96, g = 96, b = 127;
             for (i = 19; i >= 0; --i) {
                 int color1, color2;
                 float life;
-                color1 = func_L00_0031C998(BurstColor(0, 0, 0, 127), (r | (g << 8) | (b << 16) | (127 << 24)), func_002A7878(0.25f, 1.0f));
-                color2 = func_L00_0031C998(0, BurstColor(48, 48, 63, 0), func_002A7878(0.5f, 1.0f));
+                color1 = func_L00_0031C998(0x7F000000, r | (g << 8) | (b << 16) | 0x7F000000, func_002A7878(0.25f, 1.0f));
+                color2 = func_L00_0031C998(0, (r >> 1) | ((g >> 1) << 8) | ((b >> 1) << 16), func_002A7878(0.5f, 1.0f));
                 point.f[0] = func_002A7878(-3.0f, 3.0f);
                 point.f[1] = func_002A7878(-3.0f, 3.0f);
                 point.f[2] = func_002A7878(4.0f / 60.0f, 14.0f * (1.0f / 60.0f));
@@ -184,10 +204,7 @@ void func_L00_0038E880(char *object, BurstVector *velocity, BurstVector *normal)
             }
         }
     }
-    if (distance < 20.0f)
-    D_L00_001B8C80.shake = 0.4f - distance * 0.0175f;
-    else
-    D_L00_001B8C80.shake = 0.050000011920928955f;
+    D_L00_001B8C80.shake = distance < 20.0f ? 0.4f - distance * 0.0175f : 0.050000011920928955f;
     D_L00_001B8C80.duration = 25;
     D_L00_001B8C80.timer = 0;
     func_00312B70(&tmpl, object + 0x10, 0, 0);
