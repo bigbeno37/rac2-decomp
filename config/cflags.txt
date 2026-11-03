@@ -3105,3 +3105,4 @@ src/game/002FC8D0-preview.c	-O2 -G0 -ffunction-sections -g
 # Nanotech-ball draw: line-label FPU padding before the pulse division.
 src/game/0030F7B0-ball-g8.c	-O2 -G8 -ffunction-sections -g
 src/levels/shared/L05_00442A58-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por -g -frac2-hazard-labels
+src/levels/shared/L00_004224D0-follow-g8.c	-O2 -G8 -ffunction-sections -g

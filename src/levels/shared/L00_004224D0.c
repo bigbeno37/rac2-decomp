@@ -451,7 +451,7 @@ void func_L00_00425490(char *obj)
     *(float *)(r + 48) = c - a;
 }
 
-INCLUDE_ASM("asm/levels", func_L00_00425560);
+/* func_L00_00425560 is in L00_004224D0-follow-g8.c. */
 
 /* func_L00_00425A98 is in a separate compilation unit. */
 
