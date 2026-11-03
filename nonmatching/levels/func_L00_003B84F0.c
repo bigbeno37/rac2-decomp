@@ -1,24 +1,40 @@
-/* GPT-6.1 Sol high, worker v1441, 29 October 2026.
- * Pinned toolchain: -O2 -G8 -ffunction-sections -g -frac2-zero-ti-por
- * -frac2-hazard-labels (dedicated unit required).
- * Best check.py: 2404/2404 bytes, 0/27 USA placements; first reported
- * instruction mismatch +0x70. Required declarations follow.
- * Improved over v1233: retail clears on when hero +0x340 is zero;
- * the previous && condition incorrectly preserved on along that edge.
- * Grouping all four initial colour stores fixes their scheduling, and the
- * reviewed hazard-label option fixes the branch onto divide padding.
- * Remaining: prologue GPR allocation, loop colour/vector-pointer allocation,
- * packed-colour scheduling, flag/pointer spill reloads and final alpha reloads.
- * Timer addressing already follows retail's mixed gp/absolute paths with
- * MACRO_ADDR. A first-use SDATA alias gives 2400 bytes and is worse.
- * Long RGB locals give 2420 bytes; iterative assignments directly to the
- * long-lived alpha words give 2444 bytes through repeated spill stores.
- * Plain register RGB locals and a three-vector offset array each give the
- * same code as this draft: stop on that tie; seek independent lifetime evidence.
- * Earlier useful result: distinct phase and width variables recover the
- * retail f20/f21/f22 allocation. Flattening alpha expressions and chained
- * colour stores did not help. All-sda timer access previously gave 2388 bytes.
- * 0x700014A9 is compiler-reachable por v0,zero,zero, not handwritten proof.
+/* Claude Opus 5.5 (tier opus-1), worker v2406, 4 November 2026.
+ * Dedicated unit required, flags:
+ * -O2 -G8 -ffunction-sections -frac2-zero-ti-por -frac2-hazard-labels
+ * (-g makes no difference.) The declarations this needs are the ones below.
+ * Best check.py: 2404/2404 bytes, 0/27 places, first mismatch +0x70,
+ * 134 of 601 rows differ, of which 23 are real (the rest are relocations).
+ * All 23 are prologue register swaps, 0x3B8550-0x3B85F4; everything from the
+ * loop on matches. Ours -> retail: hero lui v1 -> a0; alpha0 chain a0 -> v1;
+ * D_L00_001AFD1C term v1 -> a0; D_L00_001AFD04 term t1 -> t0;
+ * D_00138180 lui/addiu t0 -> t1; 0xFF9000000260 a0 -> v1; constant 4 v1 -> a0.
+ *
+ * What fixed the loop: writing the colour pack in both arms of the alpha
+ * override test. jump2 cross-jumps the tails, but flow counts both, so
+ * r/g/bl reach 6 refs and the saved-register order becomes retail's. The
+ * stores are in source order col[3]..col[0] (the REG_DEAD one issues first).
+ *
+ * What is left is two local-alloc priority flips (number = floor_log2(refs)
+ * * refs / length): r131 = high(D_00189E20), 3 refs, length 3, 1.0, must fall
+ * below chain {r118,r115}, 8 refs, length 41, .585; and {r129,r128}
+ * = D_00138180, 10/39, must fall below {r109,r110}, 10/45. Retail also has a0
+ * taken before {r106,r105} (.45) is placed, and a length of 5 or 7 for r131
+ * does not land in .45-.585, so the refs must differ as well, not just order.
+ * r129/r131 each have one ref from the PRE copy: block PRE puts r446/r445 =
+ * high at the end of bb 1 and cse2 turns that into a copy. lcm.c makes
+ * OPTIMAL & REDUNDANT empty, so pre_insert_copies never fires in block mode.
+ *
+ * Tried without gain (rows): `on` after the alpha chains in any position (23),
+ * before them (41, 42); swapped & operands or a hero pointer local (47);
+ * a pointer local for D_00138180 (23); early dead high() in bb 0 as a
+ * diagnostic (34, reload remats both lui in v1, so retail is not a remat);
+ * _1 aliases in the prologue (230-558, so the bb 1 PRE copies are real);
+ * direct | chains for alpha0 (34), alpha1 (45), both (46); v = a; v |= b<<2
+ * for alpha0 (23), alpha1 (216); a shared <<4 local (553);
+ * -fno-rerun-cse-after-loop (575); -fno-gcse (559);
+ * -frac2-gcse-unsplit-edges (23).
+ * Untried: a chain form adding refs to {r118,r115} and {r109,r110} with no
+ * extra code, such as a copy into a spilled pseudo that combine cannot merge.
  */
 #include "include_asm.h"
 #include "common.h"
@@ -273,14 +289,22 @@ void func_L00_003B84F0(Moby_L00_003B84F0 *obj)
                 if (x < ctl->f44 * 0.5f) {
                     alpha = func_00283CF0(flag ? D_L00_001AFD30 : D_L00_001AFD2C);
                 }
+                col = r | (g << 8);
+                col = col | (bl << 16);
+                col = col | (alpha << 24);
+                pkt.col[3] = col;
+                pkt.col[2] = col;
+                pkt.col[1] = col;
+                pkt.col[0] = col;
+            } else {
+                col = r | (g << 8);
+                col = col | (bl << 16);
+                col = col | (alpha << 24);
+                pkt.col[3] = col;
+                pkt.col[2] = col;
+                pkt.col[1] = col;
+                pkt.col[0] = col;
             }
-            col = r | (g << 8);
-            col = col | (bl << 16);
-            col = col | (alpha << 24);
-            pkt.col[0] = col;
-            pkt.col[3] = col;
-            pkt.col[2] = col;
-            pkt.col[1] = col;
             flag ^= 1;
 
             func_00282F20(&vx, &b, x);
