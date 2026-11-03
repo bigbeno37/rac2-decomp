@@ -985,7 +985,7 @@ BatchA_A18_s32 func_L18_004271C0(BatchA_A18_u8 *a0) {
 
 /* func_L18_004273F0 is matched in L18_004273F0-g8.c (built with -frac2-qcopy). */
 
-INCLUDE_ASM("asm/levels", func_L18_00427688);
+/* func_L18_00427688 lives in L18_00427688-g32.c. */
 
 /* func_L18_00427B48: 144 bytes against retail's 148; the chain pointer and the
    stored 1 take each other's register. Deposited in nonmatching/levels/. */

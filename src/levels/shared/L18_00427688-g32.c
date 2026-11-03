@@ -1,24 +1,4 @@
-/* GPT-6.1 Sol (high), task v1028, 29 October 2026. Nonmatching.
- * Pinned upstream profile: -O2 -G32 -Wa,-G32 -ffunction-sections
- *                          -frac2-qcopy -frac2-qcopy-barrier.
- * USA v1.01: 1212/1212 bytes, 0 of 3 places match; first mismatch +0x20.
- * Replaces the previous 1196-byte draft. All declarations are retained below.
- * Capture six scalar motion defaults before stores, preserving the real
- * seven-float global's extent. This recovers the default load/store sequence.
- * Unsigned state bytes, case 0xec0 before the shared 0xed4/0xee1 switch body,
- * and the nonzero-first final branch recover retail's later control flow.
- * Use the existing D_L18_0021E7B0[][0x464] view for the lookup at +0x464.
- * Snapshot f18 before the post-random stores. Reverse the independent short
- * and 5.0f stores to recover their scheduled order; destination pointer
- * declaration precedes the source for the full aligned position capture.
- * Remaining: missing initial object[0xb0] reload, initializer constant allocation
- * (QI/SI 9 has two producers), and early independent scalar-store scheduling.
- * Typed initial-state fields tie; named constants, byte/word value forwarding,
- * and disabling either scheduler worsen output. keep-block-order plus
- * no-null-pointer-checks gives identical bytes to the profile above.
- * Reopen with evidence for the original constant/field lifetimes.
- * No linked build or runtime validation; US2/PAL not checked in this task.
- */
+#include "include_asm.h"
 #include "common.h"
 typedef int Vector128 __attribute__((mode(TI)));
 
@@ -42,18 +22,27 @@ int func_L18_00427688(unsigned char *object)
     unsigned char *state;
     float randomAngle;
     unsigned int ownerClass;
-    if(object[0xb0]!=0xff && (D_0019B2E8[D_001A79F0*16+object[0xb0]]&0x80)!=0 && D_L18_0021E7B0[1][*(short *)(object+0xb2)]!=0) return 1;
+    if(object[0xb0]!=0xff) {
+        if((D_0019B2E8[object[0xb0]+D_001A79F0*16]&0x80)!=0) {
+            if(D_L18_0021E7B0[1][*(short *)(object+0xb2)]!=0) return 1;
+        }
+    }
     state=*(unsigned char **)(object+0x68);
     ownerClass=object[0x30];
+    *(int *)(state+0x98)=9;
+    state[0x61]=7; state[0x62]=8;
+    *(unsigned char *)(state+0x67)=0xff;
+    *(float *)(state+0x80)=0.4f;
+    *(float *)(state+0x84)=0.4f;
+    *(float *)(state+0x74)=0.004166666884f;
+    state[0xbe]=5; state[0xbf]=11; state[0x2e]=1;
     state[0x60]=10;
     *(float *)(state+0x6c)=0.1833333373f;
     *(float *)(state+0x70)=0.08333333582f;
     *(float *)(state+0x78)=0.008333333768f;
     *(float *)(state+0x8c)=0.4f;
-    state[0xbd]=6;
-    *(float *)(state+0x80)=0.4f;
-    *(float *)(state+0x84)=0.4f;
     *(unsigned int *)(state+0x3e0)=ownerClass;
+    state[0xbd]=6;
     state[0x66]=8; state[0x65]=9;
     *(float *)(state+0x7c)=0.004166666884f;
     state[0xbc]=3; state[0xc2]=5; state[0xc3]=11;
@@ -62,11 +51,7 @@ int func_L18_00427688(unsigned char *object)
     *(unsigned char *)(state+0x2f)=0xff;
     state[0x2a]=4; state[0x4a]=7;
     *(float *)(state+0x100)=0.7f;
-    *(int *)(state+0x98)=9;
-    state[0x61]=7; state[0x62]=8;
-    *(unsigned char *)(state+0x67)=0xff;
-    *(float *)(state+0x74)=0.004166666884f;
-    state[0xbe]=5; state[0xbf]=11; state[0x2e]=1; state[0x4d]=0;
+    state[0x4d]=0;
     *(float *)(state+0x104)=0.5f;
     *(float *)(state+0x108)=0.5f;
     *(float *)(state+0x10c)=0.5f;
