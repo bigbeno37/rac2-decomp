@@ -673,9 +673,6 @@ void func_L00_003C1FC8(int unused, char *pos, int color, int first, int second, 
     func_802EAC30_1(pkt, m, 0);
 }
 
-
-INCLUDE_ASM("asm/levels", func_L00_003C27A0);
-
 extern void func_L00_003263D0(char *a, char *b, float h, int c, int d, char *e, float i,
                                int f, int g, float j, float k);
 

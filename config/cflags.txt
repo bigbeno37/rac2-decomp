@@ -3119,3 +3119,4 @@ src/levels/shared/L00_003A0F30-frag-g8.c	-O2 -G8 -ffunction-sections -fno-rerun-
 src/levels/shared/L06_00403130.c	-O2 -G0 -ffunction-sections -g
 src/levels/shared/L04_003C8380-shot.c	-O2 -G0 -ffunction-sections -g
 src/levels/shared/L00_0036F488-g8.c	-O2 -G8 -ffunction-sections -frac2-gcse-unsplit-edges
+src/levels/shared/L00_003B9CB8-g16-qcopy.c	-O2 -G16 -Wa,-G16 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
