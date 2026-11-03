@@ -607,7 +607,7 @@ int func_L09_003F7A88(char *object, int index) {
 
 
 
-INCLUDE_ASM("asm/levels", func_L09_003F7CE0);
+/* func_L09_003F7CE0 is defined in L09_003F7CE0-g8.c. */
 
 /* func_L09_003F8598 is defined in L09_003F8598-g8.c. */
 
