@@ -1,22 +1,27 @@
-/* GPT-6.1 Sol (high), task v1028, 29 October 2026. Nonmatching.
- * Pinned upstream profile: -O2 -G32 -Wa,-G32 -ffunction-sections.
- * USA v1.01: 1208/1208 bytes, 0 of 3 places match; first mismatch +0x50.
- * Replaces the previous 1216-byte draft. All declarations are retained below.
- * Compute RGB from the faded color inside the segment loop: this prevents the
- * outer mask hoist and recovers the inner loop's saved-register assignments.
- * Snapshot the original color separately, then update the named faded value.
- * V coordinates use the actual overlapping D_L18_001B0534 view with nosda;
- * U coordinates retain the gp-relative D_L18_001B0530 view.
- * Incrementing segment before the second draw recovers its earlier reload.
- * Remaining: next-vector/segment spill slots are exchanged (0x110/0x114),
- * absolute f13 load setup, UV cursor allocation, and the first end-cap bc1fl.
- * Ordinary initial vector copy, explicit vector pointers and UV cursors worsen
- * the instruction match; no-gcse/strength-reduce/loop-pass changes do not fix it.
- * The previous -mno-split-addresses profile improves UV allocation but worsens
- * endpoint address scheduling. Reopen with lifetime evidence for those cursors.
- * No linked build or runtime validation; US2/PAL not checked in this task.
+/* Claude Opus 5.5 (xhigh), task v2315, 3 November 2026. Nonmatching.
+ * Profile: -O2 -G32 -Wa,-G32 -ffunction-sections, in its own unit
+ * (e.g. src/levels/shared/L18_003FAE50-beam.c with one cflags line).
+ * USA v1.01: 1208/1208 bytes, 0 of 3 places; 58 rows differ, all of them
+ * relocation placeholders except five accesses to two exchanged spill slots:
+ * ours keeps &local.next at 0x114 and segment+1 at 0x110; retail is reversed.
+ * Replaces the sol-high draft (73 rows). Declaration findings:
+ * - D_L18_001B0560[] as an incomplete sda array read as [0]/[1]: [1] is a
+ *   CONST sym+4, an unsplit two-insn load kept out of delay slots, which
+ *   recovers the absolute f13 setup.
+ * - D_L18_001B0534[] as an incomplete MACRO_ADDR array gives the la macro
+ *   and fixes the UV cursors and the end-cap bc1fl.
+ * Remaining cause (verified): gcse numbers PRE reaching regs in hash-bucket
+ * order (127 buckets). &local.next = (plus fp 16) is bucket 76; segment+1 is
+ * bucket (60 + segment's pseudo) % 127. Retail needs that bucket above 76,
+ * i.e. segment's pseudo 144..193 (beam stays 92). Block-scoped segment below
+ * gives 121; a diagnostic with 23 unused ints declared before segment (pseudo
+ * 144, not acceptable) matched 3 of 3 places. Reopen with a natural construct
+ * that creates about 23 more pseudos before the inner-loop counter is declared
+ * without changing the frame layout or code. Dead initial values only change
+ * the table size and cannot reach a feasible size.
  */
 #include "common.h"
+
 typedef int Vector128 __attribute__((mode(TI)));
 
 typedef struct { unsigned char pad[0x70]; long f70,f78,f80,f88; } QuadPacket;
@@ -25,10 +30,11 @@ typedef union { QuadPacket raw; QuadPayload view; } BeamPacket;
 typedef struct { Vector128 start,next,ray,firstSide,secondSide,step; BeamPacket packet; Vector128 scratch; } BeamWorkspace;
 extern Vector128 D_L18_002A08C0[11],D_L18_002A0970[11];
 extern char D_L18_001B97C0[];
-extern float D_L18_001B0534[7] __attribute__((nosda));
+extern float D_L18_001B0534[] MACRO_ADDR;
 extern float D_L18_001B0530[4][2] __attribute__((sda));
 extern unsigned int D_L18_001B0550 __attribute__((sda)),D_L18_001B0554 __attribute__((sda));
-extern float D_L18_001B0558 __attribute__((sda)),D_L18_001B0560 __attribute__((sda)),D_L18_001B0564 __attribute__((nosda));
+extern float D_L18_001B0558 __attribute__((sda));
+extern float D_L18_001B0560[] __attribute__((sda));
 extern float D_L18_001B0568 __attribute__((sda)),D_L18_001B056C __attribute__((sda)),D_L18_001B0570 __attribute__((sda));
 extern void func_00282CF0(void *,void *,void *);
 extern void func_00282D30(void *,void *,float);
@@ -45,17 +51,19 @@ void func_L18_003FAE50(char *object)
     unsigned int faded,rgb,endColor;
     float alpha;
     unsigned int alphaByte,sourceColor;
-    int beam,segment,i;
+    int beam,i;
     for(beam=0;beam<11;beam++) {
         qcopy(&local.start,&D_L18_002A08C0[beam]);
         func_00282CF0(&local.step,&D_L18_002A0970[beam],&local.start);
         func_00282D30(&local.step,&local.step,1.0f/D_L18_001B0570);
         func_00282CC0(&local.next,&local.start,&local.step);
-        alpha=func_002A7878(D_L18_001B0560,D_L18_001B0564);
+        alpha=func_002A7878(D_L18_001B0560[0],D_L18_001B0560[1]);
         sourceColor=D_L18_001B0550;
         alphaByte=sourceColor>>24;
         faded=sourceColor&0xffffffu;
         faded|=(unsigned int)(int)(alpha*(float)(int)alphaByte)<<24;
+        {
+        int segment;
         for(segment=0;(float)segment<D_L18_001B0570;) {
             rgb=faded&0xffffffu;
             func_00282CF0(&local.ray,&local.start,&local.next);
@@ -117,6 +125,7 @@ void func_L18_003FAE50(char *object)
             func_00280B90(&local.packet.raw,0,0);
             qcopy(&local.start,&local.next);
             func_00282CC0(&local.next,&local.next,&local.step);
+        }
         }
     }
     *(float *)(state+0x8c)+=D_L18_001B0558;
