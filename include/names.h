@@ -916,5 +916,7 @@
 #define UpdateBoltGroundedPose           func_00301F18
 #define BeginPreviewTransition           func_002FF0D8
 #define ProbeLedgeGrab                   func_L01_002AE128
+#define UpdateOwnedParticleTrails        func_003054E8
+#define DrawNativeQuads                  func_00300AA8
 
 #endif /* NAMES_H */

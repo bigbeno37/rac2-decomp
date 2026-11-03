@@ -1,96 +1,6 @@
 /*
- * GPT-6.1 Sol (high), USA v1.01, 2026-10-29.
- * Profile: -O2 -G8 -ffunction-sections -g.
- * check.py: 1200/1200 bytes, 0 of 28 places match; first mismatch +0x50.
- * No linked build. Remaining differences are in the texture-upload loop:
- * counter/command allocation, clamp-before-shift versus shift-before-select,
- * and the independently materialized +8 upload-row pointer. Equal size is
- * not a match. Projection, vertex transforms and the complete packet loop
- * have the retail instruction sequence apart from unresolved relocations.
- * New evidence: separate texture/quad counters and tag/payload pointers give
- * the retail packet registers; increasing matrix-column update order fixes
- * FP allocation; mixed GP/absolute views refer to the same projection/queue.
- * All queue payload stores retain the pointee's existing volatile qualifier.
- * The GP queue view lets its first read occupy retail's branch delay slot.
- * The old retained 1200-byte source had frame 0x90; this has retail's 0xA0.
- * Ordered identical nonrelocated words improve from 125 to 202 (diagnostic
- * only). Separate +8 upload views grow to 1220 bytes. Long shift-count and
- * inline clamp variants do not fix the loop. Reopen with independent source
- * or compiler evidence for that clamp/address lifetime. All declarations
- * follow below. Existing name: DrawNativeQuads.
+ * func_00300AA8: matched only with a forbidden method (per-access volatile cast); AGENTS.md rules: not landed
  */
-
-#include "common.h"
-
-typedef int ParticleWord __attribute__((mode(TI)));
-typedef union { ParticleWord word; float f[4]; } ParticleVector;
-typedef struct { float x,y,z,w; } V4_F213135aa;
-extern void func_00282CC0(void *, void *, void *);
-extern void func_00282CF0(void *, void *, void *);
-extern void func_00282D30(void *, void *, float);
-
-typedef unsigned long long NativeCompactU64;
-typedef union {
-    s32 field00[4];
-    struct {
-        NativeCompactU64 field00;
-        short field08;
-        short field0A;
-        unsigned short field0C;
-        unsigned short field0E;
-    } compact;
-} NativeCompactRow16;
-typedef struct {
-    char pad00[4];
-    short field04;
-    char pad06[2];
-    short field08;
-    short field0A;
-    char pad0C[0x14];
-    u32 field20;
-} NativeSpawnHeader;
-extern void func_00300748(NativeSpawnHeader *, char *, float);
-extern void func_00283388(float *);
-/* Partial native draw header through the packed-vertex tint field. */
-typedef struct {
-    short vertexCount, quadCount, boneCount, textureCount, frameCount, boneStride;
-    float scale;
-    void *vertices;
-    u8 *quads;
-    NativeCompactRow16 *textures;
-    u8 *texels;
-    void *bones;
-    int packed;
-    u32 tint;
-} NativeDrawHeaderView;
-typedef struct {
-    u8 *source;
-    unsigned short reserved04, oldPage;
-    u8 *secondSource;
-    u8 width, height;
-    unsigned short newPage;
-} TextureUpload;
-typedef struct { NativeCompactU64 color, coordinate, position, reserved18; } ScratchVertex;
-extern int D_001A72D0;
-extern int D_001A7350[2];
-extern u8 D_001A7BB1;
-extern int ref_00300AA8_00;
-extern TextureUpload ref_00300AA8_01[64];
-extern float nativeProjection[16] SDATA(ref_00300AA8_02);
-extern float ref_00300AA8_02[16] __attribute__((sda));
-typedef struct { char pad[0xB0]; float size[2]; char padB8[0x148]; float scale[2]; } NativeDrawView;
-extern NativeDrawView ref_00300AA8_03;
-extern ParticleWord ref_00300AA8_06 SDATA(ref_00300AA8_06);
-/* The queue retains the qualifiers of its existing renderer declaration. */
-extern volatile unsigned int * volatile D_001B22A8;
-extern volatile unsigned int *nativeQueue SDATA(D_001B22A8);
-extern void func_00300910(void);
-extern void func_00282D30(void *, void *, float);
-extern void func_00283788(void *, void *, void *);
-extern void func_0029D258(void *, void *, int, int);
-extern void func_0029D398(void *, void *, int, u32, int);
-
-/* Upload referenced textures, transform the native vertices and submit each quad. */
 void func_00300AA8(char *object, float x, float y, int flags, float frame, float *transform)
 {
     NativeDrawHeaderView *header=(NativeDrawHeaderView *)object;
@@ -109,6 +19,7 @@ void func_00300AA8(char *object, float x, float y, int flags, float frame, float
     for (index=0; index<header->textureCount; ++index) {
         NativeCompactU64 tex0_word;
         long width_bits, palette_bits;
+        int one=1; /* set here, ahead of the clamp: both shifts use it */
         texture=&header->textures[index];
         width=(short)texture->compact.field0C;
         shift=width-6;
@@ -117,27 +28,33 @@ void func_00300AA8(char *object, float x, float y, int flags, float frame, float
         height=page>>8;
         queued=ref_00300AA8_00;
         if ((int)shift<0) shift=0;
-        tex0_word=(NativeCompactU64)(int)(1U << shift)<<14;
+        shift=one << shift;
+        tex0_word=(NativeCompactU64)(int)shift<<14;
         tex0_word|=height;
         width_bits=((long)((NativeCompactU64)texture->compact.field0C<<48)>>22)|0x01300000;
         tex0_word|=width_bits;
+        width+=(short)texture->compact.field0E;
         tex0_word|=(long)((NativeCompactU64)texture->compact.field0E<<48)>>18;
         palette_bits=(NativeCompactU64)oldCursor<<37;
         palette_bits|=(NativeCompactU64)1<<34;
-        width+=(short)texture->compact.field0E;
         tex0_word|=palette_bits;
         tex0_word|=(NativeCompactU64)1<<63;
-        D_001A72D0=page+(1<<width);
+        /* width stays one register; the copy keeps page as the first addend. */
+        width=one<<width;
+        shift=width;
+        width=page+shift;
+        D_001A72D0=width;
         texture->compact.field00=tex0_word;
         if (queued<64) {
             upload=&ref_00300AA8_01[queued];
+            upload->source=header->texels+(unsigned short)texture->compact.field0A*16;
             upload->oldPage=oldCursor;
             upload->reserved04=0;
-            upload->source=header->texels+(unsigned short)texture->compact.field0A*16;
-            upload->secondSource=header->texels+(unsigned short)texture->compact.field08*16;
+            /* Written through the row offset, as the RAC1 upload queue does. */
+            *(u8 **)((u8 *)ref_00300AA8_01+queued*16+8)=header->texels+(unsigned short)texture->compact.field08*16;
             upload->width=texture->compact.field0C;
-            upload->newPage=height;
             upload->height=texture->compact.field0E;
+            upload->newPage=height;
             ref_00300AA8_00=queued+1;
         }
     }
