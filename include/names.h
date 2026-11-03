@@ -923,5 +923,6 @@
 #define DrawAndReleaseObjectParticles    func_00329488
 #define DrawQuadFaces                    func_0032C2E8
 #define StartAttachedEffect              func_0032D758
+#define DrawTubeStrips                   func_L05_0042B2C0
 
 #endif /* NAMES_H */
