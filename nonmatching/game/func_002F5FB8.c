@@ -16,11 +16,17 @@
  *    Retail slot order is destination, 2<<4, first+63, second+63; here first+63, second+63,
  *    2<<4.
  *  - Retail's sector address is off + (TOC+8), with TOC+8 rematerialized (lui/addiu -0x4AB8)
- *    each iteration; here cse relates TOC+8 to the hoisted TOC register and combine folds it
- *    into addu a0,s4,off; lw 8(a0). The size address off + fp(TOC+12) and base lw 4(s4) agree.
+ *    each iteration; here combine folds it into addu a0,s4,off; lw 8(a0). The size address
+ *    off + fp(TOC+12) and base lw 4(s4) agree. Cause (4 November 2026, x.i.loop): loop.c
+ *    hoists (plus TOC 12) only because it is the last use of the TOC lo_sum ("forces 580");
+ *    (plus TOC 8) has life 1, savings 1, "not desirable" (threshold * 1 * 1 < 135 insns), so it
+ *    stays in the loop. Retail hoisted both (TOC+8 then spilled to its REG_EQUIV, which frees
+ *    fp for TOC+12 and pushes destination to 0x68). Size-first or base+sector orders make TOC+8
+ *    the last use instead and leave TOC+12 in the loop (1164 bytes); MACRO_ADDR alias 1168.
  *  - Prologue registers differ: retail has displays=s2, display=s1, a 0x3F70 constant in s3,
  *    first in s7. The retail wait loop has an extra dead nop.
- * ref_L00_002F5FB8_01/14/10/12 are probably D_001B2208/220C/2210/2218 (set by func_002F5E20).
+ * Retail addresses: ref_00 = D_001B220C, ref_01 = 0x1B2208, ref_10 (descriptor) = 0x1B2210,
+ * ref_12 = 0x1B2218, ref_14 = gp 0x321C, ref_13 = gp 0x3224, ref_08 = 0x1B1604.
  */
 #include "common.h"
 extern int func_002EF010(int);
