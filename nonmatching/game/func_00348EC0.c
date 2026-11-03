@@ -1,3 +1,43 @@
+/* Opus 5.5, xhigh (v2384): -O2 -G8 -ffunction-sections, a *-g8.c unit. EXACT BYTES under check.py:
+ * 644/644 bytes, 28 of 28 places (us); US2 and PAL do not have this function. Not linked.
+ * Reported FAILED, not matched: the bytes need the `if` below, whose only effect is on scheduling
+ * and allocation, and whose condition is a reconstruction. It needs a maintainer's ruling.
+ *
+ * The exact-bytes form, between the spacing conversion and the start conversion:
+ *     half = (float)n * 0.5f;
+ *     if (sp > 0 && sp * n > D_001A7344[0])
+ *         top = 0.0f;
+ *     top = (float)(D_001A7344[0] >> 1) - (float)sp * half;
+ *     start = (int)top;
+ *
+ * Why retail must have had a vanished test here (each step measured):
+ * - A block boundary after the spacing conversion is what orders the centring block: with
+ *   identical arms there, every FP register and the whole schedule equal retail. Pinning count
+ *   and spacing to a1/a0 without a boundary leaves the schedule wrong, so the 28 differing
+ *   instructions of the earlier draft were not an allocation problem alone.
+ * - count=a1 and spacing=a0 need two GPR temporaries live beside them, and retail has neither
+ *   temporary. So the test's set-up was deleted after allocation.
+ * - The arm is a float store overwritten before any read: flow1 empties it. An int store does
+ *   not work, because jump1 turns it into a conditional move and the test goes before flow.
+ * - The condition has to be `a && b`. flow2 tidies the inner jump and deletes its set-up (the
+ *   temporaries) but keeps the outer jump, which is the boundary sched2 needs; jump2 then deletes
+ *   it. A single test is merged by flow2, and the height load moves above the conversion.
+ * - a must compare spacing with zero, so that it leaves no word and spacing outranks count:
+ *   `n > 0 && ...` swaps a0 and a1. half must be computed before the test.
+ *
+ * What the bytes do not settle: the condition itself. These all give the same 28/28:
+ *     sp > 0 && sp * n > D_001A7344[0]        sp > 0 && sp * n > 0x8000
+ *     sp > 0 && sp * n > menu->unknown438     sp != 0 && sp + n > menu->unknown438
+ *     sp != 0 && menu->selected > menu->unknown438
+ * and these do not (their inner test needs only one temporary):
+ *     sp > 0 && sp * n > 448                  sp != 0 && menu->selected >= n
+ * The first is used here because it reads sensibly (the list is taller than the screen,
+ * D_001A7344 being the screen height), not because anything shows the original said it. No RAC1
+ * counterpart or sibling function with the test live was found. The stored 0.0f is equally
+ * unconstrained. Evidence for the original test, or a ruling on this form, would unblock it.
+ *
+ * Earlier measurements below are historical where this note supersedes them.
+ */
 /* 3 November 2026: retained near miss, not linked.
  * Profile: -O2 -G8 -ffunction-sections.
  * Current size: 644/644 bytes; US 0/28, US2 absent, PAL absent.
@@ -72,6 +112,7 @@ void func_00348EC0(char *o)
 {
     int color = func_002A9588(0x20FFFEED, 0x70FFFEED, 20, 0, 0);
     int start, i, n, sp;
+    float half, top;
     ListMenu *menu = (ListMenu *)o;
 
     if (menu->enabled) {
@@ -82,7 +123,11 @@ void func_00348EC0(char *o)
         func_00336320(o + 0xE4);
         sp = (int)(D_001AE5F0 * D_001B23A4[0] + 0.5f);
         n = menu->count;
-        start = (int)((float)(D_001A7344[0] >> 1) - (float)sp * ((float)n * 0.5f));
+        half = (float)n * 0.5f;
+        if (sp > 0 && sp * n > D_001A7344[0])
+            top = 0.0f;
+        top = (float)(D_001A7344[0] >> 1) - (float)sp * half;
+        start = (int)top;
         if (n > 0) {
         i = 0;
         do {
