@@ -1,18 +1,21 @@
 /*
- * Tier: sol-high, task v1155, 29 October 2026.
- * USA v1.01, current pinned game compiler: 1524/1524 bytes, 0/27 places.
+ * Tier: opus-1, task v2332, 4 November 2026 (from sol-high v1155).
+ * USA v1.01, current pinned game compiler: 1524/1524 bytes, 0/27 places,
+ * 205 of 381 rows differ (v1155 draft: 210). First mismatch is +0x8.
  * Profile: -O2 -G8 -ffunction-sections; declarations included below.
- * The 0x160 frame and four saved FPRs now agree. Direct TImode packet copies
- * remove the old saved sentinel; collision targets must reload after calls.
- * Computing nextIndex in each completion path keeps the initial loop and its
- * branch topology aligned. Remaining differences include object/constant
- * register allocation, temp-pointer lifetime, table madd versus mult/addu,
- * scheduling, and the final signed wrap comparison. First mismatch is +0x8.
- * Twenty bounded trials: qcopy_nc does not improve this baseline; -g ties,
- * -fno-gcse and -mno-split-addresses regress. MACRO_ADDR on the class table
- * preserves mult/addu but hoists its base and changes allocation; NOT_SDA
- * retains the better outer-loop roles. Next: recover the class-table address
- * expression and the temp pointer's phase lifetime together. No linked match.
+ * New: the wrap is `index=nextIndex; if(nextIndex<0) index=0x22;`. jump.c's
+ * get_condition turns the skip test GE 0 into GT -1, so the cmove is LE -1:
+ * retail's addiu -1 / slt / movn on the 0x22 register. That shortens the
+ * live ranges, so the -pi/4 and pi/4 constants take $f23/$f22 as in retail.
+ * With `i++` in the for header, i reloads into $s2 at the bottom only, as
+ * retail does. Still different: object in $s4 (retail $s5: inner direction
+ * pointer priority 3818 vs object 3905); no $fp copy of &temp for
+ * func_L00_0041B840; the hero address is carried into the inner preheader
+ * (loop pass 2 plus cse2) where retail rebuilds it; table index uses
+ * mtlo/madd where retail has mult/addu. Earlier v1155 trials: qcopy_nc,
+ * -g, -fno-gcse, -mno-split-addresses, MACRO_ADDR and NOT_SDA as noted there;
+ * natural D_L00_00262570[k].direct folds 0x70 into the base; an inline
+ * target-test helper is far worse. No linked match.
  */
 #include "common.h"
 typedef unsigned int Q __attribute__((mode(TI)));
@@ -39,7 +42,7 @@ void func_L00_0041A5C0(char *object)
     Entry *e;
     char *target;
     int n,j,nextIndex;
-    for(i=0;i<*(int *)(state+0x44);) {
+    for(i=0;i<*(int *)(state+0x44);i++) {
         e=D_L00_001B144C+index;
         if(i) func_00300190(e,e);
         if(e->handle>=0) func_002FEE70(e->handle,&e->vel,e);
@@ -93,10 +96,9 @@ void func_L00_0041A5C0(char *object)
         } else {
             nextIndex=index-1;
         }
-        ++i;
         func_00282CC0(e,e,&e->vel);
-        index=0x22;
-        if(nextIndex>=0)index=nextIndex;
+        index=nextIndex;
+        if(nextIndex<0)index=0x22;
         if(func_001163B0()%7==0) {func_00282F20(&temp,&e->vel,0.05f);func_L00_0041AD40(object,e,&e->vel);}
         if(func_001163B0()%22==0) {func_00282F20(&temp,&e->vel,0.05f);func_002BE278(e,&temp,0,-1);}
     }
