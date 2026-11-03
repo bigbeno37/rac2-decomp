@@ -909,5 +909,6 @@
 #define SpawnHomingShot                  func_L04_003F9320
 #define WalkPathUpdate                   func_L22_003A2160
 #define SpawnAimedProjectile             func_L00_00409E48
+#define LaunchSpawnerMobyUpdate          func_L04_003EE090
 
 #endif /* NAMES_H */

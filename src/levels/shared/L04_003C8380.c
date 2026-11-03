@@ -293,7 +293,6 @@ int func_L04_003EDFF0(unsigned char *a0, char *a1)
     return last;
 }
 
-INCLUDE_ASM("asm/levels", func_L04_003EE090);
 
 
 
