@@ -1,35 +1,54 @@
-/* GPT-6.1 Sol high, 29 October 2026, task v0788; retained near miss.
- * Best current-toolchain check: 1252/1248 bytes, 0/28 USA v1.01 places.
- * Profile: -O2 -G0 -ffunction-sections, isolated source unit. No linked match.
- * Required types and declarations are included below; common.h supplies qcopy.
+/* Claude Opus 5.5 xhigh (opus-1), 3 November 2026, task v2270; retained near miss.
+ * Best current-toolchain check: 1252/1248 bytes, 0/28 USA v1.01 places,
+ * 145 of 313 cdiff rows differ. Profile: -O2 -G0 -ffunction-sections, isolated
+ * source unit. No linked match. Required types and declarations are included
+ * below; common.h supplies qcopy and qcopy_nc.
  *
- * Improvements over the previous 1240-byte TI-only draft: use approved qcopy
- * for the two external snapshots and offset-to-work transfer, but retain the
- * ordinary TI work-to-angles assignment (retail uses stack offsets there).
- * Give the kick loop its own counter: reusing i makes GCC keep the main-loop
- * counter in s4 and push in s5; separate counters recover push in s4, the
- * spilled main-loop counter at sp+0xC4, and the main loop's saved registers.
- * Explicit target/player labels retain both initial vector-subtraction calls.
+ * Fixed in this version: the first snapshot uses qcopy_nc. The "memory"
+ * clobber of qcopy made reload_cse forget that the spill slot at sp+0xC0
+ * equals a0, so self was reloaded; with qcopy_nc self stays in a0 and the
+ * prologue gives retail's daddu v0,a0,zero.
  *
- * Remaining differences: the first snapshot makes qcopy reload self from its
- * stack home rather than retain a0; the player-state test branches directly
- * to the player call instead of decay; address spill slots C8..EC are ordered
- * differently; and the delta-pointer update reloads its spill after the store
- * at boot 0x002B47C4, adding one word. The post-loop body is shifted by four.
- * The frame is retail's 0x140 and all scratch extents/offsets are preserved.
+ * Earlier work kept from the GPT-6.1 Sol-high draft (task v0788): approved
+ * qcopy for the second snapshot and the offset-to-work transfer, an ordinary
+ * TI work-to-angles assignment, a separate kick-loop counter (recovers push
+ * in s4, the main-loop counter spill at sp+0xC4 and the loop's saved
+ * registers), and explicit target/player call blocks.
  *
- * Measured alternatives: reversed inner target test reaches 1248 bytes with
- * the old shared counter, but lays out the player call first and retains the
- * wrong loop allocation. A separate counter makes that form 1252. Combining
- * stack arrays into a struct ties that result. Explicit delta-pointer induction
- * changes spill order but retains the extra reload. A scalar wave temporary
- * ties this retained body. A precomputed rotation pointer worsens the prologue.
- * Flattening the negative player test changes block order; -fno-thread-jumps
- * with separate counters emits 1268 bytes; -fno-gcse on this draft emits 948.
- * Do not use the 1248-byte -fstrict-aliasing result: TI casts over float arrays
- * let that profile incorrectly propagate the prior zero into the angle copy.
- * Reopen with evidence for the original pointer declarations/alias contract
- * and conditional layout; further fixed-offset-copy work is unnecessary.
+ * Remaining differences:
+ * 1. Branch layout. Retail: bnez target -> T; state tests branch to decay
+ *    (the second one with addiu a1,a1,0x80 in its delay slot); b P; T call;
+ *    b active+4; P call; active; decay sits just before the update loop.
+ *    This goto form inverts the player-state test (it branches to the player
+ *    call). A structured if/else form gets the test direction right, but
+ *    flow.c cygnus_merge_blocks (CYGNUS LOCAL, runs after jump1 and cse1)
+ *    moves the single-predecessor P block before T, and jump2 then cross-jumps
+ *    the two calls (1236 bytes). Retail probably needs P to have two
+ *    predecessors at cse1 time, or the inner target test folded only in cse2.
+ * 2. Spill slots 0xC8..0xEC are permuted. gcse PRE hashes
+ *    (plus (reg R) (const_int X)) as 14029 + R + X, bucket = raw mod
+ *    ((max_cuid/2)|1); reaching registers are numbered in bucket order and
+ *    slots are given in that pseudo order (soft frame pointer = reg 1 with X
+ *    = final sp offset). This compile has 119 buckets, self = reg 84,
+ *    sway = reg 85. With those registers no table size gives retail's order.
+ *    Retail's order is reachable with 111 buckets (max_cuid about 222) and a
+ *    sway base pseudo numbered 114..128, i.e. a later copy of sway such as
+ *    an inline helper parameter, plus either a self base = 98 (mod 111) or
+ *    self + 0xC0 held in a non-PRE early pseudo.
+ * 3. The delta-pointer update reloads its spill (0xEC) after the store at
+ *    0x002B47C4, adding one word; explicit pointer induction does not fix it.
+ *
+ * Measured alternatives (this toolchain): structured if/else with shared
+ * active block: 1236 bytes, P first, calls merged. Structured form with
+ * distinct call arguments: P first, no merge. Goto form with decay placed
+ * first: 1252 bytes, T moved up, test direction still wrong. Folding the
+ * player address into a temporary (A) and a delta-pointer variant (Dv) were
+ * worse. Sol-high notes: reversed inner target test reaches 1248 bytes only
+ * with a shared counter and wrong allocation; -fno-thread-jumps 1268 bytes;
+ * -fno-gcse 948 bytes; do not trust the -fstrict-aliasing 1248 result (TI
+ * casts over float arrays propagate the earlier zero into the angle copy).
+ * Reopen with source evidence for how sway is reached (a later pseudo) and
+ * for the original target/player conditional.
  */
 
 #include "common.h"
@@ -94,7 +113,7 @@ void func_002B44C0(char *self, Sway_2B44C0 *sway, float *target)
     int i;
     int kick_axis;
 
-    qcopy(old_position, self + 0x10);
+    qcopy_nc(old_position, self + 0x10);
     qcopy(old_rotation, self + 0xF0);
     func_00115484(push, 0, 16);
     if (target != 0)
