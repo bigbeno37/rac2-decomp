@@ -1,34 +1,36 @@
-/* GPT-6.1 Sol (high), 2026-10-29. USA v1.01, current pinned compiler:
- * -O2 -G8 -ffunction-sections; 1600/1600 bytes, 0/27 places.
- * check.py: first differing instruction at +0x2E0. The prologue, joint setup,
- * basis construction, five qcopy transfers and first-loop setup now agree.
- * Remaining: the first UV loop reloads its spilled V pointer after the U store
- * and schedules its increments differently; that adds a word, balanced by
- * omission of the second loop's padding nop. Ribbon initialization assigns its
- * model/output pointers differently, and the final increments are reordered.
+/* Claude Opus 5.5 (xhigh), 2026-11-04. USA v1.01, current pinned compiler:
+ * -O2 -G8 -ffunction-sections; 1600/1600 bytes, 0/27 places; check.py: first
+ * differing instruction at +0x2E0. Everything except the first UV loop's tail
+ * (0x2E0-0x32C, 20 words) now agrees, including the ribbon loop.
+ * Remaining: in the first UV loop the spilled V pointer is reloaded a second
+ * time before V+=8, and the following increments/stores move up one word, so
+ * the slot holding retail's nop after the next call is filled instead.
+ * sched1 cause: whichever UV stream loads second has its pointer increment
+ * ready in the same cycle as the other stream's store. The store has the longer
+ * dependence chain (output dep on the other store, then the anti dep on its
+ * pointer increment), so it is emitted first. The giv increments are set twice,
+ * so adjust_priority's birthing boost does not apply. reload_cse then keeps the
+ * second V reload because the frame store through $s2 may alias slot 0x1F4.
+ * Temporaries, either load order, and float-pointer casts on the source or
+ * destination all give the same tail.
+ *
+ * Ribbon loop: RAC1's plain count-up form (loop over i < 196, writing dest[i]
+ * and D_L00_00291A40[i][1] -= 0.025f, then += 7.0f if below -7.0f) gives
+ * retail's giv init/increment order and registers. The previous reversed index
+ * with a separate countdown did not.
  *
  * Evidence/route: RAC1's draw_joint_aligned_beam_effect in
  * src/overlays/shared/visibomb_and_pyrocitor.c has the same three quads and
  * 196-point scrolling ribbon. Its reviewed qcopy transfers and measured typed
  * object/state views recover retail's saved-register and stack-pointer layout.
  * D_0018B130 needs NOT_SDA. The UV table needs both its normal MACRO_ADDR view
- * (absolute address +4) and its explicit SDATA view (U). NOT_SDA on the normal
- * UV view instead hoists its high address and displaces a corner pointer.
- * Distinct corner-loop and ribbon-loop counters recover the retail countdowns;
- * a forward ribbon index beside its signed countdown avoids an extra Z-pointer
- * induction variable. All required declarations are below; use a -g8.c unit.
- *
- * Twenty source/profile trials plus a final retained-source compile. Array vs
- * struct UV fields, array vs separate frame vectors, and the known
- * -frac2-gcse-unsplit-edges option tie. -fno-rerun-loop-opt and
- * -mno-split-addresses worsen the useful structure. Explicit carried ribbon
- * pointers hoist setup across earlier calls and worsen allocation. Loading UVs
- * into scalar locals and reversing their stores swaps spill slots without
- * removing the reload. Reopen with evidence for the first loop's pointer lifetime
- * or reload dependence; do not repeat these wordings. No linked build was run.
- * Historical 2026-10-23 draft: 1596/1600 on its older opt-in profile; that source
- * recompiles here to 1592/1600 at default G8. Its handwritten classification was
- * incorrect: retail's por zero and lq/sq transfers are compiler/helper reachable.
+ * (absolute address +4) and its explicit SDATA view (U). All required
+ * declarations are below; use a -g8.c unit. Earlier tries that should not be
+ * repeated: array vs struct UV fields, array vs separate frame vectors,
+ * -frac2-gcse-unsplit-edges, -fno-rerun-loop-opt, -mno-split-addresses,
+ * explicit carried pointers, scalar UV locals with reversed stores. Reopen
+ * with a construct that makes the second-loaded UV stream's increment
+ * outrank the first stream's store in sched1. No linked build was run.
  */
 
 #include "common.h"
@@ -166,21 +168,15 @@ void func_L00_0038FE10(BeamObject *object)
     func_002FC560(0x14, 0xFF9000000260ULL);
     func_002FC560(0x4A, 0);
     func_00280328();
-    {
-        int index = 0;
-        for (i = 195; i >= 0; i--, index++) {
-            BeamPoint *dest = &D_L00_00239020[index];
-            float phase;
-            func_00282D30(&point, &D_L00_00290E00[index], state->ribbonScale);
-            func_002830C0(&point, &point, basis);
-            phase = D_L00_00291A40[index][1] - 0.025f;
-            dest->x = point.x;
-            dest->y = point.y;
-            dest->z = point.z;
-            D_L00_00291A40[index][1] = phase;
-            if (phase < -7.0f)
-                D_L00_00291A40[index][1] = phase + 7.0f;
-        }
+    for (i = 0; i < 196; i++) {
+        func_00282D30(&point, &D_L00_00290E00[i], state->ribbonScale);
+        func_002830C0(&point, &point, basis);
+        D_L00_00239020[i].x = point.x;
+        D_L00_00239020[i].y = point.y;
+        D_L00_00239020[i].z = point.z;
+        D_L00_00291A40[i][1] -= 0.025f;
+        if (D_L00_00291A40[i][1] < -7.0f)
+            D_L00_00291A40[i][1] += 7.0f;
     }
     func_00281810(148, D_L00_00239020, D_L00_00292060, D_L00_00291A40, 1);
     func_00281810(50, D_L00_00239020 + 146, D_L00_00292060 + 146, D_L00_00291A40 + 146, 1);
