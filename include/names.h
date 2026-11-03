@@ -217,6 +217,7 @@
 #define RegisterObjectRenderClass        func_L00_002FF6A8
 #define UpdateOceanWaterSheet            func_L06_00403130
 #define InitializeHero                   func_L00_002A4928
+#define floor                            func_00117650
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
