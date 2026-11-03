@@ -273,7 +273,7 @@ void func_L05_0041A218(void)
     char buf[0x20];
 }
 
-INCLUDE_ASM("asm/levels", func_L05_0041A228);
+/* func_L05_0041A228 is defined in L05_0041A228-g8.c. */
 
 
 /* func_L05_0041C1F0 is defined in L05_0041C1F0-g8.c. */
