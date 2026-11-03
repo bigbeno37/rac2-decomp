@@ -183,7 +183,6 @@ void func_L04_00412130(RankObject *object) {
     }
 }
 
-INCLUDE_ASM("asm/levels", func_L04_00412308);
 
 
 
