@@ -320,7 +320,7 @@ void func_L05_00430BF0(Vec16_Fc936841d *object, int index)
    rebuilds the three orientation blocks the driver reads. */
 /* func_L05_00443C18 is matched in L05_00443C18.c (built with -g). */
 
-INCLUDE_ASM("asm/levels", func_L05_00443D08);
+/* func_L05_00443D08 is defined in L05_00443D08-g8.c. */
 
 INCLUDE_ASM("asm/levels", func_L05_00444840);
 
