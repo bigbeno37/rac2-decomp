@@ -219,6 +219,7 @@
 #define InitializeHero                   func_L00_002A4928
 #define floor                            func_00117650
 #define MorphorayUpdate                  func_L00_00405808
+#define volume_camera_swing              func_L06_0047A408
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
