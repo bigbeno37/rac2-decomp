@@ -302,7 +302,7 @@ f32 func_L18_0035D5F8(void *out, void *origin, void *direction, char *path, floa
 
 /* func_L18_003F5650 is matched in L18_003F5650-g16.c (built with -G16). */
 
-INCLUDE_ASM("asm/levels", func_L18_003F6CA8);
+/* func_L18_003F6CA8 is matched in L18_002C4000-move.c (built with -frac2-qcopy -frac2-qcopy-barrier). */
 
 extern void func_002A93B0(void *);
 extern void func_L18_003F74B8(void *a0, void *a1);
