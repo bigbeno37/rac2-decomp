@@ -16,6 +16,19 @@
  * D_L15_001B2E84 / D_L15_001B36A4 plain (lui), the two tables through SDATA views ($gp addiu), the colour
  * of func_L05_00303000 is 64-bit in retail (ori/dsll/ori in $t0), so its 5th parameter is declared u64
  * here although L05_003008C0.c defines it as int (the callee only forwards it).
+ * Opus-2 (v2339, 4 November 2026): code unchanged, still 1064/1064 bytes, 0 of 1, ~25 real rows. Ruled out from
+ * the cc1 source (gcc 2.9-ee-991111): (1) passes run flow2, sched2, then jump2, and jump2's delete_computation
+ * deletes only the jump when sched2 is on (`reload_completed && flag_schedule_insns_after_reload`), so a
+ * test that is still a branch at sched2 leaves its D80 load and compare behind; it must die at flow2, where
+ * merge_blocks deletes it with its label. (2) A user label after the if does not keep the block: this
+ * flow.c's can_delete_label_p has no LABEL_NAME check (measured: the label is gone by sched2, 105 rows).
+ * (3) haifa's only barriers that emit no code are LOOP_BEG/END, EH_REGION, SETJMP and RANGE notes; from C
+ * that means a loop construct, so the original very likely had a do/while(0) macro here.
+ * The remaining 46-row order comes from sched2's tie-breaks: the five argument moves all have priority 31
+ * and class 3, so the counts of insns that depend on each move decide (a1 6, a3 6, t0 5, a2 5, a0 3; ours
+ * a1 a3 | t0 a2 | a0, and reorg puts the last one in the delay slot). Retail's a3 a1 | a0 a2 | t0 needs
+ * a0 to have at least 5 dependent insns, i.e. a different block extent or register reuse after the
+ * draw call.
  */
 #include "common.h"
 
