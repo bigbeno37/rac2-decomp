@@ -3107,3 +3107,4 @@ src/game/0030F7B0-ball-g8.c	-O2 -G8 -ffunction-sections -g
 src/levels/shared/L05_00442A58-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por -g -frac2-hazard-labels
 src/levels/shared/L00_004224D0-follow-g8.c	-O2 -G8 -ffunction-sections -g
 src/levels/shared/L18_002C4000-move.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
+src/levels/shared/L00_003B5BF8-dbg.c	-O2 -G0 -ffunction-sections -frac2-keep-block-order -g
