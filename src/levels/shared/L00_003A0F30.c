@@ -245,8 +245,6 @@ void func_L00_003A41F0(char *moby)
     }
 }
 
-INCLUDE_ASM("asm/levels", func_L00_003A4480);
-
 INCLUDE_ASM("asm/levels", func_L00_003A48D0);
 
 
