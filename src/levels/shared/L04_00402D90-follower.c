@@ -1,15 +1,3 @@
-/* func_L04_004045E0: near miss, 1040/1040 bytes, 0 of 2 places (USA v1.01, 31 October 2026).
-
-   Profile: its own unit, default `-O2 -G0 -ffunction-sections` (no qcopy: the copies here are
-   ordinary TImode moves with offsets). The switch is in-order: retail's jtbl_002CA150 sends
-   0..4 to the bodies in that order.
-
-   Everything matches but three instructions in state 0: retail schedules the axis-table loads
-   as `lq [0x20]; lhu 0x34; lq [0x00]; ori; lq [0x10]`, here `lhu 0x34; lq [0x10]; lq [0x20];
-   ori; lq [0x00]` (registers and stores are the same). Tried: every load and declaration
-   order of the three temporaries, the flag updates before, between and after them, a split
-   read-modify-write, -fno-schedule-insns, -g, -fno-gcse, hazard labels and block order. */
-
 #include "common.h"
 
 typedef int Quad __attribute__((mode(TI)));
@@ -17,7 +5,8 @@ typedef struct { Quad v[3]; } __attribute__((aligned(16))) Axes4045E0;
 
 extern char D_L04_001B9680[];
 extern Quad D_L04_001BFAF0;
-extern Axes4045E0 D_001B0630;
+/* const: retail loads the three rows past the flag stores before them. */
+extern const Axes4045E0 D_001B0630;
 
 extern float func_00282E48(void *, void *);
 extern void func_002A93B0(void *);
@@ -87,9 +76,9 @@ void func_L04_004045E0(u8 *obj)
         func_L04_00402C88(obj);
         obj[0x20] = 1;
         *(s32 *)(st + 0x30) = 0;
-        t2 = D_001B0630.v[2];
         t0 = D_001B0630.v[0];
         t1 = D_001B0630.v[1];
+        t2 = D_001B0630.v[2];
         *(u16 *)(obj + 0x34) |= 0x41;
         obj[0x62] = 1;
         u.axes.v[0] = t0;

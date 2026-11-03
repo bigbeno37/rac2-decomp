@@ -1,18 +1,16 @@
-/* sol-high, USA v1.01, -O2 -G8 -ffunction-sections.
- * Best check.py: 1360/1360 bytes, 0/2 places, first mismatch +0x8.
- * Corrected the final angle multiplier to 0x3c0efa36 (was one ULP low).
- * Object stays in s7, state in fp; retail uses fp and sp+0xa0. Constants
- * 1.0, 0.0 and 0.8 remain live across the sprite loop instead of being
- * materialized at retail's individual draws/inner-loop entry. Color-loop
- * threshold allocation and scheduling also differ.
- * Reusing threshold integers as coordinates, per-draw coordinate assignment,
- * direct nested sprite calls, integer/FP argument interleaving, and const
- * tables do not fix the lifetime shape. A ProjectionState struct view gives
- * retail's explicit base+offset store but does not fix allocation. -fno-gcse
- * gives 1324 bytes, -fno-rerun-loop-opt 1356, -fno-strength-reduce 1396 on
- * the measured variants; -fno-expensive-optimizations keeps excess FP lives.
- * Next: independently establish the original coordinate/loop lifetime shape.
- * All declarations are below; integrate in a -g8.c unit (GP frame counter).
+/* opus-1 (v2291), USA v1.01, -O2 -G8 -ffunction-sections (integrate in a -g8.c unit).
+ * Best check.py: 1340/1360 bytes, 0/2 places, 302 of 340 rows differ (sol-high draft: 303).
+ * New: the three header draws go through a static inline wrapper taking the looked-up
+ * sprite, so integrate substitutes the literal 1.0f/0.0f/colour args straight into
+ * $f15/$f16/a1 at every call, as retail does (a direct call copies them to pseudos that
+ * cse1 merges and loop.c hoists into extra saved FP regs). left now lands in s0, sign in
+ * $f21, and the outer loop hoists only 120.0, 0.5 and 0x8710, matching retail.
+ * Still differs: sched1 issues the inner-loop preheader (side+1, 0.8, 0x8710, colour and
+ * table pointers, count 4, fy) at the top of the outer body; retail keeps them after the
+ * third draw, which lets 0.8 share $f20 and fy share $f21 (5 saved FP regs, not 6). The
+ * state pointer stays in fp (retail spills it to sp+0xa0, frame 0x130 vs 0x120), the object
+ * sits in s7 (retail fp), and retail's x copy ($f22 cvt before lookup 1, $f20 copy after
+ * it, draw 3 reading $f22) is not reproduced. All declarations are below.
  */
 #include "common.h"
 typedef struct { int v[5]; } B1202Five;
@@ -28,6 +26,10 @@ extern void func_0027AB40(void);
 extern void *func_00336D50(void *,int);
 extern void func_00300A00(void *,float,float,float,float,float,unsigned int);
 extern void func_002FC560(int,unsigned long long);
+static inline void DrawHudSprite(void *sprite, float x, float y, float sx, float sy, float rot, unsigned int color)
+{
+    func_00300A00(sprite,x,y,sx,sy,rot,color);
+}
 void func_L04_0040C880(unsigned char *m)
 {
     B1202Five x = D_L04_001B09B0;
@@ -57,13 +59,9 @@ void func_L04_0040C880(unsigned char *m)
     func_0027AB40();
     for(side=0;side<2;side++) {
         if(side==0) {left=10;right=31;sign=1.0f;} else {left=498;right=478;sign=-1.0f;}
-        fx=(float)left;
-        sprite=func_00336D50(D_L04_001A904C+0x8710,58);
-        func_00300A00(sprite,fx,(float)(int)(D_L04_001B2D44*120.0f+0.5f),sign,1.0f,0.0f,0x60442d00);
-        sprite=func_00336D50(D_L04_001A904C+0x8710,59);
-        func_00300A00(sprite,fx,(float)(int)(D_L04_001B2D44*120.0f+0.5f),sign,1.0f,0.0f,0x55f0c070);
-        sprite=func_00336D50(D_L04_001A904C+0x8710,60);
-        func_00300A00(sprite,fx,(float)(int)(D_L04_001B2D44*120.0f+0.5f),sign,1.0f,0.0f,0x55f0c070);
+        DrawHudSprite(func_00336D50(D_L04_001A904C+0x8710,58),(float)left,(float)(int)(D_L04_001B2D44*120.0f+0.5f),sign,1.0f,0.0f,0x60442d00);
+        DrawHudSprite(func_00336D50(D_L04_001A904C+0x8710,59),(float)left,(float)(int)(D_L04_001B2D44*120.0f+0.5f),sign,1.0f,0.0f,0x55f0c070);
+        DrawHudSprite(func_00336D50(D_L04_001A904C+0x8710,60),(float)left,(float)(int)(D_L04_001B2D44*120.0f+0.5f),sign,1.0f,0.0f,0x55f0c070);
         fy=(float)right;
         for(i=0;i<5;i++) {
             sprite=func_00336D50(D_L04_001A904C+0x8710,61);

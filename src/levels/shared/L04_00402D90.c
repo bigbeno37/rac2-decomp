@@ -126,7 +126,7 @@ void func_L04_00404100(unsigned char *m, unsigned char *p)
 }
 
 
-INCLUDE_ASM("asm/levels", func_L04_004045E0);
+/* func_L04_004045E0 is in L04_00402D90-follower.c. */
 
 /* func_L04_00407078 is in L04_00402D90-debris.c. */
 
