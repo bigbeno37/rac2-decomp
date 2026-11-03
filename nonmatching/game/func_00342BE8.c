@@ -1,3 +1,22 @@
+/* 4 November 2026 (opus-2, v2383): exact bytes reached, but only through a test with no real condition, so this stays
+ * FAILED and the body below is unchanged (2 words). Each form replaces the reset block and adds `int bottom, right, top;`.
+ * Form A, 28/28 in USA v1.01, PAL and USA v2.00 (flow1 empties the arm, flow2 drops the test):
+ *     right = screenWidthGP; bottom = 340;
+ *     if (index) { texture = 1; entry = 0; }
+ *     top = 63; clip.y0 = top; clip.x1 = right - 1; clip.y1 = bottom; clip.x0 = 0;
+ *     top = 1; D_001B23C0 = top; menuClipGP = clip;
+ * Form B, 28/28 in the same three releases (identical arms, jump2 merges them and the test leaves no word):
+ *     right = screenWidthGP;
+ *     if (index != 0) { top = 63; bottom = 340; clip.y0 = top; right = right - 1; top = 1; }
+ *     else { the same five statements }
+ *     clip.x1 = right; clip.y1 = bottom; clip.x0 = 0; D_001B23C0 = top; menuClipGP = clip;
+ * Form B with `right > 0` as the test is also 28/28 (USA v1.01 only checked). `right != 0` keeps the branch: cse folds
+ * the else arm's right - 1 to -1. An inline clip_right_edge(width, adjust) holding only the subtraction: 15 words.
+ * Why: retail's values are placed as if a block ended after the width load, with no branch left. `top` used for both
+ * 63 and 1 makes one global pseudo, which shares $v1 without local-alloc's fake lifetime. As separate pseudos, 63 sorts
+ * ahead of the subtraction and $v0/$v1 come out swapped. Sched1 then gives y0, x1, li 1, y1, x0, flag.
+ * Not landable: `index` is a placeholder, `right > 0` is always true in practice, and A and B are the forms the guide
+ * bars. Retail has no load here, so a mode test needs a real value already in a register. Reopen with one. */
 /* 3 November 2026 (opus, v2198): still 2 words. Ranking sched1 by hand (priority, then INSN_REG_WEIGHT, class,
  * depcount, luid) shows retail needs sched1 order 264<261<269 and 256<266<249. With the width load (252, p7, latency 2)
  * in the block, y1's store (266, p4, weight 0) always takes t3, before li 1 (269, p3, weight +1). Only a width pseudo
