@@ -6,52 +6,34 @@
  * No linked or cross-release match is claimed; earlier records follow.
  */
 /*
- * Claude Opus 5.5 (xhigh) tier, task v1936, 31 October 2026.
+ * Claude Opus 5.5 (xhigh) tier, task v2246, 3 November 2026.
  * Profile: -O2 -G16 -Wa,-G16 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
- * (the existing L02_003DAF90-g16.c profile; -g and -frac2-gcse-unsplit-edges
- * were measured to change nothing and are dropped). Unit used for the test:
- * src/levels/02_maktar_nebula/L02_00412D50-g16.c plus that cflags line.
- * Final check.py: 2528/2528 bytes, 0/1 US places, first difference +0x6b0.
- * Exactly two instructions differ: at 0x413400/0x413404 retail loads
- * point.f[0] into $f0 and then point.f[1] into $f13; this draft emits the
- * same two loads (same registers) in the opposite order. Everything else,
- * including the 0xE0 frame and every register, matches (relocation addends
- * aside). Not linked; US2/PAL not checked.
+ * in a separate unit src/levels/02_maktar_nebula/L02_00412D50-g16.c plus that
+ * cflags line (INCLUDE_ASM line in L02_0040A4A8.c removed).
  *
- * What fixed the earlier differences (keep these):
- * - The flag byte is D_001A7B00[0x1E] on `extern u8 D_001A7B00[] sda`.
- *   simple_memory_operand treats (const (plus sym N)) as two instructions
- *   (its CONST case is under #if 0), so reorg never puts the load in a
- *   delay slot; D_001A7B1E[0] (a bare symbol, length 1) went into the beq
- *   slot and took the $gp form there. This alone fixed case 0/case 1 CFG,
- *   argument hoisting and hero lui placement (250 -> 11 differing rows).
- * - D_0019B2E8 plain (not MACRO_ADDR) so its address splits and the
- *   state->flag load schedules between lui and addiu.
- * - Spill slots 0x70/0x74 (&state->position, aim.f + 2): gcse numbers the
- *   PRE reaching registers in bucket order, hash(plus(reg85,144)) = 14258
- *   and hash(plus(at,72)) = 14102, mod (n_insns/2)|1. At n_insns 580
- *   (291 buckets) aim.f + 2 gets the lower pseudo; 289, 295, 297, 301 or 303
- *   buckets swap them. The eight declaration initializers below (side,
- *   distance, target, i, index, both records, current) give 295 buckets.
- *   NOTE REVIEW: they exist only for this count.
- * - Yaw registers: point.f[1] read into a local before point.f[0] makes
- *   sched1 emit hero1, point1, point0, hero0, which gives local-alloc
- *   retail's $f1/$f13/$f0/$f12. sched2 then keeps point1 before point0
- *   (equal priority 18, six dependents each, LUID tie).
+ * RESULT: this exact form MATCHES: check.py us 1/1, us2 1/1, pal not in
+ * catalogue. It is not landed only because it needs 8 declaration
+ * initializers (limit 5): side, distance, target, i, index, both
+ * `record = 0`, current. Each one is a dead set that cse leaves in place,
+ * and gcse's PRE hash table needs max_cuid 588..591 ((n/2)|1 = 295 buckets).
+ * This form has exactly 588. With only 5 initializers it is 585 (293
+ * buckets), and the only difference is the PRE spill slots 0x70/0x74
+ * swapping (0x4132BC, 0x4132FC, 0x413418, 0x413598). Removing any one
+ * initializer already gives 293. Tried without a gain: a for loop instead of
+ * do-while, routing the case-2 tail through `side`, and a u16 `ticks`. To land
+ * it, find 3 to 6 more RTL insns that survive to gcse from a statement retail
+ * really has, then drop 3 initializers.
  *
- * Remaining: retail's final order (hero1, point0, point1, hero0 with those
- * registers) needs sched1 to emit hero1, point0, hero0, point1, which the
- * measured rules forbid (hero1 goes first because the hero base dies there,
- * register weight 0; point loads have 6 dependents and hero0 has 3). Or it
- * needs an extra non-memory insn between hero1 and point0 in sched1's
- * output that later vanishes. Direct expression, dx/dy or dy/dx locals,
- * a nested call and a hero pointer local were tried: no gain.
- * Opus G2, 1 November 2026: both sub.s operands get the argument register as a suggestion and the
- * shorter life wins, so $f13 on point1 and $f12 on hero0 fit a sched1 order of hero1, point0, then
- * those two. A two-death variable for hero1 (target, current) gives $f13 to it instead, and x/y, h/x/y
- * and dy locals tie. The eight initial values are dead and must go: read named constants or argument
- * copies in a later block instead (func_L08_0042A0B0), to reach 588 to 591 insns (295 buckets).
- * Declarations below are complete.
+ * Fix found in v2246 (the old two-instruction yaw load-order miss):
+ * func_002AA800 returns float. It ends by calling func_002AA738 and leaves
+ * that float in $f0, like its sibling func_002AA898, which returns the
+ * residual. As an ignored float call_value, the call sets $f0 (REG_UNUSED),
+ * which changes local-alloc. With the natural x-first yaw expression
+ *   func_00283248(hero.x - point.f[0], hero.y - point.f[1])
+ * sched1 emits h1,p0,p1,h0 and the h1/p0 qty tie now leaves $f0 to point.f[0]
+ * and $f1 to hero.y. sched2 then keeps retail's order. sched2 ranks by
+ * dependent count, and frame-pointer loads take anti-deps from every later
+ * call, as do loads into a call-clobbered reg that nothing redefines.
  */
 
 #include "common.h"
@@ -128,7 +110,7 @@ extern float func_002AA2E8(float *, float, float);
 extern void func_00282F20(void *, void *, float);
 extern s32 func_002A8C28(void *, void *, u32, float, float, float, s32, s32, s32);
 extern float func_00283248(float, float);
-extern void func_002AA800(float *, s32, float, float);
+extern float func_002AA800(float *, s32, float, float);
 extern void func_00335370(void *);
 extern void func_003353C8(void *);
 extern void func_002E59F8(s32);
@@ -276,11 +258,7 @@ void func_L02_00412D50(u8 *object)
         distance = func_00282E80(&point, D_00189E20.position);
         target = func_00283248(distance, D_00189E20.position[2] - point.f[2]);
         func_002AA800(aim.f + 1, 0, -target, 0.013089971616864204f);
-        {
-            float y = point.f[1];
-            float x = point.f[0];
-            target = func_00283248(D_00189E20.position[0] - x, D_00189E20.position[1] - y);
-        }
+        target = func_00283248(D_00189E20.position[0] - point.f[0], D_00189E20.position[1] - point.f[1]);
         func_002AA800(aim.f + 2, 0, target, 0.02617994323372841f);
         func_00335370(&point);
         func_003353C8(&aim);

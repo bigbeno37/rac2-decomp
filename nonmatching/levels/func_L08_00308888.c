@@ -1,45 +1,40 @@
 /*
- * Tier: opus-1 (Claude Opus 5.5, xhigh), task v1864. USA v1.01 game compiler.
- * Best check.py result: 2916 bytes versus 2924 retail, 0 of 1 places; 43 rows
- * differ after aligning the two listings with relocated operands masked. The
- * aligned listing is identical before 0x308EF4; all differences are in phase 7.
+ * Tier: opus-2 (Claude Opus 5.5, xhigh), task v2242. USA v1.01 game compiler.
+ * Best check.py result: 2916 bytes versus 2924 retail, 0 of 1 places; 31 rows
+ * differ after aligning the two listings with relocated operands masked (the
+ * opus-1 draft gives 47 here). Identical before 0x308EF4; all in phase 7.
  * Required profile (unit named *-g64.c, gcse left on):
  *   -O2 -G64 -Wa,-G64 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
  * All declarations are included below. No linked match.
  *
- * Evidence recovered (each one measured by compiling):
+ * Evidence (opus-1, still holds):
  * - Do not use -fno-gcse. Retail's per-phase `lui` for the scene is reload
- *   rematerializing PRE's spilled reaching register for %hi(D_L08_001BD800):
- *   it loses because s0-s7 and fp are all taken by higher-priority pseudos in
- *   the last segment. The `lui fp` is PRE's reaching register for
- *   %hi(D_L08_001B9B00). That needs s7=60 live across the inner loop.
- * - s7=60 with `daddu a3,s7,zero` requires cprop not to replace the in-loop
- *   use, so the variable must be killed in the loop: `duration+=lifeStep`
- *   with lifeStep 0 folds to a no-op after cprop. Original spelling unknown.
- * - D_L08_001B2820 is one float[4] MACRO_ADDR: only offset 0 is a simple
- *   memory operand, so only [0] can enter a delay slot (as $gp).
- * - Forward loops: j<4 with `entry=&table[j]` reverses in the second loop pass
- *   (j=3 lands after the hoisted constants); phase 2 is signed `i<n`, where
- *   combine turns the guard into beqz because n is only ever 0, 30 or 50.
- * - func_002BDCE8 has interleaved integer and float arguments (same banks).
+ *   rematerializing PRE's spilled reaching register for %hi(D_L08_001BD800).
+ *   The `lui fp` is PRE's reaching register for %hi(D_L08_001B9B00); that
+ *   needs s7=60 live across the inner loop (`duration+=lifeStep`, lifeStep 0).
+ * - D_L08_001B2820 is one float[4] MACRO_ADDR; forward loops reverse in the
+ *   second loop pass; func_002BDCE8 has interleaved int/float arguments.
  *
- * Remaining differences:
- * 1. Inner loop: retail keeps `mul.s f12,f21,f23` (rate*timeScale) in the loop.
- *    Here it is the first insn of the loop body, so loop.c hoists it and cse2
- *    folds it to 0, which also loses the f23 load and shifts f20/f21/f23/f24
- *    and the placement of s0/s2/s3. Retail implies maybe_never or call_passed
- *    is set before it, or that rate or timeScale is set in the loop at loop
- *    time, by something that leaves no instruction. Tried without effect: do,
- *    while, for, timeScale assigned in the loop. A zero-step FP update cannot
- *    fold away as the integer one does.
- * 2. Final loop: retail hoists 0.003921569, 0.5 and 5.0 but not 0.008333334.
- *    The loop dumps imply a threshold of 59-61, less 3 per move, so that needs
- *    about 52-55 real insns in the second pass; this has 59. Locals overshoot
- *    (0.008333334 and the scene low half hoist too) and shifts registers.
- *    The ternary spelling of the two alpha tests does not change the count.
- * 3. `lui fp` is scheduled after the two loads and `addiu s5`; retail has it
- *    first in the block (0x308EF4).
- * Forty-odd check.py and regalloc.py compiles.
+ * Final loop, now right (opus-2): retail hoists 255 (s5), 0.003921569, 0.5
+ * and 5.0 but not 0.008333334 or the scene address. jump.c turns
+ * `if (c) x = b;` into a cmove only when the arm is one insn. `alpha*=2`
+ * expands through synth_mult (copy, shift, move) and `255-alpha` loads 255
+ * into a temporary, so both converted only after cse1, as 5 insns each
+ * (cond0 copy and `xor 0` survive to loop). `alpha<<=1` and a `full` local
+ * set at the top of the loop body make both one insn at jump1, so cse1 cleans
+ * them: 61/57 real insns -> about 55, and the threshold (60-62, less 3 per
+ * move) moves exactly the retail set. Setting `full` before the loop instead
+ * takes the 255 movable out of pass 1 and hoists everything.
+ *
+ * Remaining difference: the inner loop. Retail keeps `mul.s f12,f21,f23`
+ * (rate*timeScale) in the loop, with rate=0.0 in f21, timeScale in f23,
+ * amount in f24 and frameStep in f22. Here it is the first insn of the body,
+ * so loop.c moves it (maybe_never and call_passed are both 0 there) and cse2
+ * folds 0*timeScale, losing the f23 load and shifting f20-f24 and s0/s2/s3.
+ * An entry jump (exit test that jump1 cannot duplicate) would set maybe_never,
+ * but PRE then inserts copies between LOOP_BEG and the entry jump and the loop
+ * becomes phony (ternary bound `j<(lifeStep==0?1:2)`: 122 rows). Original
+ * construct unknown.
  */
 #include "common.h"
 
@@ -326,17 +321,18 @@ void func_L08_00308888(void) {
     }
     func_00282F20(direction,(matrix+8),0.1f);
     {
-        int j, k, alpha, colour;
+        int j, k, alpha, colour, full;
         float size;
         k=0;
         for (j=0;j<=0;++j) {
-            size=func_00283CE0(255-((D_L08_001B2508+k)&255));
+            full=255;
+            size=func_00283CE0(full-((D_L08_001B2508+k)&255));
             k+=20;
             size=func_00282C48(0.5f-size*0.003921569f);
             colour=func_00283D38(0x40FF40FF,0x10FF40FF,size);
             alpha=(unsigned char)D_L08_001B2508;
-            if(j&2) alpha*=2;
-            if(j&1) alpha=255-alpha;
+            if(j&2) alpha<<=1;
+            if(j&1) alpha=full-alpha;
             alpha&=255;
             size=(func_00283CE0(j)+5.0f)*0.008333334f;
             size*=(D_L08_001BD800.frame-480);

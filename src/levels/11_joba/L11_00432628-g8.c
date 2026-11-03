@@ -4,6 +4,34 @@
 
 /* Small-data unit: the bodies whose state lives at $gp-relative offsets. */
 
+typedef int Quadword __attribute__((mode(TI)));
+extern void func_00282F20(void *dst, void *src, float scale);
+extern void func_00282CC0(void *, void *, void *);
+extern float func_00282E80(void *, void *);
+extern void func_002A8C00(void *, void *, int, void *, float);
+extern int func_002761F8(void *, void *, int, void *, void *);
+extern int func_002B38B8(void *);
+extern void func_L11_00434F48(float *, int);
+extern void func_L00_003294F0(void *, int);
+extern void func_0029F338(void *);
+extern float func_002A7878(float, float);
+extern int func_002A7820(int, int);
+extern void *func_002C2210(void *, int, float, float, unsigned int, int, int, void *, float, int);
+extern void func_L00_002E6EF8(void *, void *);
+extern void func_L11_00434AA8(char *);
+extern char D_L11_001C0D20[];
+extern char D_L11_001A8F20[16] MACRO_ADDR;
+extern unsigned int D_L11_001B11E0 __attribute__((sda));
+extern unsigned int D_L11_001B11E8 __attribute__((sda));
+extern unsigned int D_L11_001B11F0 __attribute__((sda));
+extern unsigned int D_L11_001B11F8 __attribute__((sda));
+
+/* A beam shot's update. Its state (field 0x68) holds the tail at 0x00, the head at 0x10, the
+   direction at 0x20, the head's distance from the tail at 0x34, the age at 0x38 and the collision
+   scale at 0x3C. For 25 frames the head moves out, leaving three particles a frame; for nine more,
+   while the head is over one unit from the tail, both move on and it leaves two. Each moving
+   frame registers func_L11_00434AA8 to draw it. A hit puts the head at the collision point,
+   bursts there unless func_002B38B8 says otherwise, and removes the shot; so does age 34. */
 extern float D_L11_001B12C8 __attribute__((sda));
 
 /* Bleeds the ten rotation timers the level keeps beside its state: each armed

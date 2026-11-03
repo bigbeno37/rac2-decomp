@@ -128,6 +128,10 @@ s32 func_L16_00404E40(u8 *moby)
 
 extern void func_002B60B0(void *, float, float, float, float);
 extern s32 func_00283CF0(float);
+extern s32 D_L16_001B2648 MACRO_ADDR;
+extern float func_00283198(float);
+extern void func_002AA548(void *, void *, float, float, float, float);
+extern void func_L16_00412F48(u8 *);
 extern void func_002A93B0(void *);
 extern s32 func_002B0ED8(void *, void *, s32);
 extern void func_L16_0040D188(u8 *);
@@ -240,6 +244,11 @@ INCLUDE_ASM("asm/levels", func_L16_00410E40);
 /* func_L16_00410FA8 is in L16_00410CC0.c. */
 
 /* func_L16_004110D0 is compiled from L16_004110D0-g8.c. */
+
+static inline s32 func_L16_00411368_period(float seconds)
+{
+    return func_00283CF0(seconds);
+}
 
 INCLUDE_ASM("asm/levels", func_L16_00411368);
 

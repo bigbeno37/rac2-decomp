@@ -1,36 +1,3 @@
-/* Retained reconstruction; not linked. GPT-6.1 Sol high, 29 October 2026.
- * Profile: -O2 -G8 -ffunction-sections, dedicated -g8.c unit.
- * Current pinned v2 worker toolchain, USA v1.01: 1772/1776 bytes, 0/2 places.
- * Earlier 1776-byte draft: 50 identical unrelocated disassembly rows; this
- * draft: 221. This is a source improvement, not a match or linked-build credit.
- * MACRO_ADDR on the frame counters reproduces their mixed GP/absolute reads
- * with a typed ObjectState. Keep D_0018CC7C NOT_SDA and the sound table split.
- * A typed effect-control view prevents its address being hoisted over the
- * loop; ascending i=0..1 reproduces the retail loop's saved-register lifetimes.
- * Distinct branch-local sound variables reproduce the retail a0/v1 pointers
- * and owner-test branch slots; sharing one variable loses those allocations.
- * Initial speed snapshot and short-circuit state->amount reads fix their
- * scheduling. qcopy_nc copies only origin, disjoint from the following fields.
- * Remaining: object s2 instead of s3, effect rotation s3 instead of s2,
- * count s3 instead of s5, and missing message-buffer s2=s1 copy at +0x544.
- * Initial flag-index temporaries, two effect-call argument moves and the
- * final idle-color store/move/load order also differ. First word mismatch +4.
- * Palette offsets from D_L16_001B02C0 prevent GP loads in nonbare slots;
- * the whole palette declaration remains a source hypothesis, not link proof.
- * Separate/common color calls, typed Moby, long buffer handles, reordered
- * pointer additions and merged message-pointer scopes did not close the body.
- * Reopen with evidence for the message-buffer handle lifetime and the
- * original color-input alias model; do not retry equivalent pointer wordings.
- * 1 November 2026: with s2/s3 exchanged only a handful of rows differ. Retail's
- * object is s3 because a third call-crossing local of the message block takes s2:
- * text s1 and `daddu s2,s1` after the name lookup, with the later a0 from s2.
- * Copies of text through a local, a late copy or (int) all fold (89 rows); no
- * local at all gives 94. Find what keeps that copy and the rotation closes.
- * Wrapping the state call in do/while(0) gives 1776 bytes and 78 rows, but with an
- * alignment nop and still no copy, so that block boundary is not the mechanism.
- * Required declarations are retained below. PAL/US2 were not checked here.
- */
-
 #include "common.h"
 typedef struct {
     int tableIndex; u8 pad04[12]; float origin[4];
@@ -48,7 +15,7 @@ extern u8 *D_L16_001B2B1C __attribute__((sda));
 extern float D_L16_001B02B0 __attribute__((sda));
 extern float D_L16_001B02B8 __attribute__((sda));
 extern u32 D_L16_001B02C0[] MACRO_ADDR;
-#define colorFirst D_L16_001B02C0[0]
+extern u32 colorFirst[] SDATA(D_L16_001B02C0);
 extern float D_L16_001B02BC MACRO_ADDR;
 
 extern char D_L16_001B02D0[];
@@ -79,26 +46,32 @@ extern void func_0032DA58(void *,void *,void *,float);
 extern void func_002AB6D8(float *,float *);
 extern void func_002B0A68(char *,int,float *,u8,float,float,float,float);
 extern int func_002A8508(int,int);
-extern s32 func_00288FB8(s32);
+extern char *func_00288FB8(int);
 extern int func_00115DA8(char *,char *,...);
-extern int func_L00_0030DD70(int,int);
+extern void func_L00_0030DD70(char *,int);
 extern int func_00282948(int *);
 extern void func_002A0430(unsigned int);
 extern void func_0029F338(void *);
 extern float func_00283B98(float,float);
 extern int func_L01_0031BC68(int,int,float);
+
+/* Object state machine: it moves along its direction as the level value from
+ * func_L16_003960E8 rises, bursts once that value reaches 1 (effects, shake, a
+ * formatted message with a count), then deletes itself when its timer runs out.
+ * The idle colour pulses while the object is visible. */
 void func_L16_003C2C08(u8 *object)
 {
     float point[4],step[4],normal[4];
     char message[128];
     ObjectState *state=*(ObjectState **)(object+0x68);
     float amount,rate;
-    int handle,count,i;
+    char *string;
+    int count,i;
     u32 timer,oldTimer;
     switch (object[0x20]) {
     case 0: {
         float speed;
-        if (D_0019B2E8[D_001A79F0*16+object[0xB0]]&0x80) goto remove;
+        if (D_0019B2E8[object[0xB0]+D_001A79F0*16]&0x80) goto remove;
         object[0x30]=255;
         *(u16 *)(object+0x32)=0x113;
         *(u16 *)(object+0x34)|=0x4000;
@@ -123,10 +96,10 @@ void func_L16_003C2C08(u8 *object)
             u8 *playingSound=D_00188660+state->sound*0x70;
             if (*(u8 **)(playingSound+0x88)!=object || !playingSound[0x74]) state->sound=func_002E5CF8(2,4,(char *)object);
         } else {
-            handle=state->sound;
-            if (handle!=-1) {
-                u8 *stoppingSound=D_00188660+handle*0x70;
-                if (*(u8 **)(stoppingSound+0x88)==object && stoppingSound[0x74]) func_002E59F8(handle);
+            int sound=state->sound;
+            if (sound!=-1) {
+                u8 *stoppingSound=D_00188660+sound*0x70;
+                if (*(u8 **)(stoppingSound+0x88)==object && stoppingSound[0x74]) func_002E59F8(sound);
             }
             state->sound=-1;
         }
@@ -177,13 +150,14 @@ void func_L16_003C2C08(u8 *object)
             if (count!=0) {
                 char *format=D_L16_001B02D0;
                 char *text=message;
-                handle=func_00288FB8(0x2F3A);
-                func_00115DA8(text,format,(char *)handle,count);
+                string=func_00288FB8(0x2F3A);
+                func_00115DA8(text,format,string,count);
+                string=text;
                 func_002A7750(object,4,-1);
-                func_L00_0030DD70((int)text,180);
+                func_L00_0030DD70(string,180);
             } else {
-                handle=func_00288FB8(0x2F3B);
-                func_L00_0030DD70(handle,180);
+                string=func_00288FB8(0x2F3B);
+                func_L00_0030DD70(string,180);
                 func_002A7750(object,5,-1);
             }
         } else {
@@ -213,9 +187,7 @@ remove:
         } else {
             rate=func_00283B98(state->angle,D_L16_001B02B8*0.00029088825f);
             state->angle=rate;
-            *(u32 *)(object+0x78)=func_L01_0031BC68(colorFirst,D_L16_001B02C0[1],rate);
+            *(u32 *)(object+0x78)=func_L01_0031BC68(colorFirst[0],D_L16_001B02C0[1],rate);
         }
-
     }
-    return;
 }

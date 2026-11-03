@@ -1,49 +1,19 @@
-/* GPT-6.1 Sol high, task v1029, 29 October 2026.
- * Pinned compiler: -O2 -G64 -Wa,-G64 -ffunction-sections
- * -frac2-zero-ti-por -g -fno-cse-skip-blocks -mno-split-addresses.
- * USA v1.01: 1648/1648 bytes, 0/2 places; first instruction mismatch +0x90.
- * Fourteen check.py variants and a final recheck, plus one regalloc
- * diagnostic; no linked build.
- * 310/412 identical displayed instruction rows versus 61/413 when recompiling
- * the prior draft (unresolved relocation rows included, not a byte-match count).
- *
- * Recoveries: edge colors live at sp+0x440/0x444; use the retail >= fade skips
- * (including their unordered case), a separate first-loop counter, and the
- * same copied offset for both members of each add/subtract pair. The original
- * offset source arrays are initialization temporaries, not the additive input.
- * Ordinary TI assignments are required for the internal stack copies; only
- * the initial external position transfer uses common.h's reviewed qcopy.
- * -fno-cse-skip-blocks prevents hoisting the second 0.2f test constant; explicit
- * one, assigned after qcopy and used through fade_a, recovers retail's f21
- * lifetime without reusing it for fade_b or the final opacity test. nosda plus
- * -mno-split-addresses preserves the absolute color/texture loads, avoiding a
- * GP load in the second fade skip slot. -g recovers the two pre-div.s nops.
- * The frame and all buffer positions now match retail: rotation +0x450,
- * setup +0x460, setup source +0x470, copied offsets +0x480/+0x490, initial
- * offset source +0x4A0/+0x4B0 and rotation matrix +0x4C0.
- *
- * Remaining: first vector call setup at +0x90 (a2 move before a1 address),
- * setup/first copied-offset s0/s1 allocation, rotation/matrix address spill
- * slots +0x4FC/+0x500 exchanged, and a few reload temporary choices in the
- * final loop. Splitting setup vectors ties the array spelling; grouping the
- * transformation workspace retains the same residual pattern. Explicit
- * pointers to all buffers regress to 1656 bytes; a basis-only pointer retains
- * 1648 bytes but moves its spill to +0x4F4. -fno-sched-spec ties; -fno-gcse
- * regresses. Reopen on independently supported pointer lifetimes/object views.
- * Requires common.h and the declarations below. No other release rechecked.
- */
 #include "common.h"
+
+/* func_L13_0041FBE0 (-G64, split addresses, -g, -fno-cse-skip-blocks).
+   The color table D_L13_001B1A90 and texture pair D_L13_001B1A40 are read
+   through $gp at element 0 and as absolute sym+offset macro loads after it:
+   the _1 views have no declared size, so the assembler keeps them absolute
+   and cc1 neither splits their %hi nor puts them in delay slots. */
 
 typedef int Quad __attribute__((mode(TI)));
 typedef union { Quad quad; float f[4]; } Vector;
 typedef struct { Vector vertex[4]; unsigned int color[4]; float uv[4][2]; unsigned long long state[4]; } DrawPacket;
-extern float D_L13_001B98C0[4] __attribute__((nosda));
+extern float D_L13_001B98C0[];
 extern unsigned int D_L13_001B1A90 __attribute__((sda));
-extern unsigned int D_L13_001B1A94 __attribute__((nosda));
-extern unsigned int D_L13_001B1A98 __attribute__((nosda));
-extern unsigned int D_L13_001B1A9C __attribute__((nosda));
+extern unsigned int D_L13_001B1A90_1[] __attribute__((sda));
 extern int D_L13_001B1A40 __attribute__((sda));
-extern int D_L13_001B1A44 __attribute__((nosda));
+extern int D_L13_001B1A40_1[] __attribute__((sda));
 extern float D_L13_001B1A50[4][2] __attribute__((sda));
 extern float D_L13_001B1A70[4][2] __attribute__((sda));
 extern Vector D_L13_001B1AB0[4] __attribute__((sda));
@@ -97,14 +67,14 @@ void func_L13_0041FBE0(char *object) {
     func_002AFDD8(object, (char *)&direction, (char *)&direction, 0);
     if (direction.f[0] < 0.0f) func_00282D30(transform, transform, -1.0f);
     amount = func_00283198(*(float *)(private + 0x20)) * 0.5f + 0.5f;
-    main_color = func_00283D38(D_L13_001B1A90, D_L13_001B1A94, amount);
-    trim_color = func_00283D38(D_L13_001B1A98, D_L13_001B1A9C, amount);
+    main_color = func_00283D38(D_L13_001B1A90, D_L13_001B1A90_1[1], amount);
+    trim_color = func_00283D38(D_L13_001B1A90_1[2], D_L13_001B1A90_1[3], amount);
     fade_a = *(float *)(private + 4);
     if (!(0.2f <= fade_a)) fade_a = one - fade_a * 5.0f;
-    edge[0] = func_00283D38(D_L13_001B1A9C, D_L13_001B1A9C & 0xFFFFFF, fade_a);
+    edge[0] = func_00283D38(D_L13_001B1A90_1[3], D_L13_001B1A90_1[3] & 0xFFFFFF, fade_a);
     fade_b = *(float *)(private + 8);
     if (!(0.2f <= fade_b)) fade_b = 1.0f - fade_b * 5.0f;
-    edge[1] = func_00283D38(D_L13_001B1A9C, D_L13_001B1A9C & 0xFFFFFF, fade_b);
+    edge[1] = func_00283D38(D_L13_001B1A90_1[3], D_L13_001B1A90_1[3] & 0xFFFFFF, fade_b);
     if (*(float *)private < 1.0f) {
         main_color = func_00283D38(main_color & 0xFFFFFF, main_color, *(float *)private);
         trim_color = func_00283D38(trim_color & 0xFFFFFF, trim_color, *(float *)private);
@@ -112,12 +82,12 @@ void func_L13_0041FBE0(char *object) {
         edge[1] = func_00283D38(edge[1] & 0xFFFFFF, edge[1], *(float *)private);
     }
     func_L02_002EF968(packet, D_L13_001B1A40, main_color, D_L13_001B1A50, D_L13_001B1AB0, 1);
-    func_L02_002EF968(packet + 1, D_L13_001B1A44, trim_color, D_L13_001B1A70, D_L13_001B1AF0, 1);
-    func_L02_002EF968(packet + 2, D_L13_001B1A44, trim_color, D_L13_001B1A70, D_L13_001B1B30, 1);
-    func_L02_002EF968(packet + 3, D_L13_001B1A44, edge[0], D_L13_001B1A70, D_L13_001B1AF0, 1);
-    func_L02_002EF968(packet + 4, D_L13_001B1A44, edge[0], D_L13_001B1A70, D_L13_001B1B30, 1);
-    func_L02_002EF968(packet + 5, D_L13_001B1A44, edge[1], D_L13_001B1A70, D_L13_001B1AF0, 1);
-    func_L02_002EF968(packet + 6, D_L13_001B1A44, edge[1], D_L13_001B1A70, D_L13_001B1B30, 1);
+    func_L02_002EF968(packet + 1, D_L13_001B1A40_1[1], trim_color, D_L13_001B1A70, D_L13_001B1AF0, 1);
+    func_L02_002EF968(packet + 2, D_L13_001B1A40_1[1], trim_color, D_L13_001B1A70, D_L13_001B1B30, 1);
+    func_L02_002EF968(packet + 3, D_L13_001B1A40_1[1], edge[0], D_L13_001B1A70, D_L13_001B1AF0, 1);
+    func_L02_002EF968(packet + 4, D_L13_001B1A40_1[1], edge[0], D_L13_001B1A70, D_L13_001B1B30, 1);
+    func_L02_002EF968(packet + 5, D_L13_001B1A40_1[1], edge[1], D_L13_001B1A70, D_L13_001B1AF0, 1);
+    func_L02_002EF968(packet + 6, D_L13_001B1A40_1[1], edge[1], D_L13_001B1A70, D_L13_001B1B30, 1);
     for (corner = 0; corner < 4; corner++) {
         packet[1].uv[corner][0] += *(float *)(private + 0xC);
         packet[2].uv[corner][0] -= *(float *)(private + 0xC);

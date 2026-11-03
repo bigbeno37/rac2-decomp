@@ -50,6 +50,15 @@
  *
  * closer D, later: MACRO_ADDR on D_00189E20 or D_L11_001C0D18 (one fewer insn each, same-register lui/addiu) moves
  * code, 29 to 57 words. They are not the missing 5 to 28 insns.
+ *
+ * v2247 (opus-2, Claude Opus 5.5, 2026-11-03), on v2/c04: this body still scores 6 words. Natural
+ * wording (v1925 wip) plus one case-12 local `ActorVector *out = &work[1];` (passed to
+ * func_002A3F10) scores 13 words, all spill-slot offsets: out takes 0xC4 and the schedule is retail's,
+ * the 0x1A8 clear included. Only scale (a PRE reg at $1+80) wraps last, at 0xD8. In this form S 575..587
+ * gives retail's slots, i.e. max_cuid 1148..1175 against 1176 here: 1 to 4 fewer insns entering gcse
+ * (count insn/jump_insn/call_insn in the .addressof dump; 24 flow `(use (const_int 0))` insns count).
+ * Count-neutral: dropping case 3's facing local. Code-changing: dropping start (constant setup moves
+ * at +0xBE0), a u8 local caching object[0xBC] (retail keeps the QI PRE copy with andi 0xFF).
  */
 #include "common.h"
 

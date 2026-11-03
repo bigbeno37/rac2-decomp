@@ -2767,6 +2767,7 @@ src/levels/shared/L00_0037A2E8-qcopy.c	-O2 -G0 -ffunction-sections -frac2-qcopy 
 src/core/00132318-g8.c	-O2 -G8 -ffunction-sections -fno-gcse -fno-cse-follow-jumps
 src/levels/08_tabora/L08_00425AA8.c	-O2 -G0 -ffunction-sections -ffast-math
 src/levels/shared/L05_003979B0-g8.c	-O2 -G8 -ffunction-sections -g
+src/game/0027F128-resample.c	-O2 -G0 -ffunction-sections -fno-sched-interblock
 src/game/0027F128-glow.c	-O2 -G0 -ffunction-sections -fno-rerun-loop-opt
 src/game/0027F128-quad.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/levels/08_tabora/L08_003D8CA8.c	-O2 -G0 -ffunction-sections -g
@@ -2774,6 +2775,7 @@ src/game/0026EA00-target.c	-O2 -G0 -ffunction-sections -g
 src/game/002E35E0-g8.c	-O2 -G8 -ffunction-sections -fmove-all-movables
 src/game/002E64A0.c	-O2 -G32 -Wa,-G32 -ffunction-sections
 src/game/00345358-wrap.c	-O2 -G0 -ffunction-sections -frac2-gcse-unsplit-edges
+src/game/00345358-children.c	-O2 -G0 -ffunction-sections -fno-expensive-optimizations
 src/levels/shared/L00_00403730.c	-O2 -G0 -ffunction-sections -frac2-hazard-labels
 src/core/0011B140.c	sdk -O2 -G2 -ffunction-sections
 src/game/00308600-wavy.c	-O2 -G0 -ffunction-sections -g
@@ -3083,6 +3085,10 @@ src/levels/20_yeedil/L20_0039C448-f7-g8.c	-O2 -G8 -ffunction-sections -malign-lo
 src/levels/11_joba/L11_00434580-g-g8.c	-O2 -G8 -ffunction-sections -g
 src/levels/11_joba/L11_00437FD0.c	-O2 -G0 -ffunction-sections -g
 src/levels/11_joba/L11_00438880-g-g8.c	-O2 -G8 -ffunction-sections -g -mno-split-addresses
+src/levels/11_joba/L11_00432628-beam-g8.c	-O2 -G8 -ffunction-sections -mno-split-addresses
+src/levels/02_maktar_nebula/L02_003D5748-g8-dbg.c	-O2 -G8 -ffunction-sections -g
+src/levels/shared/L13_0041FBE0-g64.c	-O2 -G64 -Wa,-G64 -ffunction-sections -g -fno-cse-skip-blocks
+src/levels/shared/L13_00438D88.c	-O2 -G0 -ffunction-sections -g
 
 
 

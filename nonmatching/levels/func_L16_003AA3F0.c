@@ -27,6 +27,13 @@
  *  - k is separate from j, or the last loop's $s3/$s4 swap.
  * Opus G2, 1 November 2026: the four initial values are dead (each is overwritten before any read), so
  * they must be replaced by read values. Forced bucket counts: 175-179, 193-197 and 203 keep the one row.
+ * Task v2248 (Opus, 3 November 2026), recompiled on v2/c06: the same single row. Cause: the dead ?: is
+ * gone at cse1, so the qcopy destination and the call's &jitter share one block at gcse, and PRE only
+ * replaces the first occurrence in a block. The shared color local leaves 6 differing rows here (its test
+ * lasts until sched1, and loop increments land after the first rand call). Loop-2 pointers with
+ * post-increment are much worse: their inits move ahead of loop 1. The block boundary has to exist at
+ * gcse and be gone before sched1. No jump pass runs between flow1 and sched1, so the cleanup must come
+ * from cse2's jump, the single-reference deletion in the jump after reg_scan, a cmove, or loop motion.
  */
 #include "common.h"
 typedef int VectorWord __attribute__((mode(TI)));

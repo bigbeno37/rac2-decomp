@@ -33,6 +33,7 @@ void func_L11_004701A0(char *a0) {
     }
 }
 
+
 /* func_L11_004702F0 is in L11_004618C0-state-g8.c ($gp height-control reads). */
 
 void func_L11_00472DE8(unsigned char *a0) {

@@ -1,41 +1,30 @@
 /*
- * Opus 5.5 xhigh (opus-1), task v1866, 31 October 2026.
- * Best check.py, USA v1.01 (level 05): 3520/3516 bytes, 0/1 places, instruction at +0xc differs,
- * 841 of 880 rows differ (most only because the listing is shifted). No linked build was run.
- * Compile as an isolated -g8.c unit: -O2 -G8 -ffunction-sections. Declarations needed follow.
+ * Opus 5.5 xhigh (opus-2), task v2241, 3 November 2026. Builds on opus-1's v1866 draft.
+ * Best check.py, USA v1.01 (level 05): 3520/3516 bytes, 0/1 places; 839 of 880 rows differ (most
+ * only because the listing is shifted; v1866 had 841). Compile as an isolated -g8.c unit
+ * (-O2 -G8 -ffunction-sections); the declarations it needs follow. No linked build was run.
+ * Closeness by a private masked alignment (relocated halves, call targets and gp/%lo offsets
+ * masked; not a check.py result): 742 of 879 retail rows line up, v1866 has 730 by the same count.
  *
- * Closeness: by a private sequence alignment with relocated halves and call targets masked (not a
- * check.py result), 667 of 880 rows now line up; the previous draft (task v1580, 3516/3516) had 601.
- * On that masked comparison 0041E3A8..0041EB34, the whole gauge section, has no difference left.
- * What still differs: the switch arms (0041DF64..0041E3A4) and the last sprites (0041EB38..end).
+ * New over v1866 (keep these):
+ * - `selected = 1` as its declaration initializer (NOTE REVIEW: one initializer on a used local).
+ *   The switch's `== 1` reuses that older pseudo, so the opening now matches: li 1 in s0 after
+ *   sd s1, beq $v1,$s0. (A plain `int index = 1` puts the 1 in s2 and moves D/fmt instead.)
+ * - if (D_L05_001A904C) closes before func_L00_0030CF60 (retail beqz at 0041E3A4 targets the
+ *   jal at 0041EB5C); the three last sprites are unconditional. This gives retail's 0x8710 in the
+ *   beqz delay slot and 4.0f/0.5f hoisted into f20/f23 after that call.
+ * - The second sprite handle reuses `state` (L15 twin's finding): it lands in s3 as in retail.
  *
- * New over v1580:
- * - Behaviour repair at 0041E7DC: `bc1t` to the `sw v0,0x38(s3)` at 0041E800, `li v0,1` in its slot.
- *   Health above 0.3 stores 1 in state+0x38 (blink on); the old draft had no such path.
- * - scaled_screen_coord (same body as src/game/002D3390.c) gives 0041E444..0041E4A8 exactly.
- * - func_00283D38 is FastTweenColor(c0, c1, t), as in its other callers.
- * - sprintf's format and both table reads are nested in its call: format in s0 first, then two lookups.
- * - Keep func_00300968's (a0, x, y, colour, s, r) order here: the callee is (int, int, float x4) in
- *   other units, and writing that order here moved `ori a1` and lost the gauge (661 rows, not 667).
- *
- * What the arms need (dumps from tools/regalloc.py; the compiler source reasoning is inference):
- * - Retail keeps `1` in s0 and `mode` in v1. A local `one`, or `flag` with two definitions, folds
- *   (cse/gcse): no change. Reusing the switch's constant needs a later `r == 1` test on the same cse
- *   path. Probe `if (r == 1) return (int)f + adjust; return (int)f;` with a placeholder r put the 1 in
- *   a callee-saved register (s1, not retail's s0) and made the test vanish in the first draw, whose
- *   x then matched arm 2's shape (`lw v0; addiu a0,v0,-60`); the second draw kept its test (3592 bytes).
- * - In arms 0, 1, 3, x stays out of a0 (`addiu v0,v0,-60 ... daddu a0,v0`) and the argument moves
- *   follow the conversion, so something separates x from the moves. In the probe's second draw a local
- *   a0 caused that shape; retail shows no such instruction. D and fmt being s2/s1 rather than local
- *   allocation's s0/s1 suggests they span a block too. That same draw lost cse of .5 across the join;
- *   retail keeps .5 in f20 and D/fmt across both draws, which needs a one-armed `if`, not a join.
- * - Every one-armed body tried is gone before gcse or changes nothing: `y += adjust`, a copy, a dead
- *   local, `h += 4`. No real tested value exists either: the arms load no display mode.
- * - The last sprites show the same boundary after their (int) conversion and a fresh 0 in f22, not f25.
- * - Not landable, diagnostic only: `y; x; do { call } while (0);` fixes block order (659 rows on the
- *   v1580 base) but combine still folds x into a0. `long x` moves its addiu next to retail's place but
- *   adds dsll32/dsra32. Next: a real construct for that boundary; see MATCHING-BLOCKERS "A cse block
- *   boundary that leaves no instruction".
+ * Still different, all from one missing construct: retail has a block boundary that leaves no
+ * instruction right after each text y conversion (mfc1 $a1) and each sprite y conversion
+ * (cvt.s.w $f13). Its effects: x is built in v0, then daddu $a0,$v0 after mfc1 $a1;
+ * a2/a3/t0 are set after mfc1 $a1, .8f/0.0f are set after the first sprite's y (f21/f22, here
+ * f22/f21 and hoisted). In case 0 D/fmt are s2/s1 in retail but s0/s1 here: something keeps the
+ * 1 (s0) live through the arms, which fits a vanished `X == 1` test at that boundary using the
+ * cse'd 1, with X already in a register. No real X was found.
+ * Tried without effect: a helper testing the switch variable `mode == 1` (cse folds it in each
+ * arm); a one-armed `if (drawX == 1) label = text;` before each draw (gone before combine, no
+ * boundary; diagnostic only, not kept).
  */
 #include "common.h"
 
@@ -102,7 +91,7 @@ int func_L05_0041DF58(void) {
     int drawX, drawY;
     char *label;
     char *state = *(char **)(D_L05_001B13B0 + 0x68);
-    int index, color, selected;
+    int index, color, selected = 1;
     float x,y,ratio,a,b,health;
     float segmentColor, right;
     int i0,i1,i2;
@@ -251,12 +240,14 @@ int func_L05_0041DF58(void) {
             items[func_002ED8A0(selected)].active=1;
         }
         func_00300968(D_L05_001B1398,x,y,0x80F0F0F0,1.0f,0.0f);
-        func_L00_0030CF60();
+    }
+    func_L00_0030CF60();
+    {
         i0=func_00336D50(D_L05_001A904C+0x8710,186);
-        i1=func_00336D50(D_L05_001A904C+0x8710,187);
+        state=(char *)func_00336D50(D_L05_001A904C+0x8710,187);
         i2=func_00336D50(D_L05_001A904C+0x8710,188);
         func_00300968(i0,D_L05_001AC4E0[0]+4.0f,(float)(int)((D_L05_001AC4E4[0]+4.0f)*D_L05_001B2D84[0]+.5f),0x60442D00,.8f,0.0f);
-        func_00300968(i1,D_L05_001AC4E0[0]+4.0f,(float)(int)((D_L05_001AC4E4[0]+4.0f)*D_L05_001B2D84[0]+.5f),0x60241700,.8f,0.0f);
+        func_00300968((int)state,D_L05_001AC4E0[0]+4.0f,(float)(int)((D_L05_001AC4E4[0]+4.0f)*D_L05_001B2D84[0]+.5f),0x60241700,.8f,0.0f);
         func_00300968(i2,D_L05_001AC4E0[0]+4.0f,(float)(int)((D_L05_001AC4E4[0]+4.0f)*D_L05_001B2D84[0]+.5f),0x55F0C070,.8f,0.0f);
         func_L05_0037A5F8();
     }

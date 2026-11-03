@@ -81,6 +81,8 @@ extern f32 func_002AA548(void *, void *, f32, f32, f32, f32);
 
 /* func_L11_003DCEB0 lives in L11_003DCEB0-g8.c. */
 
+
+
 /* Defined in L11_003DD068-g8.c. */
 
 void func_L11_003F1C68(u8 *arg0) {

@@ -1,3 +1,17 @@
+/* Claude Opus 5.5 (xhigh), task v2254 (opus-2), 2026-11-03, USA v1.01.
+ * check.py: 0 of 27 places match; 2244/2244 bytes; 66 of 561 rows differ after swapping s7/fp and
+ * normalising relocations (the previous draft had 75). Profile: -O2 -G8 -ffunction-sections, in a -g8.c unit.
+ * New: the function-scope `int random_range = 120;` (RAC1: scale_ticks(0x78)) makes the modulo-120 block match
+ * retail. The REG_EQUIV constant is spilled, so reload rematerialises it into v1 and mfhi lands in v1.
+ * Matrix hoist: loop.c moves `addiu v0, sp, 0x30` out of the outer loop because 26 x 18 < 473 insns
+ * (threshold 62 minus 3 for each of the 12 earlier moves). Wrapping `qcopy(p+0x2010,matrix[3]);
+ * func_L00_002A7A10();` (or the next qcopy) in a plain `{ }` adds a NOTE_INSN_DELETED luid (life 19). That gives
+ * retail's inner-preheader spills 0x7C/0x80/0x84/0x78/0x74/0x88, but then the inner latch reloads slot 0x74 into a0
+ * once, where retail reloads it twice into v1, so the function is 2236 bytes.
+ * Still open: the i/j global-alloc near-tie (i 50 refs/872 live = 0.2867 vs j 35/606 = 0.2888, so j gets s7), and
+ * retail's outer head reloading the constant 2 for `i==2`. Setting `next=i+1` at the top of the outer body is worse:
+ * it is computed before the test.
+ */
 /* Closer b, 2026-11-01: retail has a real next index: `lw s7, 0x88(sp)` at the loop end, set in the `continue` path's delay
  * slot and again after the test, and the inner loop has `daddu fp, s4`. `for (i = 0; i < 7; i = next)` with next set
  * in both paths gives retail's s7/fp and most of the head, at 2240 bytes; with the inner `nj` as well, 2228. Still open:
@@ -73,6 +87,7 @@ void func_L00_002B0968(int value)
     float matrix[4][4] __attribute__((aligned(16)));
     int i,j,joint,first,second,third;
     u8 *moby;
+    int random_range = 120;
     if (!value) value = D_0018C0B0;
     for (i=0;i<7;i++) {
         if ((D_L00_001A8F00[0]==2 || D_L00_001A8F00[0]==6)
@@ -189,14 +204,13 @@ void func_L00_002B0968(int value)
                 if(*(u8 **)(p+0x131C)) {
                 effect=*(u8 **)(p+0x131C);
                 if(((*(u16 *)(effect+0x34)^1)&1) != 0) {
-                    float angle,range;
+                    float angle;
                     int red,green,blue,color_red;
                     func_0029FC20(moby,8,matrix);
                     qcopy(p+0x2010,matrix[3]); func_L00_002A7A10();
                     qcopy(effect+0x10,matrix[3]); func_00283678(effect+0xC0,matrix); func_002A0F48(effect);
                     *(u64 *)(effect+0x38)=*(u64 *)(*(u8 **)(p+0x2290)+0x38);
-                    range=func_00283CE0(120);
-                    angle=func_00283198(((float)(D_L00_001B19C8[0]%120)/range*2.0f)*3.1415927f+(-3.1415927f));
+                    angle=func_00283198(((float)(D_L00_001B19C8[0]%random_range)/func_00283CE0(random_range)*2.0f)*3.1415927f+(-3.1415927f));
                     color_red=func_00283CF0(angle*90.0f); green=func_00283CF0(angle*50.0f); blue=func_00283CF0(angle*10.0f);
                     blue=((blue+20)<<16)|0x80000000;
                     red=color_red+215; if(red>255)red=255;

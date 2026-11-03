@@ -1,13 +1,21 @@
-/* func_L20_004441D8, 1744 bytes. USA v1.01, -O2 -G8 -ffunction-sections -frac2-zero-ti-por:
- * 1740/1744 bytes, opcodes aligned to the end. The group loops are real do/while loops entered by a
- * goto into the middle: that keeps the loop note and alignment nop, and loop.c refuses to hoist
- * because of the entry, which is why retail has no hoisted constants. Left:
- * - j++ in the last loop: reorg's forward scan from the third call there finds it past both qzero
- *   asms and a call and takes the slot; retail keeps the nop and j++ fills the last jal. So retail's
- *   forward search stops at a volatile asm, like redundant_insn's (3d046c95). Unproven: test with a
- *   private cc1 before believing it. Accounts for the missing word.
- * - the group index is $a1 here, $a0 in retail: sched1 sets the copy before the address add.
- * - t2 for func_002BAA28 is set before a3 here, after t1 in retail.
+/* func_L20_004441D8, 1744 bytes. Tier opus-2. Build in its own -G8 unit with
+ * -O2 -G8 -ffunction-sections -fstrict-aliasing -frac2-zero-ti-por (an L20_004441D8-g8.c file plus a
+ * cflags line). check.py: 1740/1744 bytes, 0 of 1 places; the code up to 0x444740 matches.
+ * What fixed what:
+ * - s is loaded before the first call (the prologue matches).
+ * - current++ block: jump.c's duplicate_loop_exit_test copies the entry test with copy_rtx, which
+ *   drops MEM_SCALAR_P from the D_2FA0 load, so without strict aliasing that load stays behind the
+ *   s->current store. -fstrict-aliasing with D_2FA0 declared `char *` frees it.
+ * - pos as a union { Vec; TImode } (a union access has alias set 0): under strict aliasing the
+ *   pos[1] store again orders the s->f230 load after it (0x444634, 0x4447CC).
+ * - group loops written as the usual group walk `for` with the doubled p test (as in
+ *   func_L20_00442E68): the index copy is $a0 as in retail.
+ * - D_L20_001A8F20 as an incomplete `sda` array: an unsplit la gives retail's argument order.
+ * Left:
+ * - t2 (fade) for func_002BAA28 is set first here, after t1/sw in retail; nested calls change nothing.
+ * - the D_220C reload at 0x444768 is $v0 here, $v1 in retail.
+ * - j++ fills the func_002A7878(-0.5, 0.5) slot at 0x444804 (retail: nop) instead of the slot of the
+ *   b[2] call; this accounts for the missing word. Only a banned volatile D_2250 read fixed it (opus-1).
  */
 #include "common.h"
 
@@ -16,7 +24,7 @@ typedef struct { char pad[0x18]; float z; } Moby;
 extern s16 **D_L20_001A9014;
 extern s16 *D_L20_001FBB20[];
 extern char *D_L20_001B3614, *D_L20_001B2F9C, *D_L20_001B308C;
-extern u32 D_L20_001B2FA0;
+extern char *D_L20_001B2FA0;
 extern s32 D_L20_001B2FB8 __attribute__((sda)), D_L20_001B220C __attribute__((sda)), D_L20_001B2248 __attribute__((sda));
 extern s32 D_L20_001B222C __attribute__((sda));
 extern s32 D_L20_001B2210[] __attribute__((sda)), D_L20_001B2230[] __attribute__((sda));
@@ -26,7 +34,7 @@ extern float D_L20_001B2240_gp SDATA(D_L20_001B2240), D_L20_001B2250_gp SDATA(D_
 extern float D_L20_001B2BE8 __attribute__((sda));
 extern float D_L20_001B2220[2] __attribute__((sda));
 extern s32 D_0018C0B0[];
-extern char D_L20_001A8F20[];
+extern char D_L20_001A8F20[] __attribute__((sda));
 extern void func_002E5CF8(int, int, void *);
 extern float func_00282C48(float);
 extern void func_0029F338(void *);
@@ -48,13 +56,14 @@ typedef struct { char pad[0x21C]; int g1; int pad220; int groups[3]; int f230; i
 
 void func_L20_004441D8(char *obj)
 {
-    Vec pos, a, b;
+    union { Vec f; long q __attribute__((mode(TI))); } pos;
+    Vec a, b;
     State *s;
     float base;
     int i, j;
 
-    func_002E5CF8(0x11, 0, obj);
     s = *(State **)(obj + 0x68);
+    func_002E5CF8(0x11, 0, obj);
     {
         int idx = s->groups[s->current];
         s16 *p = D_L20_001A9014[idx];
@@ -75,7 +84,7 @@ void func_L20_004441D8(char *obj)
     s->current++;
     {
     char *m;
-    for (m = D_L20_001B2F9C; (u32)m <= D_L20_001B2FA0 && B(m, 0x20) != 0xFF; m += 0x100) {
+    for (m = D_L20_001B2F9C; m <= D_L20_001B2FA0 && B(m, 0x20) != 0xFF; m += 0x100) {
         u16 id = U(m, 0xAA);
 
         if (id == 0x1233 || id == 0x1234 || (s16)id == 0x1231 || (s16)id == 0x1232 || (s16)id == 0x1357) {
@@ -87,68 +96,50 @@ void func_L20_004441D8(char *obj)
     {
         s16 *p;
         float size = 0.0f;
-        int g;
 
-        p = D_L20_001FBB20[s->g1];
-        goto test1;
-        do {
-            {
+        for (p = D_L20_001FBB20[s->g1];
+             (s->g1 & 0xFF) != 0xFF && s->g1 <= D_L20_001B2FB8 && p != 0 &&
+             ((p != 0 && p[-1] >= 0) || p == D_L20_001FBB20[s->g1]);
+             p++) {
             char *m = D_L20_001B2F9C + ((*p & 0x7FFF) << 8);
 
             if (m == 0)
-                goto end1;
+                break;
             if ((U(m, 0x34) ^ 1) & 1) {
                 if (size == 0.0f) {
                     char *c = func_002AB1F0(m);
 
                     if (c == 0)
-                        goto next1;
+                        continue;
                     size = *(s16 *)(c + 4) * 0.25f;
                 }
                 func_002A8F70(m, D_0018C0B0[0], 0x10000, size, m + 0x10, D_L20_001A8F20);
             }
         }
-    next1:
-        p++;
-    test1:
-            g = s->g1;
-            if ((g & 0xFF) == 0xFF || g > D_L20_001B2FB8 || p == 0)
-                goto end1;
-        } while (p[-1] >= 0 || p == D_L20_001FBB20[g]);
-    end1:;
     }
     {
         s16 *p;
         float size = 0.0f;
-        int g;
 
-        p = D_L20_001FBB20[s->g2];
-        goto test2;
-        do {
-            {
+        for (p = D_L20_001FBB20[s->g2];
+             (s->g2 & 0xFF) != 0xFF && s->g2 <= D_L20_001B2FB8 && p != 0 &&
+             ((p != 0 && p[-1] >= 0) || p == D_L20_001FBB20[s->g2]);
+             p++) {
             char *m = D_L20_001B2F9C + ((*p & 0x7FFF) << 8);
 
             if (m == 0)
-                goto end2;
+                break;
             if ((U(m, 0x34) ^ 1) & 1) {
                 if (size == 0.0f) {
                     char *c = func_002AB1F0(m);
 
                     if (c == 0)
-                        goto next2;
+                        continue;
                     size = *(s16 *)(c + 4) * 0.25f;
                 }
                 func_002A8F70(m, D_0018C0B0[0], 0x10000, size, m + 0x10, D_L20_001A8F20);
             }
         }
-    next2:
-        p++;
-    test2:
-            g = s->g2;
-            if ((g & 0xFF) == 0xFF || g > D_L20_001B2FB8 || p == 0)
-                goto end2;
-        } while (p[-1] >= 0 || p == D_L20_001FBB20[g]);
-    end2:;
     }
     D_L20_001B2BE8 = func_002A89A8(obj + 0x10, 0, 0.5f) - 2.0f;
     base = ((Moby *)obj)->z - 0.5f;
@@ -156,11 +147,11 @@ void func_L20_004441D8(char *obj)
         int c1, c2, life, fade;
         float w;
 
-        func_00282C90(pos);
-        pos[0] = func_002A7878(-1.0f, 1.0f);
-        pos[1] = func_002A7878(-1.0f, 1.0f);
-        func_002830C0(pos, pos, D_L20_001B308C + (s->f230 << 7));
-        pos[2] = base + func_002A7878(-0.5f, 0.5f);
+        func_00282C90(pos.f);
+        pos.f[0] = func_002A7878(-1.0f, 1.0f);
+        pos.f[1] = func_002A7878(-1.0f, 1.0f);
+        func_002830C0(pos.f, pos.f, D_L20_001B308C + (s->f230 << 7));
+        pos.f[2] = base + func_002A7878(-0.5f, 0.5f);
         c1 = func_00283D38(D_L20_001B2210_gp, D_L20_001B2210[1], func_002A7878(0.0f, 1.0f));
         c2 = func_00283D38(D_L20_001B2210[2], D_L20_001B2210[3], func_002A7878(0.0f, 1.0f));
         w = D_L20_001B2220[func_002A77E0(2)];
@@ -171,18 +162,18 @@ void func_L20_004441D8(char *obj)
         b[2] = func_002A7878(D_L20_001B2240_gp, D_L20_001B2240[1]) * 0.016666668f;
         life = func_002A7820(1, D_L20_001B2230_gp);
         fade = func_002A7820(D_L20_001B2230[1], D_L20_001B2230[2]);
-        func_002BAA28(pos, a, b, c1, c2, life, fade, 60, D_L20_001B222C);
+        func_002BAA28(pos.f, a, b, c1, c2, life, fade, 60, D_L20_001B222C);
     }
     for (j = 0; j < D_L20_001B2248; j++) {
-        func_00282C90(pos);
-        pos[0] = func_002A7878(-1.0f, 1.0f);
-        pos[1] = func_002A7878(-1.0f, 1.0f);
-        func_002830C0(pos, pos, D_L20_001B308C + (s->f230 << 7));
-        pos[2] = base + func_002A7878(-0.5f, 0.5f);
+        func_00282C90(pos.f);
+        pos.f[0] = func_002A7878(-1.0f, 1.0f);
+        pos.f[1] = func_002A7878(-1.0f, 1.0f);
+        func_002830C0(pos.f, pos.f, D_L20_001B308C + (s->f230 << 7));
+        pos.f[2] = base + func_002A7878(-0.5f, 0.5f);
         qzero_nc(a);
         a[2] = func_002A7940();
         qzero_nc(b);
         b[2] = func_002A7878(D_L20_001B2250_gp, D_L20_001B2250[1]) * 0.016666668f;
-        func_L20_00448A18(obj, (char *)pos, (char *)a, (char *)b);
+        func_L20_00448A18(obj, (char *)pos.f, (char *)a, (char *)b);
     }
 }

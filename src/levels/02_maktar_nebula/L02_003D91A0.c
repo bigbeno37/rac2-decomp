@@ -1,22 +1,8 @@
-/* functional: medium. Near-miss draft of retail size with the same frame: differences are allocation and scheduling, with some block order; paths the captured calls never take are unproven. */
-/*
- * GPT-6.1 Sol worker v0594; retained near miss, not linked.
- * Current pinned compiler: -O2 -G0 -ffunction-sections -mno-split-addresses.
- * USA v1.01: 1128/1124 bytes, 0/1 places match (check.py --diff).
- * Corrected damage-counter storage to existing D_L02_001FF6B8 + 0xE0.
- * Default split-address profile is 1104 bytes; disabling split addresses restores
- * repeated owner-table address setup and gives 1128 bytes. Initial float/store
- * ordering, owner-table register allocation and animation-selector branching
- * remain different. Raw scalar initializer accesses also give 1128 bytes with
- * worse ordering. Reversing the selector and guarding source-load under part
- * gives 1132 bytes, so that trial is not retained. Next useful evidence: actual
- * initializer grouping and selector lifetimes. No release checks or link run.
- * Required declarations and prefix layout follow below.
- */
 #include "common.h"
 
-typedef int Vector __attribute__((mode(TI)));
-extern char *D_L02_001B359C;
+extern int D_L02_001B359C[] __attribute__((sda));
+/* Read-only view: these loads may pass the state stores, as in retail. */
+extern const int D_L02_001B359C_1[] __attribute__((sda));
 extern int D_L02_001FF6B8[];
 extern int func_00283CF0(float);
 extern void func_002A04B8(char *, void *, void *, void *);
@@ -44,7 +30,10 @@ struct InitPrefix {
 
 void func_L02_003D91A0(char *self) {
     char *state = *(char **)(self + 0x68);
+    char *entry;
     char *part;
+    char *owner;
+    char *attacker;
     char *damage;
     char *source;
     float amount;
@@ -52,7 +41,11 @@ void func_L02_003D91A0(char *self) {
         struct InitPrefix *initial = (struct InitPrefix *)state;
         initial->flag = func_00283CF0(15.0f);
         initial->limit = func_00283CF0(24.0f);
+        initial->active = 1;
+        initial->mode = 3;
         initial->blend = 0.5f;
+        initial->gain = 1.0f;
+        initial->weight = 1.0f;
         initial->scale = 1.0f;
         initial->phase = 2;
         initial->turn = 1.1344641f;
@@ -60,26 +53,22 @@ void func_L02_003D91A0(char *self) {
         initial->epsilon = 0.01f;
         initial->rate = 0.013888889f;
         initial->radius = 11.0f;
-        initial->gain = 1.0f;
-        initial->weight = 1.0f;
-        initial->active = 1;
-        initial->mode = 3;
         initial->ready = 0;
         initial->enabled = 0;
-        part = (char *)(D_L02_001B359C + (*(int *)(*(char **)(self + 0x68) + 0x244) << 8));
-        *(unsigned short *)(part + 0x34) |= 6;
+        entry = (char *)((*(int *)(*(char **)(self + 0x68) + 0x244) << 8) + D_L02_001B359C_1[0]);
+        *(unsigned short *)(entry + 0x34) |= 6;
         *(short *)(state + 0x286) = 60;
         func_002A04B8(self, state + 0x270, state + 0x274, state + 0x278);
         func_00282A60(state + 0x170, 0, 0x40);
         func_00282A60(state + 0x1B0, 0, 0x40);
         func_L02_003DB6D8(self);
-        *(char **)(D_L02_001B359C + (*(int *)(*(char **)(self + 0x68) + 0x244) << 8) + 0xB8) = self;
-        *(int *)(state + 0x254) = 0x40FF00EA;
-        *(short *)(state + 0x282) = 0;
+        *(char **)((*(int *)(*(char **)(self + 0x68) + 0x244) << 8) + D_L02_001B359C[0] + 0xB8) = self;
         *(int *)(state + 0x250) = 0x40FF00EA;
         *(int *)(state + 0x258) = 0x40FF00EA;
         *(int *)(state + 0x264) = 0;
         *(short *)(state + 0x280) = 0;
+        *(int *)(state + 0x254) = 0x40FF00EA;
+        *(short *)(state + 0x282) = 0;
         return;
     }
     damage = func_002A9640(self, 0x10000, 0);
@@ -93,16 +82,15 @@ void func_L02_003D91A0(char *self) {
         if (*(unsigned char *)(self + 0x20) >= 5 && *(unsigned char *)(self + 0x20) != 10 &&
             *(unsigned char *)(self + 0x20) != 11) {
             *(float *)(state + 0x20) -= amount;
-            D_L02_001FF6B8[0x38 + *(unsigned char *)(state + 0x37)] += (int)(amount * 32.0f);
+            { int at = *(unsigned char *)(state + 0x37) * 4 + 0xE0; *(int *)((char *)D_L02_001FF6B8 + at) += (int)(amount * 32.0f); }
             if (*(short *)(state + 0x140) == 0)
                 func_002AB800((int)self, state + 0x140);
             if (amount > 3.0f && *(unsigned char *)(self + 0x20) == 6 && *(unsigned char *)(self + 0x42) == 7) {
                 *(short *)(state + 0x28A) = *(unsigned char *)(self + 0x20);
-                part = (char *)(D_L02_001B359C + (*(int *)(*(char **)(self + 0x68) + 0x244) << 8));
-                if (*(unsigned char *)(part + 0x43) == 255)
-                    *(short *)(state + 0x28C) = *(unsigned char *)(part + 0x42);
-                else
-                    *(short *)(state + 0x28C) = *(unsigned char *)(part + 0x43);
+                attacker = (char *)((*(int *)(*(char **)(self + 0x68) + 0x244) << 8) + D_L02_001B359C_1[0]);
+                *(short *)(state + 0x28C) =
+                    *(unsigned char *)(attacker + 0x43) != 255 ? *(unsigned char *)(attacker + 0x43)
+                                                               : *(unsigned char *)(attacker + 0x42);
                 *(short *)(state + 0x28E) = *(unsigned char *)(self + 0xBC);
                 func_002A7750(self, 9, -1);
                 *(float *)(state + 0x24C) = 0.1939255f;
@@ -114,10 +102,10 @@ void func_L02_003D91A0(char *self) {
         }
     }
     *(unsigned char *)(self + 0xA8) = 255;
-    *(unsigned char *)(D_L02_001B359C + (*(int *)(*(char **)(self + 0x68) + 0x244) << 8) + 0xA8) = 255;
-    part = (char *)(D_L02_001B359C + (*(int *)(*(char **)(self + 0x68) + 0x244) << 8));
-    source = *(char **)(*(char **)(self + 0x68) + 0x260);
-    if (part && source) func_002AF1D0(part, source, 4, 0);
+    *(unsigned char *)((*(int *)(*(char **)(self + 0x68) + 0x244) << 8) + D_L02_001B359C[0] + 0xA8) = 255;
+    owner = (char *)(D_L02_001B359C[0] + (*(int *)(*(char **)(self + 0x68) + 0x244) << 8));
+    if (owner && *(char **)(*(char **)(self + 0x68) + 0x260))
+        func_002AF1D0(owner, *(char **)(*(char **)(self + 0x68) + 0x260), 4, 0);
     *(short *)(state + 0x284) = func_002B3BA8(self, *(int *)(state + 0x268), 0, 0, 100.0f, 100.0f);
     part = *(char **)(state + 0x160);
     *(char **)(state + 0x240) = part;
@@ -127,7 +115,7 @@ void func_L02_003D91A0(char *self) {
         source = *(char **)(state + 0x264);
         if (source && *(unsigned char *)(source + 0x20) != 254 && *(unsigned char *)(source + 0x20) != 253 &&
             *(unsigned char *)(source + 0x20) >= 3) {
-            func_L02_003D4990(source);
+            func_L02_003D4990(*(char **)(state + 0x264));
             func_L02_003FC020(*(void **)(self + 0xB8), *(void **)(state + 0x264));
         }
         func_L02_003DB6D8(self);

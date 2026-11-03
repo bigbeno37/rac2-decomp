@@ -120,6 +120,9 @@
 #define snd_Pump                         func_00132028
 #define snd_BankLoadByLoc                func_00132318
 #define snd_BankLoadFromIOP              func_001326D8
+#define BuildAspectBlitStrips            func_00284088
+#define DrawGlowSprites                  func_002824B8
+#define LoadPifAsPSMT8H                  func_0026FC78
 #define read_mpeg                        func_0034F048
 #define DrawGlowSprites                  func_002824B8
 #define LoadPifAsPSMT8H                  func_0026FC78
@@ -178,6 +181,26 @@
 #define RunLevelTransition               func_002EC408
 #define PlayBonusReelWithGameLoop        func_002EBC70
 #define sceVibSetActParam                func_00128FD0
+#define sceVibGetProfile                 func_00128F48
+#define UpdateCollidingEffectParticle    func_002BB100
+#define CollLine                         func_002761F8
+#define snd_StartSoundSystem             func_00131DE8
+#define snd_BankLoadFromEE_CB            func_001325E0
+#define find_fde                         func_00123B40
+#define GetLocalizedString               func_00288FB8
+#define __ieee754_log                    func_00117CA0
+#define OpenVendorMenu                   func_002F8178
+#define DrawGadgebotSpawnContainer       func_L03_003CA4B0
+#define DeleteMoby                       func_0029F338
+#define mpeg_init_seq                    func_00130428
+#define mpeg_init_ref_image_addrs        func_001306D0
+#define mpeg_set_frame_size              func_001302E0
+#define SetPalMode                       func_0027B440
+#define sceGsExecLoadImage               func_001265B0
+#define PredictMineImpact                func_L00_003AE550
+#define FontPrintWindow                  func_0027FC70
+#define draw_joint_aligned_beam_effect   func_00308768
+#define update_hero_item_slot_animation_blends func_L00_002AED68
 #define UpdateCollidingEffectParticle    func_002BB100
 #define snd_StartSoundSystem             func_00131DE8
 #define find_fde                         func_00123B40
@@ -607,6 +630,7 @@
 #define ChooseVisibleGroupTarget         func_L03_003C5668
 #define UpdateEndakoRespawningEnemy      func_L03_0041BE50
 #define UpdateTodanoPathDriver           func_L12_004190A8
+#define DrawSlidingTextLine              func_L00_002E30B8
 #define IntegerPower                     func_L08_003277C0
 #define UpdateItemStatusHud              func_0034CEA0
 #define UpdateGroupEncounterController   func_L19_003DD9D8
@@ -626,6 +650,7 @@
 #define UpdateChargedProjectile          func_L22_00413B70
 #define DrawRaceStandingsHud             func_L04_00411298
 #define UpdateSoundVoices                func_002E4AC8
+#define UpdateMobyAttachedParticle       func_002C6B68
 #define UpdateOwnerFollowingSpark        func_002C4D18
 #define UpdateOwnerOrbitingParticle      func_002C5120
 #define UpdateJobaCombatActor            func_L11_00454F18
@@ -722,6 +747,7 @@
 #define BindVendorPreviewModel           func_L00_0037A2E8
 #define DrawRaceTimerHud                 func_L04_00417028
 #define InitRaceParticipants             func_L04_0040A628
+#define DrawDebrisTrail                  func_L04_004073E8
 #define UpdateHeroHeldTarget             func_L00_002CB038
 #define FindSlotTableKey                 func_L00_002D1B70
 #define IsPointInCollisionPrimitive      func_L00_002DB4B8
@@ -773,6 +799,7 @@
 #define UpdatePartsPurchaseNpc           func_L18_00440718
 #define UpdateHoverVehicleMotion         func_L30_0040C270
 #define DrawBoltCounterDeltas            func_0028A670
+#define UpdateBoltVendorNpc              func_L14_00425CB0
 #define UpdateAranosButtonLift           func_L00_003D0008
 #define InterpolateSegmentedPath         func_L11_004577F8
 #define DrawRibbonStrips                 func_L08_0042A0B0
@@ -794,6 +821,7 @@
 #define InitStateDataWithPartner         func_L12_004135A8
 #define UpdateDobboPaidOfferNpc          func_L09_00408478
 #define SpawnerMobyUpdate                func_L06_003F3800
+#define load_texture_pack                func_00292078
 #define SwitchCachedDiscAsset            func_00294988
 #define UpdateEasedMoverMoby             func_L01_003B1F08
 #define InitRadialMenu                   func_0033F218
@@ -801,6 +829,7 @@
 #define BuildWaveGridPacket              func_L01_003CB668
 #define GetAnimationPathPoint            func_L04_0043AD48
 #define DrawPointLoopRibbon              func_L11_004465F8
+#define FlightObjectUpdate               func_L20_0043ECB0
 #define start_vendor_beam_pulse          func_L16_003AA3F0
 #define UpdateSlotMachine                func_L02_003E6D70
 #define GoldBoltUpdate                   func_L01_00416440
@@ -821,6 +850,7 @@
 #define UpdateVisibilityBitmap           func_0027A288
 #define UpdateBeamLinkEmitter            func_L09_003F04D0
 #define DrawMapScreen                    func_002D6F38
+#define DrawGrelbinBeamEffect            func_L19_00417F88
 #define UpdateBreakablePickupSpawner     func_L19_004203F0
 #define PlacePointWithPolarJitterFlat    func_L11_0043ACB0
 #define LayOutVerletChain                func_L11_00438248
@@ -840,19 +870,24 @@
 #define follow_camera_setup              func_L00_004233F8
 #define ReleaseDeadOrExpiredSlots        func_L00_0037E000
 #define LayoutTextBoxLines               func_00337E98
+#define GetTextWidth                     func_0027F178
 #define UpdateRadialMenuSelection        func_0028CCE0
 #define DamageNearbyMobys                func_00327B40
 #define DrawParticleGlows                func_00328B68
 #define UpdateWaterSheet                 func_L01_003BB9D0
+#define GroupTally_Init                  func_L02_003FB000
 #define DrawWavyBeamToTarget             func_L02_004129D0
 #define UpdateHomingCollectible          func_L19_00423548
 #define UpdateGornController             func_L15_0042DCE0
 #define DrawGlowBillboardPair            func_L08_0042A980
 #define UpdateMuseumParticleTester       func_L30_004186B0
+#define UpdateBeamShot                   func_L11_00434580
+#define DrawChainBeams                   func_L11_00438880
 #define UpdateLinkedMobyController       func_L17_0041F478
 #define UpdateProximityPickup            func_L17_0041ED58
 #define UpdateTriggeredAnchorMover       func_L17_003C3C50
 #define DrawSegmentedBeam                func_L07_003F4CC0
 #define UpdateCollisionRing              func_L07_003F4578
+#define draw_moby_glow_sprites           func_L00_003FA858
 
 #endif /* NAMES_H */

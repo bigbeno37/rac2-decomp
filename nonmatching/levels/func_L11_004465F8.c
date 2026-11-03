@@ -17,6 +17,13 @@
  * tools/compiler/transformers/reload_reg_used_guard.py reads reload_reg_used, which
  * also holds that reload's own mark, so inheritance is cancelled and
  * delete_output_reload never fires. Why retail acts like the narrow test is unexplained.
+ * Task v2243 (Claude Opus 5.5) read the source and confirmed this: combine_reloads always merges
+ * the ior's input and output reloads of the spilled R into one RELOAD_OTHER reload.
+ * mark_reload_reg_in_use sets reload_reg_used for RELOAD_OTHER, and choose_reload_regs'
+ * final check (reload_reg_free_for_value_p) then cancels the inheritance. So with the stock
+ * cc1, no wording where the spilled variable is the split's own destination can lose the
+ * first store. Only a register copy (R = T, T a short-lived constant) would leave a single
+ * store, and cse/gcse cprop fold such copies.
  *
  * Retail evidence: a scan of the USA boot executable and every file under
  * baserom/levels finds no lui; sw slot; ori; sw slot at all (lui to ori within 9

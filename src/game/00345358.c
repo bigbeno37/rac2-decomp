@@ -417,8 +417,7 @@ void func_00348640(char *a0, int a1, int *a2)
         func_L00_0042C360_1(a0 + 536 + i * 72, func_00288FB8_2(a2[i]));
 }
 
-/* func_003486A8 is a near miss: nonmatching/game/func_003486A8.c */
-INCLUDE_ASM("asm/game", func_003486A8);
+/* func_003486A8 is built from 00345358-children.c. */
 
 
 INCLUDE_ASM("asm/game", func_003489E8);

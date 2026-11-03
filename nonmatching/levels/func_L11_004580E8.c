@@ -1,20 +1,26 @@
-/* Tier: opus-1 (Claude Opus 5.5, xhigh). USA v1.01 (v2.00 identical; not in PAL).
- * Best check: 2476/2476 bytes, 0 of 1 places match. cdiff: 107 of 619 rows differ,
- * all but 22 of them relocation-only (unlinked symbol and $gp offsets).
- * Build it as its own unit with -O2 -G8 -ffunction-sections -g (e.g.
- * src/levels/11_joba/L11_00453358-state-g8.c plus that cflags.txt line): -G8 for the
- * SDATA tunings, -g plus the statement-expression line breaks for the nop pairs
- * before both div.s.
- * Remaining (22 rows, three places):
+/* Tier: opus-2 (Claude Opus 5.5, xhigh). USA v1.01 (v2.00 identical; not in PAL).
+ * Best check: 2476/2476 bytes, 0 of 1 places match. cdiff: 101 of 619 rows differ,
+ * 14 of them real (one, lw $v0,0x18 vs 0xD18, is the %lo of D_L11_001C0D00+0x18, so
+ * 13 real); the rest are relocation-only (unlinked symbol and $gp offsets).
+ * Build it as its own unit with -O2 -G8 -ffunction-sections -g -fmove-all-movables
+ * (e.g. src/levels/11_joba/L11_00453358-state-g8.c plus that cflags.txt line): -G8 for
+ * the SDATA tunings, -g for the nop pairs before both div.s (a line note = $LM label
+ * before the div.s; plain statements give the same nops as the old ({...}) forms).
+ * Fixed since opus-1: the loop preheader now loads 45000 before 1.0. That needs the
+ * "lifetime = s16/f*45000" statement on its own (lifetime+5000 passed to the call)
+ * AND -fmove-all-movables; either one alone changes nothing.
+ * Remaining (13 real rows, two places):
  *  - case 0: gravity (0.0027778) and 0.1 swap $f1/$f0 (local-alloc order after sched1).
  *    Gravity store first with gravity's constant loaded last gives retail's other five
- *    registers. Inline constants in the order .3,.75,.5,1.134,.5236,.1,gravity give all
- *    seven registers, but then the 0x4C store comes last.
- *  - loop preheader: li.s 1.0 ($f20) is scheduled before 45000 ($f22). Retail's order
- *    needs 45000 hoisted in loop pass 1 ahead of 1.0; here it is hoisted in pass 2.
- *  - case 5: swc1 $f20,0x160($s3) issues after the 0.016667 constant instead of in the
- *    jal delay slot (sched1 prefers the store, which frees a register). Locals, const
- *    data and argument order did not move it.
+ *    registers; a gravity local between max and damping is worse.
+ *  - case 5: swc1 $f20,0x160($s3) issues before li.s $f14/$f15 instead of last (in the
+ *    jal delay slot). In sched1 the store, li $f14 and li $f15 all have priority 4 and
+ *    the store wins on register weight (-1 vs +1); sched2 then keeps it by luid.
+ *    Modelled: if the two constant arguments were still "r = const; $f14 = r" pairs at
+ *    sched1 (priority 6), haifa gives exactly retail's order (li f14, mul f13, li f15,
+ *    mul f12, store, jal). Here combine folds each single-use constant into its argument
+ *    copy. Argument locals before the store and a void return type change nothing.
+ *    Find the source shape that keeps those constant pseudos alive through combine.
  * Load-bearing choices (each measured): the life/mode/alpha locals in the inner loop
  * block (loop pass 1 hoists them; 120 then spills and is rematerialised in the loop,
  * so 2/127 win $fp/$s7); the axis local before the loop (whole-address reload into
@@ -27,7 +33,8 @@
  * float). It is declared here with the same registers in a different interleaving,
  * (void *, int, float, float, float, void *, unsigned, int, float), which gives
  * retail's argument-load order. Disclose that, or find the source shape that does it.
- * Earlier attempts: sol-low (control flow), sol-high (rotation/state 6, division nops).
+ * Earlier attempts: sol-low (control flow), sol-high (rotation/state 6, division nops),
+ * opus-1 (22 real rows).
  */
 #include "common.h"
 typedef int Quad __attribute__((mode(TI)));
@@ -103,9 +110,8 @@ void func_L11_004580E8(char *p) {
     f=func_00283CE0(D_L11_001B1F84);
     {
     int life=120,mode=2,alpha=127;
-    Particle *particle=func_002BDCE8(scratch.v.b,n,0.025f,1,1,axis,0x80808080,0,
-      ({float lifetime=(float)*(s16 *)(q+0x16C)/f;
-        lifetime*45000+5000;}));
+    float lifetime=(float)*(s16 *)(q+0x16C)/f*45000;
+    Particle *particle=func_002BDCE8(scratch.v.b,n,0.025f,1,1,axis,0x80808080,0,lifetime+5000);
     if(particle) {ParticleAttributes *attributes;particle->lifetime=life;attributes=&particle->attributes;attributes->mode=mode;attributes->alpha=alpha;attributes->duration=(u8)particle->lifetime;}
     }
    }
@@ -179,9 +185,8 @@ void func_L11_004580E8(char *p) {
   f=func_00282E20(q+0xC0);min=0.0033333336468786f;max=0.10000000894069672f;
   if(f<min)f=min;if(f>max)f=max;
   f=f-min;
-  *(float *)(p+0xF4)=func_00283B98(
-    ({float fraction=f/0.09666667878627777f;
-      (fraction*7+1)*0.017453294f;}),*(float *)(p+0xF4));
+  {float fraction=f/0.09666667878627777f;
+  *(float *)(p+0xF4)=func_00283B98((fraction*7+1)*0.017453294f,*(float *)(p+0xF4));}
  }
  if(*(u8 *)(p+0x20)>=2)func_L00_002E6EF8(func_L11_00458C38,p);
  if(*(void **)(p+0xB8)) {other=func_L11_004417E8(*(void **)(p+0xB8));if(*(float *)(p+0x18)<*(float *)(other+8)-1){*(int *)(p+0x98)=0;*(u16 *)(p+0x34)=(*(u16 *)(p+0x34)|0x41)&0xEFFF;func_002A7750(p,1,-1);}}

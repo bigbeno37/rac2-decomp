@@ -46,6 +46,32 @@ extern f32 D_L11_001B0570 __attribute__((sda));
 
 extern s32 D_L11_001FFA78[];
 
+extern s32 func_002761F8(void *, void *, s32, s32, s32);
+
+extern void func_002ABBB8(void *, void *, void *, f32, f32, s32, s32, s32, f32, f32, f32, f32, s32,
+                          f32, s32, s32, s32, s32, s32);
+
+extern s32 func_002E5CF8(s32 arg0, s32 arg1, u8 *arg2);
+
+extern void func_0029F338(u8 *arg0);
+
+extern u8 D_L11_001C0D20[];
+
+extern u8 D_L11_001A8F20[] __attribute__((sda));
+
+extern f32 D_L11_001B016C __attribute__((sda));
+
+extern f32 D_L11_001B0170 __attribute__((sda));
+
+extern f32 D_L11_001B0174 __attribute__((sda));
+
+extern void func_00282CC0(void *out, void *in, void *matrix);
+
+/* State 0 steps the position from the state block and tests the step; on a hit it moves the
+   object to a fixed point and calls func_002A7750 with 1. State 1 counts frames. After 120 of
+   them, or when func_002A9640 reports, it spawns the explosion, plays the sound and deletes the
+   moby. `expired` takes the state value itself: that keeps the counter test a conditional move
+   of the state register, as in retail. */
 /* Runs the object's timer down, keeps the shared step counter in step with it, and retires
    the object when the timed effect is over. */
 void func_L11_003F1DB0(u8 *arg0) {

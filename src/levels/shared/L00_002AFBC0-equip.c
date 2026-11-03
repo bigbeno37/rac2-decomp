@@ -1,39 +1,3 @@
-/* functional: medium. Near-miss draft, not byte-compared in the latest sweep: paths the captured calls never take are unproven. */
-/* Claude Opus 5.5 xhigh, task v1831, 31 October 2026: NOT MATCHING.
- * Default game profile: -O2 -G0 -ffunction-sections; USA v1.01. Keep it in its own unit:
- * the types below clash with L00_002AFBC0.c (D_00189E20 has another type there).
- * check.py: 3124 bytes versus retail 3136, 0 of 27 places match. Aligned against
- * retail, 9 rows differ (v1536's draft: 63), all of them delay-slot choices; every
- * other instruction, register and order agrees.
- * Still differs (retail offsets):
- *   +0x1D8 bnez $v0 has an empty slot; here it takes addiu $v1,$s5,%lo.
- *   +0x298 slot is addiu $v1,$zero,3; here addiu $a0,$a1,%lo.
- *   +0x2C8, +0x2E4 are bnel; here bnez, same slot insn.
- *   +0x2F0 beqz $s0 slot is addiu $v0,$zero,1; here addiu $a1,$s5,%lo.
- *   +0x358 is beql with lbu $v0,0x1497($a0); here beqz with addiu $a1,$zero,0x14.
- * What fixed the rest, each confirmed by compiling:
- *   D_001A7398 and D_001A7A80 are sda at every use: `la` is one length-2 insn, so it
- *   stays adjacent and never fills a slot (this explains the +0x7F0 nop).
- *   The +0x388 beql comes from written-out if/else stores with slot * sizeof(Slot);
- *   a ternary or if (!x) x = 0x77 gives movz/movn. Inferred mechanism: reorg steals
- *   li into an annulled slot, then deletes the `b` around the identical store.
- *   Restore path: taking int *tbl = D_001A7398 before the 0x77 test makes `la` born
- *   first; local-alloc's three-quantity sort is order sensitive, and this gives
- *   retail's la v0, xori v1. Store order: current, then tbl[slot].
- *   Helmet path: previous, keepHelmet, request. Skin check: read current[slot] into a
- *   local before testing slot == 0, so the load lands in the bnez slot.
- * Next (inference from reading reorg.c/resource.c from memory, not proven): the live
- * scan kills $v1 and $a1 on every path from +0x1EC and +0x394 within the jump limit,
- * so only a CODE_LABEL after the branch (own_fallthrough false) seems to explain
- * +0x1D8 and +0x358. No branch targets those places in retail, and what made such a
- * label is unknown. The other three rows may follow from the same cause.
- * Tied, do not repeat: -g, -frac2-keep-block-order, -frac2-gcse-unsplit-edges, the
- * last two together, and all three (each tried at the 19-row stage, before tbl);
- * call || pending as a local, as an empty then-arm, and with gotos. Written as two
- * arms with a duplicated body it is worse (3156 bytes).
- * No volatile accesses added. PAL/us2 and linking were not run: US fails.
- * Required declarations follow.
- */
 #include "common.h"
 typedef int Quad __attribute__((mode(TI)));
 typedef union { Quad quad; float f[4]; } Vector;
@@ -82,7 +46,7 @@ extern u8 D_001A7B08[] __attribute__((sda));
 extern void func_L00_003ECC90(Vector *, int);
 extern int func_L00_002D3F30(int, int);
 extern void func_L00_003C3A70(int);
-extern int func_L00_0032EF10(int, int, int *);
+extern int func_L00_0032EF10(u32, int, int *);
 extern int func_L00_002D6418(void);
 extern int func_L00_002ADF80(void);
 extern int func_002829A8(void *);
@@ -123,12 +87,13 @@ void func_L00_002B1350(int slot) {
             ((HeroState *)D_00189E20)->request[slot] = 0;
         }
     }
-    changed = 0;
     if (((HeroState *)D_00189E20)->blocked && slot == 0 &&
         (!((HeroState *)D_00189E20)->pending || ((HeroState *)D_00189E20)->slots[slot].item == 10)) {
         ((HeroState *)D_00189E20)->pending = 0;
         return;
     }
+    changed = 0;
+
     if (func_L00_0032EF10(0x80, 3, 0) || ((HeroState *)D_00189E20)->pending) {
         if (slot == 0 && ((HeroState *)D_00189E20)->slots[slot].item != 10) {
             if (((HeroState *)D_00189E20)->pending) {

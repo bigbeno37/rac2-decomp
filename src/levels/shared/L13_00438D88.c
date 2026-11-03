@@ -1,64 +1,9 @@
-/* Current retained result, 1 November 2026: 2704/2704 bytes, not exact. The route lookup uses its evidenced
- * 32-byte record with a path pointer at +0x10. -fno-force-addr ties the original seven diagnostic rows;
- * -fno-force-mem gives 2700 bytes and loses required FP scheduling/padding. Retain the original flags; no
- * register pins or synthetic dependencies.
- * Not a functional-port qualification or a complete matching-build result.
- * Profile: -O2 -G0 -ffunction-sections -g.
- * Earlier measurements below remain historical where superseded by this note.
- */
-/* Nonmatching C, Claude Opus 5.5 xhigh, task v1902, 31 October 2026.
- * Samples projected camera paths, smooths the position and builds its frame.
- * Needs a unit of its own (the types clash with L13_0041B670.c) built with
- * -O2 -G0 -ffunction-sections -g, as src/levels/shared/L13_00438D88.c.
- * Final check.py: 2704/2704 bytes, 0/3 places in USA v1.01, USA v2.00 and PAL
- * (levels 13, 16, 18); 81 of 676 rows differ, of which only 7 are real, the
- * rest being unlinked relocation fields. No linked build was run.
- *
- * Remaining, all in the mode-2 head block:
- *   8FC8 lui $a3 (retail $t0) and 8FCC addiu $a2,$a3 (retail ,$t0): %hi of D_L13_001FE580;
- *   8FF8 lui $t0, 8FFC lw $t0 (retail $a3), 900C addu (retail ,$a3): D_L13_001B2140;
- *   8FD4/8FD8 sll $v0 and addu $v1 are swapped (moved together with the two above).
- * Likely cause, inferred from regalloc.py's dumps: local-alloc takes the %hi first
- * (refs 4, live 42, 8/42) and then the loaded value (refs 2, live 12, 2/12). Retail
- * would need the value first, so a live length <= 10, one instruction fewer between
- * lw and addu after sched1. The %hi lives until PRE's copy to its reaching reg at
- * the end of the block.
- * Tried for that, no change or worse: sda scalar, sda incomplete array and
- * MACRO_ADDR spellings (same bytes), const route table (same bytes), const path
- * table, no sda (keeps $t0 and the sll/addu order but loses the rest), no sda with
- * the table read into a local first, computing the path slot first (tried only with
- * markers, positions, path2, route), rereading settings+0x20 in each branch, and the
- * read orders path2/markers/route/positions, markers/route/positions/path2 and
- * markers/positions/path2/route.
- *
- * Each change below was measured to move real instructions; keep them. The
- * explanations are inferred from the dumps:
- * - PRE reaching regs are numbered in hash-bucket order (at 297 buckets the bucket
- *   of reg + constant is 70 + regno + constant) and reload's slots follow regno. Retail's slot order
- *   0xA8..0xD8 requires private >= 114 and camera > private - 8, so camera cannot
- *   be the parameter's pseudo 84. A plain copy is propagated back by gcse's cprop,
- *   so the parameter variable has to be set again in the same block, which makes
- *   the copy unavailable. Hence all scalars first, camera = settings, and only
- *   then settings = its table entry. The bucket count follows the insn count (313
- *   in one larger variant), which rotates the whole order.
- * - position_rate: const-propagated only outside cse1's followed path, giving
- *   retail's three separate 0.01f loads in the last branch and $f24 in mode 0.
- * - -g: line labels give the nop pair before both div.s (MATCHING-BLOCKERS 5).
- * - Table reads in field order 0x20, 0x24, 0x28, 0x2C: the last use of the table
- *   address then dies in markers, which orders path2, route, positions in sched1.
- * - last and the modulo before duration and segment_length: the trap and div
- *   stay together, which gives $v1 count, $a0 remainder, $a1/$a2 pointers.
- * - travelled and target_distance are block-local, so they take $f20 first and the
- *   zero takes $f21.
- * - const float sample_distance: a const member's load has no dependence on the
- *   stack stores, which gives retail's order in that arm and the later sw of the
- *   reaching reg.
- * - else-arm for angle: compare first, so the zero stays in $f13 and is copied in
- *   the delay slot.
- * - sda on D_001A79F0 and D_L13_001B2140: tied absolute load.
- * All needed declarations follow; requires common.h.
- */
 #include "common.h"
+
+/* func_L13_00438D88 (-g: its line labels give the nop pair before both div.s).
+   Samples the camera's projected paths for the settings entry's mode, smooths
+   the position and builds the camera frame.  The types differ from those of
+   L13_0041B670.c, hence a unit of its own. */
 
 typedef int Quad __attribute__((mode(TI)));
 typedef union { Quad quad; float f[4]; } Vector;
@@ -85,7 +30,7 @@ typedef struct {
     CameraPath *path;
     char unknown14[0xC];
 } CameraRouteRecord;
-extern CameraRouteRecord *D_L13_001B2140[] __attribute__((sda));
+extern CameraRouteRecord *D_L13_001B2140 __attribute__((sda));
 extern CameraPath *D_L13_001FE580[];
 extern int func_L00_00341820(void *, void *, int *, float *, int, float);
 extern int func_L00_00341FA8(void *, void *, void *, int *, float *, int, float, float, float);
@@ -104,7 +49,7 @@ extern float func_002703B0(char *, float, float, float, float, float);
 extern void func_00282DD8(void *, void *, void *);
 extern void func_002ACEC0(void *, void *, void *, float);
 
-typedef struct { char pad0[0x38]; const float sample_distance; } CameraSettings;
+typedef struct { char pad0[0x38]; float sample_distance; } CameraSettings;
 
 void func_L13_00438D88(char *settings) {
     Vector desired;
@@ -163,9 +108,9 @@ void func_L13_00438D88(char *settings) {
     path_index = *(int *)(settings + 0x20);
     mode = *(int *)(settings + 0x30);
     if (mode == 0) {
-        path_slot = &D_L13_001FE580[path_index];
         cursor_index = D_00189E20.cursor.index;
         cursor_distance = D_00189E20.cursor.distance;
+        path_slot = &D_L13_001FE580[path_index];
         run->cursor.distance = cursor_distance;
         run->cursor.index = cursor_index;
         func_L00_00341820(*path_slot, &desired, &run->cursor.index, &run->cursor.distance, 0, 1.0f);
@@ -185,7 +130,7 @@ void func_L13_00438D88(char *settings) {
         CameraPath *route;
         CameraPath *positions;
         path2 = D_L13_001FE580[path_index];
-        route = D_L13_001B2140[0][*(int *)(settings + 0x24)].path;
+        route = D_L13_001B2140[*(int *)(settings + 0x24)].path;
         positions = D_L13_001FE580[*(int *)(settings + 0x28)];
         markers = D_L13_001FE580[*(int *)(settings + 0x2C)];
         previous = markers->count - 1;
@@ -236,7 +181,7 @@ void func_L13_00438D88(char *settings) {
         other_path = D_L13_001FE580[path_index];
         if (*(int *)(settings + 0x24) < 0) {
             func_L00_00341FA8(other_path, &D_00189E20.position, &sampled, &cursor_index, &cursor_distance, 0, 20.0f, 1.0f, 0.0f);
-            sample_distance = *(short *)(settings + 0x36) == 1 ? -(*(float *)(settings + 0x38) * 4.0f) : *(float *)(settings + 0x38);
+            sample_distance = *(short *)(settings + 0x36) == 1 ? -(((CameraSettings *)settings)->sample_distance * 4.0f) : ((CameraSettings *)settings)->sample_distance;
             func_L00_00341820(other_path, &sampled, &cursor_index, &cursor_distance, 1, sample_distance);
             qcopy(&desired, &sampled);
         } else {

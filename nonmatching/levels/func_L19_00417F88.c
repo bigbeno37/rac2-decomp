@@ -1,113 +1,66 @@
-/* Complete nonmatching reconstruction; 1336/1336 bytes.
- * -O2 -G0 -ffunction-sections.
- * Local release results: US 0/1, US2 0/1, PAL 0/1.
- * 4 bounded source hypotheses. Remaining: Saved FP constant/scale permutation and packet UV/constant setup.
- * Reopen with independent original lifetime/control-flow evidence.
- * Complete 64-byte joint matrix and 144-byte draw packet; texture result
- * is a 64-bit EE unsigned long. 002A7988 writes XYZ only. The random W
- * lane is transferred unchanged, never read by C as a float. The billboard
- * basis carries that W into packet W; draw 00280B90 with a null matrix
- * reconstructs homogeneous W from XYZ/vf0.w, excluding incoming packet W.
- * No synthetic initialization. Named constants give 1328 bytes; separate
- * angle capture and a bank-preserving FP-first interface tie at 1336.
+/* Claude Opus 5.5 (xhigh), 3 November 2026 (task v2095); USA v1.01, default game profile.
+ * Tier: sol-high draft improved. Best check.py: 1336/1336 bytes, 0/1 places,
+ * first difference at +0xac; 6 instruction words differ, all one $s6/$s7 swap.
+ * The UV loop now matches: `D_L19_001B1C08[] MACRO_ADDR` (unsplit la keeps lui+addiu
+ * adjacent) plus struct UV fields.
+ * Remaining: global-alloc priority tie 173/173 between PRE reg d+0x2C0 (refs 2, sched1
+ * live 115) and the PRE copy of &origin (refs 4, live 231, doubled to 462 by the
+ * update_equiv_regs REG_EQUIV rule). The tie goes to the lower regno, d+0x2C0
+ * (gcse bucket 118 < 129 of 147), which takes $s6; retail gives &origin $s6.
+ * Fixes that would work: one more sched1 insn after the second corner's a1 (live 116),
+ * &origin live <= 229, or a gcse table of 139/143/153 buckets (max_cuid now 292-295).
+ * A plain TI store for the final copy flips $s6 but drops the $s7 frame slot (1324 bytes).
+ * Declarations: below, matching the later externs in L19_003E9400.c.
+ * Approved helpers qcopy/qcopy_nc come from common.h.
  */
 #include "common.h"
-typedef int BeamQuad __attribute__((mode(TI)));
-typedef struct { float v[4]; } BeamVector __attribute__((aligned(16)));
+typedef int TI128 __attribute__((mode(TI)));
+typedef float V[4] __attribute__((aligned(16)));
+typedef struct { float u, v; } UV;
 typedef struct {
-    BeamVector position[4];
-    u32 color[4];
-    float uv[4][2];
-    unsigned long primitive, texture, mode, registers;
-} BeamPacket;
-typedef char BeamPacketExtent[sizeof(BeamPacket) == 0x90 ? 1 : -1];
-extern BeamVector D_L19_001B9A40;
-extern u8 D_L19_001BFEA0[];
-extern float D_L19_001B1C08[], D_L19_001B1C0C[];
-extern void func_0029FC20(void *, int, void *), func_00282F20(void *, const void *, float);
-extern void func_00282CC0(void *, const void *, const void *), func_00282CF0(void *, const void *, const void *);
-extern void func_00282DD8(void *, const void *, const void *), func_002A7988(void *, float, float);
+    V p[4];
+    int color[4];
+    UV uv[4];
+    long zero, texture, state, flags;
+} Quad;
+extern char D_L19_001BFEA0[],D_L19_001B9A40[];
+extern UV D_L19_001B1C08[] MACRO_ADDR;
+extern void func_0029FC20(void *,int,void *),func_00282F20(void *,void *,float),func_00282CC0(void *,void *,void *),func_002A7988(void *,float,float),func_00282CF0(void *,void *,void *),func_00282DD8(void *,void *,void *),func_00280B90(void *,int,int);
 extern float func_002A7940(void);
-extern void func_00281EB8(void *, int, u32, int, float, float, float);
-extern int func_002761F8(void *, void *, int, void *, void *);
-extern unsigned long func_0027C878(int);
-extern void func_00280B90(void *, void *, int);
-#define BEAM_COPY(d, s) (*(BeamQuad *)(d) = *(BeamQuad *)(s))
-
-/* Draw the muzzle flares and camera-facing beam, then retain its hit point. */
-void func_L19_00417F88(u8 *object)
-{
-    BeamVector matrix[4], origin, offset, random, flarePoint;
-    BeamPacket packet;
-    BeamVector endWidth, up, end, projected, corner;
-    u8 *state = *(u8 **)(object + 0x68);
-    float scale, angle;
-    int i;
-    func_0029FC20(object, 0, matrix);
-    qcopy(&origin, &matrix[3]);
-    func_00282F20(&offset, &matrix[0], 0.25f);
-    func_00282CC0(&origin, &origin, &offset);
-    origin.v[2] += 1.0f;
-    func_002A7988(&random, 0.25f, 0.45f);
-    func_00282CC0(&flarePoint, &random, &origin);
-    scale = *(float *)(state + 0x228) + *(float *)(state + 0x228);
-    angle = func_002A7940();
-    func_00281EB8(&origin, 0x31, 0x60804020, 1, scale, 0.08f, angle);
-    scale = *(float *)(state + 0x228) * 1.5f;
-    angle = func_002A7940();
-    func_00281EB8(&origin, 0x31, 0x80808080, 1, scale, 0.08f, angle);
-    func_002A7988(&random, 0.25f, 0.45f);
-    func_00282CC0(&flarePoint, &random, &origin);
-    scale = *(float *)(state + 0x228) + *(float *)(state + 0x228);
-    angle = func_002A7940();
-    func_00281EB8(&flarePoint, 0x31, 0x60804020, 1, scale, 0.08f, angle);
-    scale = *(float *)(state + 0x228) * 1.5f;
-    angle = func_002A7940();
-    func_00281EB8(&flarePoint, 0x31, 0x80808080, 1, scale, 0.08f, angle);
-    func_002A7988(&random, 0.25f, 0.45f);
-    func_00282CC0(&flarePoint, &random, &origin);
-    scale = *(float *)(state + 0x228) + *(float *)(state + 0x228);
-    angle = func_002A7940();
-    func_00281EB8(&flarePoint, 0x31, 0x60804020, 1, scale, 0.08f, angle);
-    scale = *(float *)(state + 0x228) * 1.5f;
-    angle = func_002A7940();
-    func_00281EB8(&flarePoint, 0x31, 0x80808080, 1, scale, 0.08f, angle);
-    func_00282CF0(&projected, state + 0x2E0, &origin);
-    func_00282F20(&projected, &projected, *(float *)(state + 0x238) * 60.0f);
-    func_00282CC0(&projected, &projected, &origin);
-    if (func_002761F8(&origin, &projected, 2, object, 0)) qcopy(&end, D_L19_001BFEA0);
-    else qcopy(&end, &projected);
-    up.v[0] = 0.0f; up.v[1] = 0.0f; up.v[2] = 1.0f; up.v[3] = 1.0f;
-    func_00282CF0(&random, &origin, &D_L19_001B9A40);
-    func_00282CF0(&endWidth, &end, &D_L19_001B9A40);
-    func_00282F20(&random, &random, 1.0f);
-    func_00282F20(&endWidth, &endWidth, 1.0f);
-    func_00282DD8(&random, &random, &up);
-    func_00282F20(&random, &random, *(float *)(state + 0x234) + *(float *)(state + 0x234));
-    func_00282DD8(&endWidth, &endWidth, &up);
-    func_00282F20(&endWidth, &endWidth, *(float *)(state + 0x234) + *(float *)(state + 0x234));
-    packet.texture = func_0027C878(14);
-    packet.mode = 0xFF9000000260UL;
-    packet.registers = 0x8000000048UL;
-    packet.color[0] = packet.color[1] = packet.color[2] = packet.color[3] = 0x80804020;
-    packet.primitive = 0;
-    for (i = 0; i < 4; i++) {
-        packet.uv[i][0] = D_L19_001B1C08[i * 2];
-        packet.uv[i][1] = D_L19_001B1C0C[i * 2];
-    }
-    func_00282CF0(&corner, &origin, &random);
-    BEAM_COPY(&packet.position[0], &corner);
-    func_00282CC0(&corner, &origin, &random);
-    BEAM_COPY(&packet.position[1], &corner);
-    func_00282CF0(&corner, &end, &endWidth);
-    BEAM_COPY(&packet.position[2], &corner);
-    func_00282CC0(&corner, &end, &endWidth);
-    BEAM_COPY(&packet.position[3], &corner);
-    func_00280B90(&packet, 0, 0);
-    /* Retail updates these vectors but reuses the first packet's corners. */
-    func_00282F20(&random, &random, *(float *)(state + 0x234) * 1.5f);
-    func_00282F20(&endWidth, &endWidth, *(float *)(state + 0x234) * 1.5f);
-    packet.color[0] = packet.color[1] = packet.color[2] = packet.color[3] = 0x80806060;
-    func_00280B90(&packet, 0, 0);
-    qcopy(state + 0x2C0, &end);
+extern void func_00281EB8(void *,int,int,int,float,float,float);
+extern int func_002761F8(void *,void *,int,void *,void *);
+extern long func_0027C878(int);
+void func_L19_00417F88(char *o) {
+ V matrix[4],origin,tmp,jitter,end;
+ Quad q;
+ V other,factor,impact,ray,corner;
+ char *d=*(char **)(o+0x68);
+ func_0029FC20(o,0,matrix);qcopy(origin,matrix[3]);
+ func_00282F20(tmp,matrix,0.25f);func_00282CC0(origin,origin,tmp);origin[2]+=1;
+ func_002A7988(jitter,0.25f,0.45f);func_00282CC0(end,jitter,origin);
+ func_00281EB8(origin,0x31,0x60804020,1,*(float *)(d+0x228)*2,0.08f,func_002A7940());
+ func_00281EB8(origin,0x31,0x80808080,1,*(float *)(d+0x228)*1.5f,0.08f,func_002A7940());
+ func_002A7988(jitter,0.25f,0.45f);func_00282CC0(end,jitter,origin);
+ func_00281EB8(end,0x31,0x60804020,1,*(float *)(d+0x228)*2,0.08f,func_002A7940());
+ func_00281EB8(end,0x31,0x80808080,1,*(float *)(d+0x228)*1.5f,0.08f,func_002A7940());
+ func_002A7988(jitter,0.25f,0.45f);func_00282CC0(end,jitter,origin);
+ func_00281EB8(end,0x31,0x60804020,1,*(float *)(d+0x228)*2,0.08f,func_002A7940());
+ func_00281EB8(end,0x31,0x80808080,1,*(float *)(d+0x228)*1.5f,0.08f,func_002A7940());
+ func_00282CF0(ray,d+0x2e0,origin);func_00282F20(ray,ray,*(float *)(d+0x238)*60);func_00282CC0(ray,ray,origin);
+ if(func_002761F8(origin,ray,2,o,0))qcopy_nc(impact,D_L19_001BFEA0);else qcopy_nc(impact,ray);
+ factor[0]=0;factor[1]=0;factor[2]=1;factor[3]=1;
+ func_00282CF0(jitter,origin,D_L19_001B9A40);func_00282CF0(other,impact,D_L19_001B9A40);
+ func_00282F20(jitter,jitter,1);func_00282F20(other,other,1);
+ func_00282DD8(jitter,jitter,factor);func_00282F20(jitter,jitter,*(float *)(d+0x234)*2);
+ func_00282DD8(other,other,factor);func_00282F20(other,other,*(float *)(d+0x234)*2);
+ q.texture=func_0027C878(14);q.state=0xff9000000260L;q.flags=0x8000000048L;q.zero=0;
+ q.color[0]=q.color[1]=q.color[2]=q.color[3]=0x80804020;
+ { int i; for(i=0;i<4;i++){q.uv[i].u=D_L19_001B1C08[i].u;q.uv[i].v=D_L19_001B1C08[i].v;} }
+ func_00282CF0(corner,origin,jitter);*(TI128 *)q.p[0]=*(TI128 *)corner;
+ func_00282CC0(corner,origin,jitter);*(TI128 *)q.p[1]=*(TI128 *)corner;
+ func_00282CF0(corner,impact,other);*(TI128 *)q.p[2]=*(TI128 *)corner;
+ func_00282CC0(corner,impact,other);*(TI128 *)q.p[3]=*(TI128 *)corner;func_00280B90(&q,0,0);
+ func_00282F20(jitter,jitter,*(float *)(d+0x234)*1.5f);func_00282F20(other,other,*(float *)(d+0x234)*1.5f);
+ q.color[0]=q.color[1]=q.color[2]=q.color[3]=0x80806060;func_00280B90(&q,0,0);
+ qcopy(d+0x2c0,impact);
 }
