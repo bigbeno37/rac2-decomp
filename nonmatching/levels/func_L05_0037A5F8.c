@@ -1,3 +1,20 @@
+/* v2316, opus-1, Claude Opus 5.5, USA v1.01, 2026-11-03. Body below unchanged:
+   still 1168/1168 bytes, 0/4 places, 126/292 rows differ with the -G8 profile.
+   Diagnostic only (forbidden, not kept): an empty asm barrier right after each
+   float->int Y conversion (entry and both draw sites) gives 82 rows with the
+   entry block exact (y-int in a1, saves in retail order, s0=0 in the jal slot);
+   adding per-site u64 colour locals feeding the draw call gives 74 rows with
+   both draw sites exact apart from relocations. So retail has a block boundary
+   right after each mfc1 that survives sched1/sched2 and then vanishes, which
+   fits a test of the live y-int (bnez/bltz/bgez) with arms that compile alike,
+   e.g. an inlined screen-coordinate helper. No real construct found yet; reopen
+   with one. Left over under the diagnostic: entry y-int v1 not a1 once colour
+   locals exist; preheader hoists D_FB220 into s7 (retail spills and
+   rematerializes it, fp = D_225DD0); i+1 in s6 not s7; clear por v0 not a0;
+   D_4F8 into f0 not f20; mul.s f20,f20,f21 operand order. Retail saves s6 but
+   never uses it, so a vanished call-crossing pseudo probably took s6 and forced
+   the FB220 spill (see unused-save notes, b0430). PAL and US2 differ the same way.
+*/
 /* v0893, GPT-6.1 Sol high, USA v1.01, current pinned compiler, 2026-10-29.
    Dedicated -O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
    -frac2-zero-ti-por: 1168/1168 bytes, 0/4 places, first mismatch +0x1C.
