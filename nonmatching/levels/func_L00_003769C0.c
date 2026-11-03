@@ -1,20 +1,20 @@
-/* Closer C, 1 November 2026: -O2 -G0 -ffunction-sections -fmove-all-movables, 1212/1216, 43 rows. Retail's search keeps
- * its integer index, so it is a goto loop: loop.c reduces every do/while or for form. Left: retail recomputes the
- * entry address for the colour (addu v0,a1,a0; lw 4(v0)), idx/colour take s2/s3 the other way, i+1/y+56 swapped.
- * Closer C4: cse reuses the key address whichever way the sum is written; table base a1 and j a3 follow from that row.
- */
 #include "common.h"
-/* sol-high; USA v1.01, -O2 -G0 -ffunction-sections.
- * Best check: 1212/1216 bytes, 0 of 27 places match; no linked match.
- * Postincrement search removes the duplicated first table test, but strength
- * reduction turns it into a pointer walk. The compiler shares idx*28 across
- * row accesses (mult/addu instead of retail's two madd formations), swaps the
- * next-index/next-row saved and stack values, and schedules color stores
- * differently. A useful next experiment must retain the integer table index
- * and independent row-address formation without adding memory effects.
- * Required declarations are included below. Incomplete SDA arrays preserve
- * the measured absolute rematerialization in this G0 unit.
+/* Claude Opus 5.5 (opus-1), 3 November 2026; USA v1.01, -O2 -G0 -ffunction-sections (default profile).
+ * Best check: 1212/1216 bytes, 0 of 27 places match (built as its own unit, src/levels/shared/L00_003769C0.c).
+ * Closer than the 1 November draft: D_L00_0022F900 and D_L00_0028E9F0 are plain externs (not sda), so the row
+ * address is retail's split lui/addiu + mtlo/madd (no shared idx*28 mult/addu), the row/movz block matches, and
+ * the table base is split like retail (lui hoisted, addiu in the goto loop).
+ * Left: (1) retail recomputes the colour entry address base-first after the search (addu v0,a1,a0; lw s3,4(v0),
+ * the 4 missing bytes); cse1 merges it with the key address (off+base) because the found block shares the
+ * loop's extended basic block. A pointer variable set before the loop gives the base-first addu but adds a
+ * register (1224 B), so retail's found block was probably a separate EBB (a label with uses) and gcse made the
+ * base a1. (2) idx/colour take s2/s3 the other way: global priorities 30/70 (idx) vs 76/173 (colour) are nearly
+ * tied. (3) i+1 in fp and y+56 on the stack in retail, swapped here; the increment order makes no difference.
+ * (4) The text colours compute b|color before a|color.
+ * Declarations: the externs below. L00_00358D98.c already declares D_L00_001B25E0 (scalar float) and
+ * D_L00_0022F7C0 (ShopModel) with other types, so a merged version needs _1 aliases or its own unit (same flags).
  */
+
 extern float D_L00_001B25E0[] __attribute__((sda));
 extern int D_001A7B90[] __attribute__((sda));
 extern int D_001A7340[] __attribute__((sda));
@@ -22,9 +22,9 @@ extern int D_001A7344[] __attribute__((sda));
 typedef struct { int words[0x744/4]; } Menu705;
 extern Menu705 D_L00_0022F7C0[];
 typedef struct { int key; unsigned int color; } MenuColor;
-extern MenuColor D_L00_0028E9F0[] __attribute__((sda));
+extern MenuColor D_L00_0028E9F0[];
 typedef struct { int words[7]; } MenuRow;
-extern MenuRow D_L00_0022F900[] __attribute__((sda));
+extern MenuRow D_L00_0022F900[];
 extern void func_002FC620(int, int, int, int);
 extern int func_00282C30(int);
 extern void func_00285548(int,int,int,int,int,int,unsigned int);
