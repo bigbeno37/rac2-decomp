@@ -402,7 +402,7 @@ unsigned int func_L00_0036F480(void)
     return 0;
 }
 
-INCLUDE_ASM("asm/levels", func_L00_0036F488);
+/* func_L00_0036F488 is defined in L00_0036F488-g8.c. */
 
 extern unsigned int D_001A7424 __attribute__((sda));
 
