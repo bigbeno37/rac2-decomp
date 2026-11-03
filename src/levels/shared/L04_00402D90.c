@@ -650,7 +650,7 @@ INCLUDE_ASM("asm/levels", func_L04_0040E460);
 
 /* func_L04_0040EC80 is in L04_00402D90-aim.c. */
 
-INCLUDE_ASM("asm/levels", func_L04_0040EF50);
+/* func_L04_0040EF50 is in L04_00402D90-g8.c. */
 
 void func_L04_0040F5D0(unsigned char *m)
 {
