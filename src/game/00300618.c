@@ -243,7 +243,7 @@ NativeCompactHeader *func_00300618(NativeCompactHeader *header) {
     return header;
 }
 
-INCLUDE_ASM("asm/game", func_00300AA8);
+/* func_00300AA8 is in 00300618-draw-g8.c. */
 
 typedef struct {
     char pad00[4];
