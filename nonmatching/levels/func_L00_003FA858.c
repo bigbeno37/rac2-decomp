@@ -1,18 +1,14 @@
-/* Opus 5.5 xhigh (opus-2), task v2255, 3 November 2026: best check.py result 5796/5796 bytes (1449 of 1449
- * instructions), 0/27 places, not exact; difflib 1270 opcode+register aligned (was 1231), 878 equal at the
- * same address (was 480). Profile: -O2 -G8 -ffunction-sections -ffast-math -g (the opus-1 draft compiled to
- * 5788 bytes on c05; this one is 1449 insns again).
- * New in this version: no `pos` / `o` locals at all; `(f32 *)(moby + 0x10)` is written at every use.
- *   gcse PRE then makes the reaching register itself, its in-loop copy in the flare loop survives, and
- *   loop.c hoists it as a movable: retail's `lw $s4, slot` preheader load and p20 spilled at 0x1C4 now
- *   match, so p36..p130/up slots line up (they were 4 bytes low).
- * Still differs: pos's reaching reg is spilled at 0x1E4 (retail 0x1C8, between p20 and p36). Retail's slot
- *   order implies a user variable declared there, but a user-variable pos breaks the PRE/loop copy (this
- *   compiler's PRE inserts after the base's set block instead of copying from it): tried pos local with the
- *   loop written out (1451 insns), written out only from the flare block on (1451), pos in a nested block
- *   (no effect: the spilled pseudo is PRE's). Also: sll-vs-jal order at 3FA9B8, first-block p36..p130
- *   accesses 4 bytes off, size product register (retail mul.s $f0; `B + (A-B) * (CE0*k)` matches the mul
- *   regs but moves loads, 876; a `k` temp: no change), the 0x39 block and the edge-flare block.
+/* Object and ABI review, 3 November 2026; retained, not linked.
+ * Profile: -O2 -G8 -ffunction-sections -ffast-math -g.
+ * The latest upstream body below remains unchanged. Its packet is 144 bytes,
+ * transform 64 bytes and vector slots 16 bytes. The fresh typed control used
+ * a real 12-byte screen result sharing its 16-byte vector slot: 5788/5796
+ * bytes, 0/27 US places. It did not close the position/p20 spill residual.
+ * That control is preserved privately; the useful upstream body is retained
+ * with its recorded 5796-byte result, not rerun unchanged in this pass.
+ * Reopen on independent flare-loop position lifetime and spill evidence,
+ * not another pointer permutation or profile sweep. No functional credit.
+ * Earlier measurements follow.
  */
 /* Opus 5.5 xhigh (opus-1), task v2122, 3 November 2026: best check.py result 5796/5796 bytes (1449 of 1449
  * instructions), 0/27 places, not exact; difflib 1231 opcode+register aligned (was 1180), 480 equal at the
@@ -202,6 +198,7 @@ void func_L00_003FA858(u8 *moby)
     s32 i11;
     TI128 *p10;
     TI128 *p20;
+    f32 *pos;
     void *p36;
     s32 x8;
     f32 *pF0;
@@ -243,7 +240,8 @@ void func_L00_003FA858(u8 *moby)
         qcopy(m[1], (f32 *)(moby + 0xD0));
         qcopy(m[2], (f32 *)(moby + 0xE0));
     }
-    qcopy(m[3], (f32 *)(moby + 0x10));
+    pos = (f32 *)(moby + 0x10);
+    qcopy(m[3], pos);
     p36 = &pv->t36;
     func_00282D30(m[0], (f32 *)(moby + 0xC0), size);
     func_00282D30(m[1], m[1], size);
@@ -279,7 +277,7 @@ void func_L00_003FA858(u8 *moby)
         qcopy(m[1], (f32 *)(moby + 0xD0));
         qcopy(m[2], (f32 *)(moby + 0xE0));
     }
-    qcopy(m[3], (f32 *)(moby + 0x10));
+    qcopy(m[3], pos);
     func_00282D30(m[0], (f32 *)(moby + 0xC0), size);
     func_00282D30(m[1], m[1], size);
     func_00282D30(m[2], m[2], size);
@@ -336,7 +334,7 @@ void func_L00_003FA858(u8 *moby)
     q.uv[2][1] = 0.0f;
     q.uv[3][0] = 1.0f;
     q.uv[3][1] = 1.0f;
-    qcopy(p120, (f32 *)(moby + 0x10));
+    qcopy(p120, pos);
     if (func_00282C48(pv->ang[2]) > 0.00001f) {
         func_002AB668(rot, (f32 *)(moby + 0xC0), pv->ang[2]);
         func_002ACDE8(m[1], (f32 *)(moby + 0xD0), rot);
@@ -363,7 +361,7 @@ void func_L00_003FA858(u8 *moby)
         qcopy(m[1], (f32 *)(moby + 0xD0));
         qcopy(m[2], (f32 *)(moby + 0xE0));
     }
-    qcopy(m[3], (f32 *)(moby + 0x10));
+    qcopy(m[3], pos);
     func_00282D30(m[0], (f32 *)(moby + 0xC0), size);
     func_00282D30(m[1], m[1], size);
     func_00282D30(m[2], m[2], size);
@@ -376,9 +374,9 @@ void func_L00_003FA858(u8 *moby)
 
     c = alpha | 0xFFFFFF;
     q.rgba[0] = q.rgba[1] = q.rgba[2] = q.rgba[3] = c;
-    func_00282CF0(rot, D_L00_001B8DC0, (f32 *)(moby + 0x10));
+    func_00282CF0(rot, D_L00_001B8DC0, pos);
     func_00282F20(rot, rot, 0.25f);
-    func_00282CC0(m[3], (f32 *)(moby + 0x10), rot);
+    func_00282CC0(m[3], pos, rot);
     func_002AFFD8(p120, p130, 1);
     func_00282CF0(pF0, D_L00_001B8DC0, m[3]);
     func_00282F20(pF0, pF0, 1.0f);
@@ -448,11 +446,12 @@ void func_L00_003FA858(u8 *moby)
     func_00280B90(&q, 0, 0);
 
     if (func_00282978(p36) == 0) {
-        func_00279BD8(v140, (f32 *)(moby + 0x10));
+        func_00279BD8(v140, pos);
         if (v140[0] >= 28492.0f && v140[0] <= 37082.0f && v140[1] >= 28492.0f && v140[1] <= 37082.0f) {
             f32 t;
             f32 r;
             f32 *s;
+            f32 *o;
             f32 inv;
             f32 one;
             f32 span;
@@ -511,15 +510,16 @@ void func_L00_003FA858(u8 *moby)
             s = v160;
             p10 = &q.corner[1];
             p20 = &q.corner[2];
+            o = pos;
             for (i9 = 0; i9 < 4; i9++) {
                 func_00282F20(v150, v150, *s);
                 func_00282DD8(v180, dir, v150);
                 func_00282F20(v180, v180, D_L00_001B0B90);
                 func_00282CC0(v190, D_L00_001B8DC0, v170);
-                func_00282CF0(v1A0, v190, (f32 *)(moby + 0x10));
+                func_00282CF0(v1A0, v190, o);
                 func_00282CC0(&q.corner[0], v190, v180);
                 func_00282CF0(p10, v190, v180);
-                func_00282CC0(v190, (f32 *)(moby + 0x10), v150);
+                func_00282CC0(v190, o, v150);
                 func_00282CC0(v190, v1A0, v190);
                 func_00282D30(v180, v180, r);
                 func_00282CC0(p20, v190, v180);
@@ -549,7 +549,7 @@ void func_L00_003FA858(u8 *moby)
         q.uv[2][1] = 0.0f;
         q.uv[3][0] = 1.0f;
         q.uv[3][1] = 1.0f;
-        func_00282CF0(v140, (f32 *)(moby + 0x10), D_L00_001B8DC0);
+        func_00282CF0(v140, pos, D_L00_001B8DC0);
         func_00282F20(v150, v140, 0.1f);
         func_00282CC0(v160, D_L00_001B8DC0, v150);
         func_00282DD8(v170, v140, p130);
@@ -569,7 +569,7 @@ void func_L00_003FA858(u8 *moby)
         f32 sz;
         k = func_00283CE0(pv->t40) * pv->k44;
         sz = D_L00_001B0B80 + (D_L00_001B0B7C - D_L00_001B0B80) * k;
-        func_00282CF0(v140, (f32 *)(moby + 0x10), D_L00_001B8DC0);
+        func_00282CF0(v140, pos, D_L00_001B8DC0);
         func_00282F20(v140, v140, 0.3f);
         func_00282CC0(v150, D_L00_001B8DC0, v140);
         func_00281DE8(&q, D_L00_001B0B84, 1, 0x80);
