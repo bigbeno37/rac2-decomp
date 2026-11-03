@@ -1,146 +1,188 @@
-/* sol-high attempt, USA v1.01, default game -O2 -G8 -ffunction-sections.
- * Best check: 1820 bytes / 1800 retail, 0 of 17 places match.
- * Compile by moving this definition to a dedicated *-g8.c unit and removing
- * its INCLUDE_ASM marker from src/levels/shared/L01_002A7248.c.
- * All required declarations follow. The 144-byte packet, four transformed
- * vectors, Euler vector, 48-byte rotation matrix, four input vectors and
- * four constructor temporaries produce the retail 0x220-byte frame.
- *
- * Improvements over the earlier 1868-byte draft: sda scalar declarations
- * retain GP timer reads; SDATA gives the measured GP table address without
- * inventing the index table extent; captured indices plus unsigned byte
- * offsets yield the retail xori/addiu/movn color selection. Keeping stack
- * objects in one frame recovers the entity/state saved-register pair and
- * much of the first vertex arithmetic schedule. The alpha shift is unsigned.
- *
- * Remaining: the matrix pointer is kept in s5, index pointer 0 is spilled,
- * and the palette base is rematerialized; retail keeps index 0 in s5 and
- * the palette in s7 and spills index 3. The extra spill shifts count and
- * vector-pointer slots. Packet initialization, constructor zero/copy order,
- * FP scheduling and final color stores also differ. Grouping the four
- * temporary clears removes a second por (1824 -> 1820) but clears them
- * earlier than retail. Interleaving constructor copies gives 1824 bytes
- * with worse copy scheduling; returning a vector union gives 1844 bytes
- * and unwanted ld/sd copies. Arrays instead of individual frame fields and
- * -fno-rerun-loop-opt reproduce the 1824-byte scalar-clear draft exactly.
- * regalloc.py verified diagnostic and baseline objects were byte-identical:
- * matrix invariant refs=9/live=326, palette refs=9/live=334, index pointer 0
- * refs=9/live=376 (1824-byte draft). Reopen with a supported lifetime or
- * constructor-layout hypothesis rather than another cosmetic spelling.
- * No linked build was run; this remains a near miss, not a match.
+/*
+ * func_L01_003801B8 - nonmatching (opus-1, task v2357)
+ * Best: 1808/1800 bytes, 0/17 places, frame 0x220 as retail, 389 rows differ.
+ * Build as a -G8 unit (src/levels/shared/L01_003801B8-g8.c) with the marker
+ * comment in L01_002A7248.c in place of the INCLUDE_ASM.
+ * Declarations it needs: D_L01_001AEEE0 SDATA (gp form for column 0);
+ * D_L01_001AEEE4/8/C as incomplete __attribute__((sda)) [][4] arrays, so cc1
+ * emits unsplit la constants: loop.c then strength-reduces tbl[k][j] into four
+ * pointer givs, reverses k into the retail count-down (3 at 0x190, bgez) and
+ * spills the i3 pointer last at 0x1B4 as retail. The glow corners recompute
+ * (scale * 1.2f) per component (retail reloads p+0x90 eight times, 16 muls);
+ * the explicit .q temps give retail's por/sq/lq copies (unions are BLKmode).
+ * Still differs: i0 gp pointer lands in s4 (retail s5), uv base and palette in
+ * fp/s7 (retail s4/s7); &c spill slots come before &q (retail &q 0x194-0x1A0,
+ * &c 0x1A4-0x1B0), likely gcse PRE bucket order from the hash table size;
+ * corner-temp scheduling and 8 extra bytes. The 1784-byte variant with
+ * n = -ph*1.2f precomputed (2 products) was 16 bytes short.
  */
 #include "common.h"
-typedef float RenderVec[4] __attribute__((aligned(16)));
-typedef union { RenderVec f; int q __attribute__((mode(TI))); } RenderVector;
+
 typedef struct {
-    RenderVec p[4]; u32 color[4]; float uv[8];
-    u64 zero, texture, enabled, state;
-} RenderPacket;
-extern float D_L01_001B9380[];
+    float v[4][4];
+    int col[4];
+    float uv[4][2];
+} BeamQuad;
+typedef unsigned int BeamQword __attribute__((mode(TI), aligned(16)));
+typedef float BeamVec[4] __attribute__((aligned(16)));
+typedef union { BeamVec f; BeamQword q; } BeamGlowCorner;
+
+extern char D_L01_001B9380[];
 extern float D_L01_001AEF20 __attribute__((sda));
 extern float D_L01_001AEF24 __attribute__((sda));
-extern int D_L01_001AEEE0[] SDATA(D_L01_001AEEE0);
-extern int D_L01_001AEEE4[], D_L01_001AEEE8[], D_L01_001AEEEC[];
-extern RenderVec D_L01_00290030[];
+extern int D_L01_001AEEE0[][4] SDATA(D_L01_001AEEE0);
+extern int D_L01_001AEEE4[][4] __attribute__((sda));
+extern int D_L01_001AEEE8[][4] __attribute__((sda));
+extern int D_L01_001AEEEC[][4] __attribute__((sda));
+extern float D_L01_00290030[][4];
 extern float D_L01_002900C0[][2];
-extern u32 D_L01_00290108[];
+extern float D_L01_002900C4[][2];
+extern int D_L01_00290108[];
+
 extern void func_002833F0(void *, void *);
 extern void func_00283098(void *, void *, void *);
-extern u64 func_0027C878(int);
+extern long func_0027C878(int);
 extern void func_00280B90(void *, int, int);
+
 void func_L01_003801B8(char *m)
 {
-    struct {
-        RenderPacket packet;
-        RenderVec v0,v1,v2,v3,angle;
-        float matrix[12] __attribute__((aligned(16)));
-        RenderVector a,b,c,d,ta,tb,tc,td;
-    } frame;
-    char *vars = *(char **)(m + 0x68);
-    int *i0;
-    int *i1;
-    int *i2;
-    int *i3;
-    int count;
-    int idx0,idx1,idx2,idx3;
-    u32 color;
-    float t;
-    frame.angle[0]=0; frame.angle[1]=0; frame.angle[2]=D_L01_001B9380[0x158/4];
-    func_002833F0(frame.matrix, frame.angle);
-    D_L01_001AEF20 += 0.01f;
-    if (D_L01_001AEF20 > 1.0f) D_L01_001AEF20 -= 1.0f;
-    frame.packet.enabled=1;
-    frame.packet.state=0x4000000044ULL;
-    frame.packet.zero=0;
-    frame.packet.texture=func_0027C878(24);
-    i0=D_L01_001AEEE0; i1=D_L01_001AEEE4; i2=D_L01_001AEEE8; i3=D_L01_001AEEEC;
-    count=3;
-    do {
-        count--;
-        func_00283098(frame.v0,D_L01_00290030[*i0],frame.matrix);
-        func_00283098(frame.v1,D_L01_00290030[*i1],frame.matrix);
-        func_00283098(frame.v2,D_L01_00290030[*i2],frame.matrix);
-        func_00283098(frame.v3,D_L01_00290030[*i3],frame.matrix);
-        frame.packet.p[0][0]=*(float *)(m+0x10)+frame.v0[0]**(float *)(vars+0x90);
-        frame.packet.p[0][1]=*(float *)(m+0x14)+frame.v0[1]**(float *)(vars+0x90);
-        frame.packet.p[0][2]=(*(float *)(m+0x18)+frame.v0[2])-1.0f;
-        frame.packet.p[1][0]=*(float *)(m+0x10)+frame.v1[0]**(float *)(vars+0x90);
-        frame.packet.p[1][1]=*(float *)(m+0x14)+frame.v1[1]**(float *)(vars+0x90);
-        frame.packet.p[1][2]=(*(float *)(m+0x18)+frame.v1[2])-1.0f;
-        frame.packet.p[2][0]=*(float *)(m+0x10)+frame.v2[0]**(float *)(vars+0x90);
-        frame.packet.p[2][1]=*(float *)(m+0x14)+frame.v2[1]**(float *)(vars+0x90);
-        frame.packet.p[2][2]=(*(float *)(m+0x18)+frame.v2[2])-1.0f;
-        frame.packet.p[3][0]=*(float *)(m+0x10)+frame.v3[0]**(float *)(vars+0x90);
-        frame.packet.p[3][1]=*(float *)(m+0x14)+frame.v3[1]**(float *)(vars+0x90);
-        frame.packet.p[3][2]=(*(float *)(m+0x18)+frame.v3[2])-1.0f;
-        idx0=*i0;
-        { u32 offset=idx0*4; if (*(int *)(vars+0x94)==2) offset+=36; frame.packet.color[0]=*(u32 *)((char *)D_L01_00290108+offset); }
-        idx1=*i1;
-        { u32 offset=idx1*4; if (*(int *)(vars+0x94)==2) offset+=36; frame.packet.color[1]=*(u32 *)((char *)D_L01_00290108+offset); }
-        idx2=*i2;
-        { u32 offset=idx2*4; if (*(int *)(vars+0x94)==2) offset+=36; frame.packet.color[2]=*(u32 *)((char *)D_L01_00290108+offset); }
-        idx3=*i3;
-        { u32 offset=idx3*4; if (*(int *)(vars+0x94)==2) offset+=36; frame.packet.color[3]=*(u32 *)((char *)D_L01_00290108+offset); }
-        frame.packet.uv[0]=D_L01_002900C0[idx0][0]; frame.packet.uv[1]=D_L01_002900C0[idx0][1]+D_L01_001AEF20;
-        frame.packet.uv[2]=D_L01_002900C0[idx1][0]; frame.packet.uv[3]=D_L01_002900C0[idx1][1]+D_L01_001AEF20;
-        frame.packet.uv[4]=D_L01_002900C0[idx2][0]; frame.packet.uv[5]=D_L01_002900C0[idx2][1]+D_L01_001AEF20;
-        frame.packet.uv[6]=D_L01_002900C0[idx3][0]; frame.packet.uv[7]=D_L01_002900C0[idx3][1]+D_L01_001AEF20;
-        i0+=4; i1+=4; i2+=4; i3+=4;
-        func_00280B90(&frame.packet,0,1);
-    } while (count>=0);
-    frame.packet.texture=func_0027C878(27);
-    D_L01_001AEF24+=0.01f;
-    if (D_L01_001AEF24>1.0f) D_L01_001AEF24=0;
-    t=D_L01_001AEF24;
-    frame.ta.q=0;
-    frame.tb.q=0;
-    frame.tc.q=0;
-    frame.td.q=0;
-    frame.ta.f[0]=-t*(*(float *)(vars+0x90)*1.2f);
-    frame.ta.f[1]=-t*(*(float *)(vars+0x90)*1.2f);
-    frame.ta.f[2]=t*1.4f+1.1f;
-    frame.tb.f[0]=t*(*(float *)(vars+0x90)*1.2f);
-    frame.tb.f[1]=-t*(*(float *)(vars+0x90)*1.2f);
-    frame.tb.f[2]=(t*1.4f+1.1f)-0.2f;
-    frame.tc.f[0]=-t*(*(float *)(vars+0x90)*1.2f);
-    frame.tc.f[1]=t*(*(float *)(vars+0x90)*1.2f);
-    frame.tc.f[2]=t*1.4f+1.1f;
-    frame.td.f[0]=t*(*(float *)(vars+0x90)*1.2f);
-    frame.td.f[1]=t*(*(float *)(vars+0x90)*1.2f);
-    frame.td.f[2]=(t*1.4f+1.1f)-0.2f;
-    frame.a.q=frame.ta.q; frame.b.q=frame.tb.q; frame.c.q=frame.tc.q; frame.d.q=frame.td.q;
-    frame.angle[0]=0;frame.angle[1]=0;frame.angle[2]=D_L01_001B9380[0x158/4];
-    func_002833F0(frame.matrix,frame.angle);
-    func_00283098(frame.v0,&frame.a,frame.matrix);
-    func_00283098(frame.v1,&frame.b,frame.matrix);
-    func_00283098(frame.v2,&frame.c,frame.matrix);
-    func_00283098(frame.v3,&frame.d,frame.matrix);
-    color=((u32)(int)((1.0f-D_L01_001AEF24)*128.0f)<<24)|0x808080;
-    frame.packet.p[0][0]=*(float *)(m+0x10)+frame.v0[0];frame.packet.p[0][1]=*(float *)(m+0x14)+frame.v0[1];frame.packet.p[0][2]=(*(float *)(m+0x18)+frame.v0[2])-1;
-    frame.packet.p[1][0]=*(float *)(m+0x10)+frame.v1[0];frame.packet.p[1][1]=*(float *)(m+0x14)+frame.v1[1];frame.packet.p[1][2]=(*(float *)(m+0x18)+frame.v1[2])-1;
-    frame.packet.p[2][0]=*(float *)(m+0x10)+frame.v2[0];frame.packet.p[2][1]=*(float *)(m+0x14)+frame.v2[1];frame.packet.p[2][2]=(*(float *)(m+0x18)+frame.v2[2])-1;
-    frame.packet.p[3][0]=*(float *)(m+0x10)+frame.v3[0];frame.packet.p[3][1]=*(float *)(m+0x14)+frame.v3[1];frame.packet.p[3][2]=(*(float *)(m+0x18)+frame.v3[2])-1;
-    frame.packet.color[3]=color; frame.packet.color[2]=color; frame.packet.color[1]=color; frame.packet.color[0]=color;
-    frame.packet.uv[0]=0;frame.packet.uv[1]=0;frame.packet.uv[2]=1;frame.packet.uv[3]=0;frame.packet.uv[4]=0;frame.packet.uv[5]=1;frame.packet.uv[6]=1;frame.packet.uv[7]=1;
-    func_00280B90(&frame.packet,0,1);
+    char *p = *(char **)(m + 0x68);
+    BeamQuad qd;
+    long pk[4];
+    float q[4][4];
+    float d0[4];
+    float mtx[3][4];
+    char *g;
+    float off;
+    int k, i0, i1, i2, i3, col;
+
+    g = D_L01_001B9380;
+    d0[2] = *(float *)(g + 0x158);
+    d0[0] = 0.0f;
+    d0[1] = 0.0f;
+    func_002833F0(mtx, d0);
+
+    D_L01_001AEF20 = D_L01_001AEF20 + 0.01f;
+    if (1.0f < D_L01_001AEF20) {
+        D_L01_001AEF20 = D_L01_001AEF20 - 1.0f;
+    }
+
+    pk[2] = 1;
+    pk[3] = 0x4000000044L;
+    pk[0] = 0;
+    pk[1] = func_0027C878(0x18);
+
+    for (k = 0; k < 4; k++) {
+        func_00283098(q[0], D_L01_00290030[D_L01_001AEEE0[k][0]], mtx);
+        func_00283098(q[1], D_L01_00290030[D_L01_001AEEE4[k][0]], mtx);
+        func_00283098(q[2], D_L01_00290030[D_L01_001AEEE8[k][0]], mtx);
+        func_00283098(q[3], D_L01_00290030[D_L01_001AEEEC[k][0]], mtx);
+
+        qd.v[0][0] = *(float *)(m + 0x10) + q[0][0] * *(float *)(p + 0x90);
+        qd.v[0][1] = *(float *)(m + 0x14) + q[0][1] * *(float *)(p + 0x90);
+        qd.v[0][2] = *(float *)(m + 0x18) + q[0][2] - 1.0f;
+        qd.v[1][0] = *(float *)(m + 0x10) + q[1][0] * *(float *)(p + 0x90);
+        qd.v[1][1] = *(float *)(m + 0x14) + q[1][1] * *(float *)(p + 0x90);
+        qd.v[1][2] = *(float *)(m + 0x18) + q[1][2] - 1.0f;
+        qd.v[2][0] = *(float *)(m + 0x10) + q[2][0] * *(float *)(p + 0x90);
+        qd.v[2][1] = *(float *)(m + 0x14) + q[2][1] * *(float *)(p + 0x90);
+        qd.v[2][2] = *(float *)(m + 0x18) + q[2][2] - 1.0f;
+        qd.v[3][0] = *(float *)(m + 0x10) + q[3][0] * *(float *)(p + 0x90);
+        qd.v[3][1] = *(float *)(m + 0x14) + q[3][1] * *(float *)(p + 0x90);
+        qd.v[3][2] = *(float *)(m + 0x18) + q[3][2] - 1.0f;
+
+        i0 = D_L01_001AEEE0[k][0];
+        i1 = D_L01_001AEEE4[k][0];
+        i2 = D_L01_001AEEE8[k][0];
+        i3 = D_L01_001AEEEC[k][0];
+        off = D_L01_001AEF20;
+        { u32 o = i0 * 4; if (*(int *)(p + 0x94) == 2) o += 36; qd.col[0] = *(int *)((char *)D_L01_00290108 + o); }
+        { u32 o = i1 * 4; if (*(int *)(p + 0x94) == 2) o += 36; qd.col[1] = *(int *)((char *)D_L01_00290108 + o); }
+        { u32 o = i2 * 4; if (*(int *)(p + 0x94) == 2) o += 36; qd.col[2] = *(int *)((char *)D_L01_00290108 + o); }
+        { u32 o = i3 * 4; if (*(int *)(p + 0x94) == 2) o += 36; qd.col[3] = *(int *)((char *)D_L01_00290108 + o); }
+        qd.uv[0][0] = D_L01_002900C0[i0][0];
+        qd.uv[0][1] = D_L01_002900C4[i0][0] + off;
+        qd.uv[1][0] = D_L01_002900C0[i1][0];
+        qd.uv[1][1] = D_L01_002900C4[i1][0] + off;
+        qd.uv[2][0] = D_L01_002900C0[i2][0];
+        qd.uv[2][1] = D_L01_002900C4[i2][0] + off;
+        qd.uv[3][0] = D_L01_002900C0[i3][0];
+        qd.uv[3][1] = D_L01_002900C4[i3][0] + off;
+        func_00280B90(&qd, 0, 1);
+    }
+
+    pk[1] = func_0027C878(0x1B);
+
+    D_L01_001AEF24 = D_L01_001AEF24 + 0.01f;
+    if (1.0f < D_L01_001AEF24) {
+        D_L01_001AEF24 = 0.0f;
+    }
+
+    {
+        float ph = D_L01_001AEF24;
+        float n = -ph;
+        float pp = ph;
+        float z = ph * 1.4f + 1.1f;
+        float zz = z - 0.2f;
+        BeamGlowCorner c[4], t0, t1, t2, t3;
+
+        t0.q = 0;
+        t0.f[0] = n * (*(float *)(p + 0x90) * 1.2f);
+        t0.f[1] = n * (*(float *)(p + 0x90) * 1.2f);
+        t0.f[2] = z;
+        c[0].q = t0.q;
+        t1.q = 0;
+        t1.f[0] = pp * (*(float *)(p + 0x90) * 1.2f);
+        t1.f[1] = n * (*(float *)(p + 0x90) * 1.2f);
+        t1.f[2] = zz;
+        c[1].q = t1.q;
+        t2.q = 0;
+        t2.f[0] = n * (*(float *)(p + 0x90) * 1.2f);
+        t2.f[1] = pp * (*(float *)(p + 0x90) * 1.2f);
+        t2.f[2] = z;
+        c[2].q = t2.q;
+        t3.q = 0;
+        t3.f[0] = pp * (*(float *)(p + 0x90) * 1.2f);
+        t3.f[1] = pp * (*(float *)(p + 0x90) * 1.2f);
+        t3.f[2] = zz;
+        c[3].q = t3.q;
+
+        g = D_L01_001B9380;
+        off = *(float *)(g + 0x158);
+        d0[0] = 0.0f;
+        d0[2] = off;
+        d0[1] = 0.0f;
+        func_002833F0(mtx, d0);
+        func_00283098(q[0], &c[0], mtx);
+        func_00283098(q[1], &c[1], mtx);
+        func_00283098(q[2], &c[2], mtx);
+        func_00283098(q[3], &c[3], mtx);
+    }
+
+    col = ((int)((1.0f - D_L01_001AEF24) * 128.0f) << 24) | 0x808080;
+    qd.v[0][0] = *(float *)(m + 0x10) + q[0][0];
+    qd.v[0][1] = *(float *)(m + 0x14) + q[0][1];
+    qd.v[0][2] = *(float *)(m + 0x18) + q[0][2] - 1.0f;
+    qd.v[1][0] = *(float *)(m + 0x10) + q[1][0];
+    qd.v[1][1] = *(float *)(m + 0x14) + q[1][1];
+    qd.v[1][2] = *(float *)(m + 0x18) + q[1][2] - 1.0f;
+    qd.v[2][0] = *(float *)(m + 0x10) + q[2][0];
+    qd.v[2][1] = *(float *)(m + 0x14) + q[2][1];
+    qd.v[2][2] = *(float *)(m + 0x18) + q[2][2] - 1.0f;
+    qd.v[3][0] = *(float *)(m + 0x10) + q[3][0];
+    qd.v[3][1] = *(float *)(m + 0x14) + q[3][1];
+    qd.v[3][2] = *(float *)(m + 0x18) + q[3][2] - 1.0f;
+    qd.col[0] = col;
+    qd.col[1] = col;
+    qd.col[2] = col;
+    qd.col[3] = col;
+    qd.uv[0][0] = 0.0f;
+    qd.uv[0][1] = 0.0f;
+    qd.uv[1][0] = 1.0f;
+    qd.uv[1][1] = 0.0f;
+    qd.uv[2][0] = 0.0f;
+    qd.uv[2][1] = 1.0f;
+    qd.uv[3][0] = 1.0f;
+    qd.uv[3][1] = 1.0f;
+    func_00280B90(&qd, 0, 1);
 }
