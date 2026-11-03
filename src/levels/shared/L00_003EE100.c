@@ -864,7 +864,7 @@ void func_L00_003F3AD0(char *object)
 
 
 
-INCLUDE_ASM("asm/levels", func_L00_003F4210);
+/* func_L00_003F4210 uses its dedicated debug-profile unit. */
 
 /* func_L00_003F4B68 uses its dedicated quadword-copy profile. */
 

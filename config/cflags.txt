@@ -3136,3 +3136,4 @@ src/game/00327038-quads-g8.c	-O2 -G8 -ffunction-sections -g
 src/levels/shared/L00_00405808-g8.c	-O2 -G8 -ffunction-sections -g -frac2-zero-ti-por -frac2-hazard-labels
 src/levels/shared/L22_003A15D0-g8.c	-O2 -G8 -ffunction-sections -Wa,-G32 -g -frac2-zero-ti-por
 src/levels/shared/L01_00397110-weather-g8.c	-O2 -G8 -ffunction-sections -ffast-math -g -frac2-hazard-labels
+src/levels/shared/L00_003F4210-g8-dbg.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -g -frac2-hazard-labels

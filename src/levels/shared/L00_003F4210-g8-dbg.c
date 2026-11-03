@@ -1,34 +1,8 @@
-/* GPT-6.1 Sol (high effort), bounded follow-up, 2026-10-29; not linked.
- * Pinned profile: -O2 -G8 -ffunction-sections -frac2-qcopy
- * -frac2-qcopy-barrier -g -frac2-hazard-labels.
- * USA v1.01: 2392/2392 bytes, 0/27 places. Level 00 has one differing
- * non-relocation instruction at +0x5D0 (0x003F47E0): ours multiplies
- * f1 = f1 * f0; retail multiplies f1 = f0 * f1. No linked credit.
- * Other releases not checked. Original retained draft was 2384/2392 here.
- *
- * Improvements: a real QuadWord local separates the particle position load
- * and store instead of selecting the grouped memory-to-memory primitive.
- * Loop-local third/life_range/one/life_min reproduce the hoisted FP constants.
- * The collision record's owner/position/normal fields share its measured base.
- * A separate live-hit count and loop count reproduce the damaged-object walk.
- * Sequential packed-color assignments recover the retail OR tree. Separate
- * speed subtraction and ratio statements plus -g reproduce both division pads
- * and the final FP allocation; hazard-labels fixes two branch targets.
- * The particle helper's matched definition in src/game/002BDCE8.c takes an
- * int colour: the older draft's long declaration caused its call mismatch.
- * Explosion integer/FP interleaving preserves both EE argument banks and stack.
- *
- * Remaining multiplication: damping = speed * damping and damping = damping * speed
- * tie at the reversed operand order.
- * A distinct w local with velocity.w *= damping instead uses f0 for the
- * result, compare and store (three differences); a direct length-call product
- * changes six instructions. Neither source preserves another use of speed.
- * -g alone tied before splitting divisions into their own statements;
- * -mno-split-addresses and -fno-force-mem were worse. Boolean materialization
- * adds four words. Structured and common-label conditionals tie. Do not repeat
- * these without new allocation or source evidence. Keep actual scratch extents.
- * All required declarations are below; no compiler or assembly changes used.
- */
+/* Updates a bouncing explosive projectile: flight with a particle trail, bounces that lose speed,
+   a fading slide after the fourth bounce, then an explosion that damages everything in range.
+   Needs -g (pre-div.s nop pairs) and hazard labels (two branch targets). The length is stored
+   to the member before it is scaled: that store is deleted after allocation, but until then it
+   keeps the call result alive past the multiplication, which ties the product to the scale. */
 #include "common.h"
 
 typedef unsigned int QuadWord __attribute__((mode(TI)));
@@ -231,10 +205,11 @@ void func_L00_003F4210(char *object)
                 func_00282CF0((&state->velocity), (&state->velocity), &temporary);
             } else state->velocity.v[2] = 0.0f;
             {
-                float v = D_L00_001B0918 * func_00282E20(&state->velocity);
-                float min = D_L00_001B0908 * 0.016666668f;
-                state->velocity.v[3] = v;
-                if (v < min)
+                float min;
+                state->velocity.v[3] = func_00282E20(&state->velocity);
+                state->velocity.v[3] *= D_L00_001B0918;
+                min = D_L00_001B0908 * 0.016666668f;
+                if (state->velocity.v[3] < min)
                     state->velocity.v[3] = min;
             }
             func_00282F20((&state->velocity), (&state->velocity), state->velocity.v[3]);

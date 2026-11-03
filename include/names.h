@@ -925,5 +925,6 @@
 #define StartAttachedEffect              func_0032D758
 #define DrawTubeStrips                   func_L05_0042B2C0
 #define UpdateWeatherParticles           func_L01_00399510
+#define UpdateBouncingExplosive          func_L00_003F4210
 
 #endif /* NAMES_H */
