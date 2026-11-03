@@ -218,6 +218,7 @@
 #define UpdateOceanWaterSheet            func_L06_00403130
 #define InitializeHero                   func_L00_002A4928
 #define floor                            func_00117650
+#define MorphorayUpdate                  func_L00_00405808
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
