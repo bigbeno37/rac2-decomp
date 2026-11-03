@@ -594,7 +594,6 @@ void func_L03_0038B408(Moby *object)
 
 
 
-INCLUDE_ASM("asm/levels", func_L03_0038B5D8);
 
 void func_L03_00393228(unsigned char *a0) {
     unsigned char *g = D_L03_00189E20;
