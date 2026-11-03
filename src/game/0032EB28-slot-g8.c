@@ -1,33 +1,30 @@
-/* GPT-6.1 Sol high tier, USA v1.01, -O2 -G8 -ffunction-sections.
- * Best: 1008/1008 bytes, 0/28 places; first difference +0x38.
- * The saved-register allocation now agrees with retail. Move the color flag's
- * initialization AFTER the health call so it does not cross that call; test
- * D_00237800[i].object before constructing the success-path slot pointer; set
- * result=0 before the death check. These changes recover size and allocation.
- * Corrects the earlier draft's flag semantics: beqz at 0x3341C4 branches to
- * 0x3342B0, an unconditional return-1 path. A clear bit gates the whole body.
- * Typed attacker.owner at +0xB8 avoids an extra global pointer reload, and a
- * native TImode stack transfer recovers the retail sq at sp+0x10.
- * Remaining: predicate startup scheduling/type-2 comparison, two effect-table
- * address registers, and the final damage-field stores/argument scheduling.
- * A type switch, explicit boolean predicates, -g, a typed damage record, and
- * moving the b-field store earlier did not close these differences. The last
- * two changes are not retained. Next useful experiment: the first predicate's
- * allocation and block shape; avoid redoing color-flag lifetime variants.
- * All required declarations are below. No unmatched C belongs in src/.
- */
 #include "common.h"
+
+/* func_00334160: retail keeps the owned-flag mask 2 in a register from the first block and
+   reuses it for the weapon type==2 test; the type tests are one || whose true arm jumps to a
+   shared return, and D_001A7A80 is reached by an unsplit lui/addiu pair. */
 typedef int Quad341 __attribute__((mode(TI)));
+typedef struct {
+    float vector[4];
+    char pad10[8];
+    unsigned char type;
+    unsigned char source;
+    short oclass;
+    char pad1C[4];
+    int flag;
+    char pad24[0xC];
+} Hit334160;
 #define I(p,o) (*(int *)((char *)(p)+(o)))
 #define P(p,o) (*(char **)((char *)(p)+(o)))
 #define F(p,o) (*(float *)((char *)(p)+(o)))
 #define B(p,o) (*(unsigned char *)((char *)(p)+(o)))
 #define H(p,o) (*(short *)((char *)(p)+(o)))
 typedef struct { int active; unsigned char type; char pad[0x47]; short map; char pad2[0x92]; } Weapon1271;
-typedef struct { float cost,a,b; int frames; } Effect1271;
+typedef struct { float cost,a; int frames; float b; } Effect1271;
 typedef struct { int timer,color,alpha; float zero,a,b; char *object; int state,owner,active; char pad[8]; } Slot1271;
 extern Weapon1271 D_00239BA0[];
-extern unsigned char D_001A7A80[],D_00139568[];
+extern unsigned char D_001A7A80[] MACRO_ADDR;
+extern unsigned char D_00139568[];
 extern Effect1271 D_00237DA0[2][119];
 extern Slot1271 D_00237800[30];
 typedef struct { char pad[0xb8]; int owner; } Attacker341;
@@ -37,19 +34,20 @@ extern int func_00334100(int);
 extern void func_002A04B8(void *,int *,int *,int *);
 extern void func_00282D30(void *,void *,float),func_00282F20(void *,void *,float);
 extern void func_002A8C00(void *,void *,int,void *,float),func_002A8E20(void *,void *);
+static __inline__ int IsSpecial1271(int id)
+{
+    int special=0;
+    switch(id) {
+    case 12:case 14:case 17:case 18:case 53:special=1;break;
+    }
+    return special;
+}
 static __inline__ int IsEffect1271(int id)
 {
     Weapon1271 *weapon=&D_00239BA0[D_00139568[id]];
     if(weapon->active) {
         int type=weapon->type;
-        if(type==2) return 1;
-        if(type==1) {
-            int special=0;
-            switch(id) {
-            case 12:case 14:case 17:case 18:case 53:special=1;break;
-            }
-            if(special) return 1;
-        }
+        if(type==2 || (type==1 && IsSpecial1271(id))) return 1;
     }
     return 0;
 }
@@ -63,12 +61,13 @@ static __inline__ int IsEffect3_1271(int id)
 int func_00334160(char *object,int id,int owner)
 {
     float backwards[4] __attribute__((aligned(16)));
-    unsigned char damage[0x30] __attribute__((aligned(16)));
+    Hit334160 damage __attribute__((aligned(16)));
     int r,g,b;
     int mapped=D_00239BA0[id].map;
     int mode,result=1,i;
+    int mask=2;
     if(!mapped) mapped=id;
-    if(!(D_001A7A80[mapped]&2)) return 1;
+    if(!(D_001A7A80[mapped]&mask)) return 1;
     mode=IsEffect1271(mapped) || IsEffect3_1271(mapped);
     {
         if(H(P(object,0x24),0x46)!=5) return 1;
@@ -81,7 +80,6 @@ int func_00334160(char *object,int id,int owner)
         }
         if(func_00334100((int)object)!=-1) return 1;
         {
-            
             for(i=0;i<30;i++) {
                 if(!D_00237800[i].object) {
                     Slot1271 *slot=&D_00237800[i];
@@ -104,15 +102,16 @@ int func_00334160(char *object,int id,int owner)
                     result=0;
                     if(*health<=slot->zero && D_001B1000) {
                         func_00282D30(backwards,slot->object+0xc0,-1.0f);
-                        func_00282F20(damage,damage,0.0016666668234393f);
+                        func_00282F20(damage.vector,damage.vector,0.0016666668234393f);
                         D_001B1000->owner=slot->owner;
-                        func_002A8C00(damage,D_001B1000,0x810000,backwards,0.001f);
-                        *(Quad341 *)damage=*(Quad341 *)backwards;
-                        F(damage,0xc)=5627.9248046875f;
-                        B(damage,0x19)=1;B(damage,0x18)=5;
-                        H(damage,0x1a)=*(unsigned short *)(slot->object+0xaa);
-                        I(damage,0x20)=1;
-                        func_002A8E20(slot->object,damage);
+                        func_002A8C00(damage.vector,D_001B1000,0x810000,backwards,0.001f);
+                        *(Quad341 *)damage.vector=*(Quad341 *)backwards;
+                        damage.vector[3]=5627.9248046875f;
+                        damage.flag=1;
+                        damage.type=5;
+                        damage.source=1;
+                        damage.oclass=*(unsigned short *)(slot->object+0xaa);
+                        func_002A8E20(slot->object,&damage);
                         slot->object=0;
                     }
                     break;
