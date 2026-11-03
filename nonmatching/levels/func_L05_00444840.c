@@ -18,6 +18,14 @@
  * reaches the same tail (`bnel; i++; addu a1,a0; lw 4(v0)`), but jump1's duplicate_loop_exit_test copies the whole
  * test and found arm ahead of the loop ("multiple entry points"). That copy is the only thing left to lose: the exit
  * code would need a CODE_LABEL, or more than LOOP_TEST_THRESHOLD insns. goto-in, inline helpers and do-while forms fail.
+ *
+ * opus-2, 4 November 2026 (v2334, not closer: while-continue 740B, for/while/do-break 816B with the copy, 0/4): the copy can
+ * vanish. Diagnostic only: with `i = 0` set before `if (excluded)` (scan on another variable) the copy is not
+ * constant-folded, and with -fno-gcse jump2 cross-jumps the whole copy into the loop except `mult; lui; addiu`
+ * (sched1 orders them differently). Reorg would then steal i++ into the bnel and delete the entry branch, which is
+ * retail. With gcse on, PRE turns the in-loop `lh 0xAA` into the copy's value (lhu + sll/sra), which blocks the
+ * cross-jump; retail keeps the lh, so the copy apparently had no foldable i and no load that PRE could reuse.
+ * while-continue (no copy, because label F sits in the exit code) leaves the loop valid, so loop.c strength-reduces it.
  */
 #include "common.h"
 extern void func_L05_00444D60(void *, int *, int *, int);
