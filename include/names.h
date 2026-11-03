@@ -215,6 +215,7 @@
 #define follow_camera_build_view         func_L00_00425560
 #define Camera_ResolveBlockedView        func_L01_002B5EA0
 #define RegisterObjectRenderClass        func_L00_002FF6A8
+#define UpdateOceanWaterSheet            func_L06_00403130
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20

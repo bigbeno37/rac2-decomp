@@ -3113,3 +3113,5 @@ src/levels/shared/L18_00427688-g32.c	-O2 -G32 -Wa,-G32 -ffunction-sections -frac
 src/levels/shared/L05_00428350-camera-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier
 # Fragment fan: retail schedules each block of the first loop alone and hoists its constants in one loop pass.
 src/levels/shared/L00_003A0F30-frag-g8.c	-O2 -G8 -ffunction-sections -fno-rerun-loop-opt -fno-sched-interblock
+# Water sheet update: a line label before its first div.s gives the two-word floor.
+src/levels/shared/L06_00403130.c	-O2 -G0 -ffunction-sections -g
