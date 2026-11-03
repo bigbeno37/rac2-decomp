@@ -1,20 +1,20 @@
-/* GPT-6.1 Sol high, v0785, USA v1.01.
- * Best: 1252/1252 bytes, 0/28 places with
- * -O2 -G8 -ffunction-sections -g -fno-gcse.
- * Forward-indexed loops recover the active-loop allocation and exact FP math;
- * -g supplies the retail division padding. The retained profile avoids PRE
- * hoisting the quad UV bases across earlier loops, but spills the transform
- * pointer too early, rematerializes it in inactive paths and changes setup.
- * Remaining: initial mode/active scheduling, transform lifetime/spill point,
- * UV pointer increment order, inactive-loop base setup, quad-loop table base
- * hoist and allocation. Default GCSE gives 1308 bytes: two quad UV pointers
- * are hoisted into all earlier branches and spilled across 12 calls; verified
- * with regalloc.py (diagnostic object byte-identical to its baseline).
- * Unsplit GCSE edges did not change that result. Separate stack buffers,
- * direct globals, table sda and disabling the first scheduler did not close it.
- * The matching-behavior reference is RAC1 space.c's
- * render_environment_mapped_object (adapted there from Lombyte, GPL-3.0).
- * Required declarations follow. No linked build run for this near miss.
+/* Claude Opus 5.5, opus-1, v2269, USA v1.01.
+ * Best: 1252/1252 bytes, 0/28 places (42 differing rows, was 111) with
+ * -O2 -G8 -ffunction-sections -g -fno-gcse (as a -g8.c file).
+ * New over v0785: `transform = matrix;` after func_0029FC20(object, 0, matrix)
+ * reuses the a2 argument pseudo (retail addiu a2,sp,0x90; daddu s5,a2,zero);
+ * a block-local `float *t = transform;` in the active branch splits the
+ * pointer: s5 stays live for inactive loops and only the copy spills to
+ * 0x100(sp). Under -fno-gcse that matches the active-loop allocation.
+ * Remaining: prologue order (s0=2 vs s2=0), active-loop increment order
+ * (uv s4 before old s6), was-active lui order, and the quad loop: retail
+ * keeps la D_00262350 inside the outer loop and computes i+1 early into s0
+ * with `daddu s3,s0` in the jal delay slot (bnez, not bnel). That i+1 shape
+ * is gcse PRE (seen with gcse on), but gcse on also hoists the quad-loop
+ * bases into all three branches and drops the t split (247+ rows). RAC1-style
+ * separate stack arrays and pre-loop pos/tex pointers were worse.
+ * Matching-behaviour reference: RAC1 space.c render_environment_mapped_object
+ * (adapted there from Lombyte, GPL-3.0). Required declarations follow.
  */
 #include "common.h"
 extern float D_002625B0[][4], D_002620A0[][4], D_00214A30[][4];
@@ -63,8 +63,8 @@ void func_002ECB70(void *object)
  quad.packet[2] = 0xff9000000260ULL;
  quad.packet[3] = 0x8000000044ULL;
  quad.color[0] = quad.color[1] = quad.color[2] = quad.color[3] = color;
+ func_0029FC20(object, 0, matrix);
  transform = matrix;
- func_0029FC20(object, 0, transform);
  if (D_001A8BB0 == 0 || D_001A8BB0 == 2) {
   if (func_00282C48(D_001B5200[0x50] - *(float *)(o + 0x10)) < 16.0f &&
       func_00282C48(D_001B5200[0x51] - *(float *)(o + 0x14)) < 16.0f) active = 1;
@@ -75,6 +75,7 @@ void func_002ECB70(void *object)
   func_00282948(&D_001ABF08);
   fraction = func_00283CE0(D_001ABF08) / func_00283CE0(60);
   {
+  float *t = transform;
   float (*n)[4] = normals;
   float (*p)[4] = points;
   float (*dest)[4] = D_00214A30;
@@ -82,10 +83,10 @@ void func_002ECB70(void *object)
   float (*old)[2] = D_00214E38;
   for (i = 0; i < 43; i++) {
    float divisor, x, y;
-   func_002830C0(dest[i], p[i], transform);
+   func_002830C0(dest[i], p[i], t);
    func_00282CF0(ray, dest[i], &D_001B5200[0x50]);
    func_00282F20(ray, ray, 1.0f);
-   func_002830C0(normal, n[i], transform);
+   func_002830C0(normal, n[i], t);
    func_00282F20(normal, normal, 0.1f);
    func_00282D30(reflected, normal, 2.0f * func_00282DB0(normal, ray));
    func_00282CF0(reflected, ray, reflected);
@@ -116,14 +117,14 @@ void func_002ECB70(void *object)
     float y = uv[i][1];
     old[i][0] = x;
     old[i][1] = y;
-    func_002830C0(dest[i], p[i], matrix);
+    func_002830C0(dest[i], p[i], transform);
    }
   }
   D_001ABF08 = 60;
  } else {
   float (*dest)[4] = D_00214A30;
   float (*p)[4] = points;
-  for (i = 0; i < 43; i++) func_002830C0(dest[i], p[i], matrix);
+  for (i = 0; i < 43; i++) func_002830C0(dest[i], p[i], transform);
   D_001ABF08 = 60;
  }
  {
