@@ -21,6 +21,16 @@
  * DImode li is one RTL insn and retail splits lui/ori around the entry test. A
  * literal argument and locals set inside the loop tie the int draft. Still open:
  * an SImode shape that survives cprop, and the v0/v1 swap at the 0x956 comparison.
+ * 4 November 2026 (opus-1, Claude Opus 5.5): rechecked in c04, still 1648/1652,
+ * 166 rows off. The int dumps show a single CONST-PROP (the color pseudo, in the
+ * a3 move); with `long color` the extra word is the truncdisi2 dsll32/dsra32 pair
+ * on a3. Retail needs an SImode pseudo that is not a constant set when gcse runs
+ * (cprop also merges identical constant sets from both arms) and is only folded
+ * later by cse2, so lui/ori split around the entry test. Loading the state
+ * pointer inside each arm is worse (171 rows): retail fills the bne delay slot
+ * with it. `cls == 0x956` in either operand order ties. The v0/v1 swap means
+ * retail's 0x956 pseudo either is born before the lh in sched1 order or has a
+ * lower local-alloc priority (longer span); neither form was found.
  */
 #include "common.h"
 extern char *func_334CB8(char *, unsigned int, int);
