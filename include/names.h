@@ -890,5 +890,6 @@
 #define UpdateCollisionRing              func_L07_003F4578
 #define draw_moby_glow_sprites           func_L00_003FA858
 #define UpdateObjectPreviewSequence      func_002FF450
+#define __ieee754_fmod                   func_00117848
 
 #endif /* NAMES_H */
