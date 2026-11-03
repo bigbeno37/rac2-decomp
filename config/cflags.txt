@@ -3134,3 +3134,4 @@ src/levels/shared/L00_003C6298-gun-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-
 src/game/00327038-pool.c	-O2 -G0 -ffunction-sections -g -fno-gcse
 src/game/00327038-quads-g8.c	-O2 -G8 -ffunction-sections -g
 src/levels/shared/L00_00405808-g8.c	-O2 -G8 -ffunction-sections -g -frac2-zero-ti-por -frac2-hazard-labels
+src/levels/shared/L22_003A15D0-g8.c	-O2 -G8 -ffunction-sections -Wa,-G32 -g -frac2-zero-ti-por
