@@ -381,8 +381,6 @@ extern char D_0023F060[];
    loop test is `sltu` here against retail's `slt`, and the base is derived from the end
    pointer instead of being materialised on its own. */
 
-INCLUDE_ASM("asm/levels", func_L00_003BCF88);
-
 extern float func_002A7878(float, float);
 extern float func_002A78D8(float, float);
 extern int func_002A77E0(int);
