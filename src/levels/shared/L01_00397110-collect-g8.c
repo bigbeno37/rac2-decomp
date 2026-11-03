@@ -1,27 +1,3 @@
-/* Closer C, 1 November 2026: -O2 -G8 -ffunction-sections -g -frac2-hazard-labels, 3 rows off:
- * retail mul x,y,z then stores x,y,z; here mul y,z,x and stores y,z,x. Registers and loads now agree.
- */
-/*
- * GPT-6.1 Sol high, task v0752, USA v1.01: 1232/1232 bytes, 0/20 places.
- * Profile: -O2 -G8 -ffunction-sections -g -frac2-hazard-labels.
- * Nine non-relocation instructions differ, all in the initial angular-rate
- * loads/multiplies/stores at +0xC8..+0xF8 (f3/f4/f2 versus f4/f2/f3).
- * Required declarations are below. No linked match is claimed.
- *
- * Corrects two older-draft control-flow errors: state 0's -1/already-collected
- * test branches directly to deletion at 00397670, not to the p+0x78 test;
- * the inactive p+0x78==0 path branches directly to initialization at 003976B8,
- * bypassing state 3's D_0018A16E test.
- * Scoped player-copy pointers reproduce retail's s2/s3 moby/pvars allocation,
- * s0/s1 player-base lifetimes and both copy operand sequences. Pipeline each
- * angular step load before the preceding store to reproduce state 1 exactly.
- * Plain MACRO_ADDR CurrentLevel reproduces its mixed absolute/GP accesses.
- *
- * Initial-rate snapshot, pre-multiplied locals, incomplete-array GP view,
- * and reversed independent stores tie on the same nine instruction differences.
- * Direct global-to-field stores worsen scheduling. Next: independently justified
- * original vector/aggregate source shape; do not repeat scalar permutations.
- */
 #include "common.h"
 extern int D_001A79F0 MACRO_ADDR;
 extern short D_0018A16E NOT_SDA;
@@ -63,19 +39,10 @@ void func_L01_003973A0(unsigned char *m)
             *(float *)(m+0xF0)=func_002A7940();
             *(float *)(m+0xF4)=func_002A7940();
             *(float *)(m+0xF8)=func_002A7940();
-            {
-                float a=func_002A7940();
-                float x=D_L01_001AF51C;
-                float y=D_L01_001AF520;
-                float z=D_L01_001AF524;
-                *(float *)(m+0xFC)=a;
-                z*=0.0002908882452175021f;
-                x*=0.0002908882452175021f;
-                y*=0.0002908882452175021f;
-                *(float *)(p+0x68)=x;
-                *(float *)(p+0x64)=y;
-                *(float *)(p+0x60)=z;
-            }
+            ((float *)m)[0xFC/4]=func_002A7940();
+            ((float *)p)[0x68/4]=D_L01_001AF51C*0.0002908882452175021f;
+            ((float *)p)[0x64/4]=D_L01_001AF520*0.0002908882452175021f;
+            ((float *)p)[0x60/4]=D_L01_001AF524*0.0002908882452175021f;
             if (*(short *)(m+0x32)<64) *(short *)(m+0x32)=64;
             m[0x20]=1;
             func_L01_00397950(m);

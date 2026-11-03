@@ -14,7 +14,6 @@ extern int func_001163B0(void);
 
 
 
-INCLUDE_ASM("asm/levels", func_L01_003973A0);
 
 
 
