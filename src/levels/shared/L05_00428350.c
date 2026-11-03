@@ -309,7 +309,7 @@ void func_L05_00430BF0(Vec16_Fc936841d *object, int index)
 
 /* func_L05_00442880 is defined in L05_00428350-g8.c. */
 
-INCLUDE_ASM("asm/levels", func_L05_00442A58);
+/* func_L05_00442A58 is defined in L05_00442A58-g8.c. */
 
 /* func_L05_004431A0 is defined in L05_004431A0.c. */
 

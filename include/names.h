@@ -897,5 +897,6 @@
 #define draw_large_text_edge_faded       func_002F97A0
 #define DrawNearbyObjectRadar            func_L08_004207D0
 #define DrawTaperedTwoLayerRibbon        func_L00_003BCF88
+#define UpdateSteeringInput              func_L05_00442A58
 
 #endif /* NAMES_H */

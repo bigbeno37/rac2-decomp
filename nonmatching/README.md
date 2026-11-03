@@ -89,7 +89,6 @@ the placement rules are in `tools/fcheck.py`'s docstring; its tests are
 | [`func_L05_00417D48`](levels/func_L05_00417D48.c) | 1204 | 1200/1204 bytes; nonmatching. Independent constructor result/state lifetime witness. See source for the profile and measured release coverage. |
 | [`func_L05_00419888`](levels/func_L05_00419888.c) | 1068 | 1060/1068 bytes; nonmatching. Independent collision CFG/packet-lifetime witness, preserving all query and effect arguments. See source for the profile and measured release coverage. |
 | [`func_L05_00427238`](levels/func_L05_00427238.c) | 1196 | 1124/1196 bytes; nonmatching. Independent impact/trail CFG and packet/argument lifetime witness. See source for the profile and measured release coverage. |
-| [`func_L05_00442A58`](levels/func_L05_00442A58.c) | 1332 | 1336/1332 bytes; nonmatching. Independent controller ramp/FP lifetime witness; no false volatile or register pins. See source for the profile and measured release coverage. |
 | [`func_L05_004432E0`](levels/func_L05_004432E0.c) | 1116 | 1060/1116 bytes; nonmatching. Independent camera record lifetime and scalar scheduling evidence. See source for the profile and measured release coverage. |
 | [`func_L07_003F3E80`](levels/func_L07_003F3E80.c) | 1372 | 1360/1372 bytes; the loop constant 210000.0f is not hoisted. See the source header. |
 | [`func_L08_003DB518`](levels/func_L08_003DB518.c) | 972 | nonmatching. Complete UI reconstruction with 16-byte packed style and 64-bit text-style argument. See source for the profile and measured release coverage. |
