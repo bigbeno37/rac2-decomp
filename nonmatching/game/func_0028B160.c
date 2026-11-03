@@ -21,8 +21,16 @@
  * explicit `one` local is worse: the constant is set before the guard, live length 52. Without
  * the else arm the first shift is reused (saved in $s1), apparently cse-skip-blocks.
  *
- * Untried: a second name for D_001B1888 could put the header load in both arms of the first if
- * (one step, a tie at 48), which still leaves one step to find. No linked build was run.
+ * Opus 5.5 xhigh, v2364 (about 13 check.py runs): the second name was tried. Loading the
+ * header as D_001B1888[0] (extern struct HudTexCounts *D_001B1888[] __attribute__((sda))) into
+ * counts in both arms of the first if, and reading end through counts, keeps exactly this code
+ * and reaches the 48/48 tie (the lower pseudo, immediate, still wins). Reading end through
+ * D_001B1870.header.counts instead gives the retail $s6/$s7, but the two names do not merge and
+ * the header is loaded again (300 bytes). Also measured: a plain split D_001A7308 gives the
+ * right registers but untied lui temps ($v0, not $s4); the ends add written into both arms of an
+ * explicit bank test gives the right registers but sched1 moves the addu, counts lands in $a1
+ * and cross-jumping fails (300 bytes). Still missing: one RTL insn before the loop that is alive
+ * at sched1 and gone from the final code. No linked build was run.
  *
  * Declarations: struct HudTexCounts, HudTexPage and HudState with D_001B1870 sda, and
  * func_0028AE88, as above func_0028ACB0 in src/game/00288D88.c. Marker restored in src/.

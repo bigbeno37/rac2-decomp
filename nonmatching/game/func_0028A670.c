@@ -37,6 +37,17 @@
  * - -fno-schedule-insns gives single stores but 1172 bytes. It loses retail's arm-local
  *   `mov.s f12,f20` and `lw v1,0(s2)` before `sw v0,0x38(sp)`, which reads as retail running sched1.
  * - Int returns for func_00300A00 and func_0027F980 change nothing.
+ * - Opus 5.5 xhigh, v2364 (2 check.py runs; draft and scalar form recompiled in c06, same results):
+ *   scalars put case 2's reload registers in v1/a0, two round-robin steps before retail's a1/a2,
+ *   which fits one missing reload in between: the hoisted 1 rematerialized in a0 at the ladder
+ *   (it skips v1, which holds state). Retail's `== 2` uses a local v0 but `== 1` uses a0.
+ *   Compiler source rules out the cleanups: flow.c never tracks stores through $sp ("none of
+ *   them should be redundant"), so flow2 cannot delete the first half-store; haifa-sched's split
+ *   calls update_n_sets, so any pseudo set to a lui/ori constant has 2 sets and never gets
+ *   REG_EQUIV. Case 2 therefore needs a source whose constant reaches reload unsplit.
+ *   loop.c lowers threshold by 3 for every moved movable, in loop order, and adds savings only
+ *   for identical constant sets (combine_movables) or a feeding movable (force_movables), so
+ *   the ladder's `1` (savings 1, lifetime 1) needs further identical `(set P 1)` movables.
  * - Source clue: the fade starts in cases 1 and 3 are their end colors & 0xFFFFFF, as in
  *   002B7E28-g8.c. Retail's saved registers are y s4, secondY s5, x s6, firstY s7, secondX fp;
  *   scalars give y s4, secondX s5, secondY s6, x s7, firstY fp, so secondX must rank last.
