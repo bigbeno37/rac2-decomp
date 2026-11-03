@@ -889,5 +889,6 @@
 #define DrawSegmentedBeam                func_L07_003F4CC0
 #define UpdateCollisionRing              func_L07_003F4578
 #define draw_moby_glow_sprites           func_L00_003FA858
+#define UpdateObjectPreviewSequence      func_002FF450
 
 #endif /* NAMES_H */
