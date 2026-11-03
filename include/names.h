@@ -914,5 +914,6 @@
 #define RefreshMissionMenuItems          func_0029B910
 #define UpdateBankedOrientation          func_002EE000
 #define UpdateBoltGroundedPose           func_00301F18
+#define BeginPreviewTransition           func_002FF0D8
 
 #endif /* NAMES_H */
