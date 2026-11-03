@@ -906,5 +906,6 @@
 #define WalkPathPickNext                 func_L22_003A2E50
 #define WalkPathSetCurrent               func_L22_003A2E10
 #define UpdateFeltzinProjectile          func_L05_00419888
+#define SpawnHomingShot                  func_L04_003F9320
 
 #endif /* NAMES_H */
