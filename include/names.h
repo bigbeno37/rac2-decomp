@@ -214,6 +214,7 @@
 #define draw_nanotech_ball               func_003146C0
 #define follow_camera_build_view         func_L00_00425560
 #define Camera_ResolveBlockedView        func_L01_002B5EA0
+#define RegisterObjectRenderClass        func_L00_002FF6A8
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
