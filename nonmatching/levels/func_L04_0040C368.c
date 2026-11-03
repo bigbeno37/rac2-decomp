@@ -1,3 +1,15 @@
+/* 2026-11-03 opus-1 (v2301), USA v1.01, -O2 -G8: no closer; same four words.
+ * Cause modelled: block-based gcse PRE creates reaching registers in hash-bucket
+ * order (raw hash of (plus (reg r) (const_int X)) = 14030 + X + r - 1, modulo
+ * (max_cuid/2)|1 = 133 buckets here). With the m base at pseudo 84 (the parameter)
+ * retail's slot order is impossible for any table size; the base must be >= 98
+ * (98..138 at 133 buckets). Declaring `unsigned char *m = arg;` as the last
+ * top-level local (first initializer) makes cse's copy swap set the alias straight
+ * from a0, so PRE uses the alias pseudo (92/93 reached, code otherwise identical).
+ * Still 5+ genuine top-level pseudos short. TI/float unions add no pseudo; a TI
+ * scalar velocity ICEs (convert_move); TI scalar point/first/second/third lose the
+ * swap (base 84 again, 127 buckets) and store point[3] through $s4.
+ */
 /* 2026-11-03 w02 source-contract/lifetime review (USA v1.01 only).
  * Profile: -O2 -G8 -ffunction-sections.
  * Current check.py: 1304/1304 bytes, 0/2 places, first mismatch +0x154.
