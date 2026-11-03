@@ -892,5 +892,7 @@
 #define UpdateObjectPreviewSequence      func_002FF450
 #define __ieee754_fmod                   func_00117848
 #define InitPathMotion                   func_L00_004291A0
+#define play_streamed_frames             func_002F5FB8
+#define draw_large_text_edge_faded       func_002F97A0
 
 #endif /* NAMES_H */

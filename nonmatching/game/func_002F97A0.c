@@ -1,18 +1,25 @@
-/* func_002F97A0: near miss, 1052/1052 bytes, boot (USA v1.01, 1 November 2026).
+/* func_002F97A0: near miss, 1052/1052 bytes, boot (USA v1.01, 1 November 2026; revised 3 November).
 
    Profile: its own `-g8` unit, `-O2 -G8 -ffunction-sections` (named 002F5220-fade-g8.c).
    The integer sibling func_0027F2A8 (0027F128-font-g8.c) gives the glyph walk and the grey
    shadow; the fade is double arithmetic, so it goes through the soft-float helpers
    func_001234F0, func_00123028, func_00122A98, func_00122B00 and func_00123130. The sprite call takes its four floats first, like the
    integer func_0027E018, and the shop-state pointer is a local so reload rematerialises the
-   `la` pair at its one use.
+   `la` pair at its one use. In src/game/002F5220.c the shop type is Shop_002F9198.
 
-   Everything matches except one scheduling window after the two fades: retail clamps left
-   then right and truncates the colour (dsll32/dsra32) just before the first `or`, storing
-   colors[3], [0], [1], [2]; here the truncation is scheduled ahead of the clamps, the right
-   clamp first, and the stores go [0], [3], [1], [2]. Tried: the colour masked inside the
-   expressions, a u32/int/explicit-cast temporary, the shifted values kept in left/right,
-   chained assignments, ternary clamps and every order of the four stores. */
+   Everything matches except one scheduling window after the two fades (0x2F999C..0x2F9A88):
+   retail clamps left then right and truncates the colour (dsll32/dsra32) just before the
+   first `or`, storing colors[3], [0], [1], [2]. Clamping right first and shifting left and
+   right in place (this version) gets closer than the 1 November draft.
+   Findings: retail's clamp block order needs right's `subu` in the same sched1 block as the
+   clamps, so `right = full - fade;` after the if/else join with a per-arm `full = 0x80`
+   gives retail's order and the per-arm $s3; but then arm 1's `jal dptoli` tail is not
+   cross-jumped (flow puts a USE after arm 2's block-ending call, jump.c find_cross_jump
+   stops there), and local-alloc gives right=v1/-1=v0 where retail has right=a0, -1=v1,
+   the left slt and the colour in v0 (retail's sched1 placed the truncation after movz L
+   and the lbu after slt R). Copying the clamp/pack/draw tail into both arms grows to 1324
+   bytes. Earlier tries: the colour masked inside the expressions, a u32/int/explicit-cast
+   temporary, chained assignments, ternary clamps and every order of the four stores. */
 
 #include "common.h"
 
@@ -82,15 +89,17 @@ void func_002F97A0(u64 color, u8 *text, int limit, float x, float y, float scale
                     d = -d;
                 right = 0x80 - (int)(d * 0.75);
             }
-            if (left < 0)
-                left = 0;
             if (right < 0)
                 right = 0;
+            if (left < 0)
+                left = 0;
             c = color;
-            colors[0] = left << 24 | c;
-            colors[1] = right << 24 | c;
-            colors[2] = left << 24 | c;
-            colors[3] = right << 24 | c;
+            left <<= 24;
+            right <<= 24;
+            colors[0] = left | c;
+            colors[1] = right | c;
+            colors[2] = left | c;
+            colors[3] = right | c;
             if (*cursor < 0x20) {
                 c = colors[0];
                 shade = (int)((c & 0xFF) + ((c >> 8) & 0xFF) + ((c >> 16) & 0xFF)) / 3;

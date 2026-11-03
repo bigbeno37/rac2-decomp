@@ -1,24 +1,29 @@
-/* 2 November 2026:
- * Correct the ignored integer returns of func_002B4B70, func_00288A00 and func_002B49E0. The
- * current matched func_002EF010 returns unsigned long (64 bits on EE); explicitly narrow its
- * result before the observed 32-bit index shift. This qualified declaration experiment emits
- * 1192/1184 bytes, 0/28 US placements, rather than the old 1184-byte draft with an int
- * declaration. The packet frame and descriptor lifetimes remain unresolved; no complete match.
- */
-/* sol-high, v0961, USA v1.01: 1184/1184 bytes, 0/28 places.
- * Game -O2 -G8 -ffunction-sections. The target frame is 0xD0, this draft
- * uses 0xC0; allocation, startup spills, descriptor-base rematerialization
- * and some loop scheduling remain different. No linked build was run.
- * This replaces the 1152-byte draft with complete, corrected loop processing.
- * Crucially, the old ref_15 volatile read was spurious: boot gp+0x3220
- * and absolute 0x1B2210 both reference ref_10, the descriptor pointer.
- * Its ordinary reload naturally fills the backward branch's delay slot.
- * The result XOR preserves retail's test; staged signed-long GS fields
- * preserve its separate constants. Next useful work is the lifetimes of
- * textureIndex, the two aligned buffers and the descriptor/frame bases.
- * All required declarations follow. Use a -g8.c sibling when retrying.
+/* 3 November 2026 (opus-1, v2273), USA v1.01: 1172/1184 bytes, 0/28 places, frame 0xD0 (retail
+ * 0xD0); opcode-sequence ratio 0.975 against retail versus 0.915 for the previous draft, which
+ * now compiles to 1176 bytes with frame 0xC0. Game -O2 -G8. No complete match.
+ * In-file use: drop the func_002EF010 line (the file declares it) and keep the rest.
+ * What this form fixes:
+ *  - textureIndex = 2 is set before the wait loop, so cse2 cannot fold the hoisted
+ *    textureIndex << 4 in the main-loop preheader; with the post code inside for (;;)
+ *    (if (done) {...; break;}) loop.c hoists the shift, reload rematerializes textureIndex
+ *    as li 2; sll 4 and spills the product, as retail does at 0x6C(sp).
+ *  - (first + 63) & -64 inside the loop: gcse PRE hoists first+63/second+63 and loop.c
+ *    hoists -64; the frame becomes 0xD0.
+ *  - TOC accesses through a struct alias D_0014B540_1 (header, base, files[]): loop.c hoists
+ *    TOC and TOC+12.
+ * Remaining differences:
+ *  - Retail spills destination (0x68) and gives $fp to TOC+12; here destination takes $fp.
+ *    Retail slot order is destination, 2<<4, first+63, second+63; here first+63, second+63,
+ *    2<<4.
+ *  - Retail's sector address is off + (TOC+8), with TOC+8 rematerialized (lui/addiu -0x4AB8)
+ *    each iteration; here cse relates TOC+8 to the hoisted TOC register and combine folds it
+ *    into addu a0,s4,off; lw 8(a0). The size address off + fp(TOC+12) and base lw 4(s4) agree.
+ *  - Prologue registers differ: retail has displays=s2, display=s1, a 0x3F70 constant in s3,
+ *    first in s7. The retail wait loop has an extra dead nop.
+ * ref_L00_002F5FB8_01/14/10/12 are probably D_001B2208/220C/2210/2218 (set by func_002F5E20).
  */
 #include "common.h"
+extern int func_002EF010(int);
 extern void func_002FC1D8(void);
 typedef unsigned long long U64_5FB8;
 typedef struct { U64_5FB8 packet; unsigned short tex0, tex1; short width, height; } Display_5FB8;
@@ -35,7 +40,9 @@ extern int ref_L00_002F5FB8_13 __attribute__((sda));
 extern int ref_L00_002F5FB8_14 __attribute__((sda));
 extern int ref_L00_002F5FB8_16[];
 extern int D_001393E0[];
-extern int D_0014B540[];
+typedef struct { int sector; int size; } TocFile_5FB8;
+typedef struct { int header; int base; TocFile_5FB8 files[0]; } Toc_5FB8;
+extern Toc_5FB8 D_0014B540_1[];
 extern char D_001339B0[];
 extern void func_0029CC98(int, int);
 extern void func_00288BB8(void *);
@@ -52,7 +59,6 @@ extern void func_00298F00(void);
 extern int func_002B7C80(char *,int,int);
 extern int func_0034EF58(void *,void *,char *,char *,int,int);
 extern int func_00288A00(void *,int *,int *);
-extern unsigned long func_002EF010(int);
 extern void func_00126DC0(void *);
 extern void func_002F0FA0(void);
 extern int func_002B49E0(int,int,int,int,unsigned char *);
@@ -65,8 +71,6 @@ void func_002F5FB8(void)
     int textureIndex;
     int frame, status, done, result;
     int first, second, nextFrame;
-    int *sectors;
-    int *sizes;
     Display_5FB8 *displays;
     char *destination;
     Display_5FB8 *display;
@@ -80,8 +84,9 @@ void func_002F5FB8(void)
     second = ref_L00_002F5FB8_06[5];
     first = ref_L00_002F5FB8_06[3];
     destination = (char *)(second + 0xE0000);
+    textureIndex = 2;
     displays = ref_L00_002F5FB8_07;
-    display = &displays[2];
+    display = &displays[textureIndex];
     func_002FC3C0(1);
     base = 0x3F70;
     func_00126288(packet,(short)base,(short)((1 << display->width) >> 6),0x13,0,0,(short)(1 << display->width),(short)(1 << display->height));
@@ -106,17 +111,13 @@ void func_002F5FB8(void)
     while (D_001393E0[0x15C/4] >= 3 || D_001393E0[0x164/4] >= 0) func_00298F00();
     frame = 0;
     status = -1;
-    sectors = D_0014B540 + 2; sizes = D_0014B540 + 3;
-    first += 63;
-    second += 63;
     done = 0;
 
-    textureIndex = 2;
-    do {
+    for (;;) {
         int *descriptor;
         descriptor = ref_L00_002F5FB8_10;
         if (descriptor != 0 && descriptor[0] != 0) {
-            func_002B7C80(destination,descriptor[0] + D_0014B540[1],(descriptor[1] + 2047)/2048);
+            func_002B7C80(destination,descriptor[0] + D_0014B540_1[0].base,(descriptor[1] + 2047)/2048);
             ref_L00_002F5FB8_16[0x34/4] = 0;
             ref_L00_002F5FB8_16[0x4C/4] = (int)destination;
         } else {
@@ -124,7 +125,7 @@ void func_002F5FB8(void)
             ref_L00_002F5FB8_16[0x34/4] = 0;
         }
         stream = (Stream_5FB8 *)ref_L00_002F5FB8_05;
-        result = func_0034EF58((void *)ref_L00_002F5FB8_01,(void *)ref_L00_002F5FB8_00,(char *)(first & -64),(char *)(second & -64),ref_L00_002F5FB8_13,ref_L00_002F5FB8_12 != 0);
+        result = func_0034EF58((void *)ref_L00_002F5FB8_01,(void *)ref_L00_002F5FB8_00,(char *)((first + 63) & -64),(char *)((second + 63) & -64),ref_L00_002F5FB8_13,ref_L00_002F5FB8_12 != 0);
         stream->mode = (result ^ 1) == 0 ? 1 : stream->mode;
         if (result != 0) { stream->mode = 1; func_00288BB8(stream); }
         if (ref_L00_002F5FB8_05[0] != 0) {
@@ -138,27 +139,27 @@ void func_002F5FB8(void)
             nextFrame = frame;
         }
         {
-            int offset = ((int)func_002EF010(nextFrame) << 4) | 8;
-            ref_L00_002F5FB8_01 = *(int *)((char *)sectors + offset) + D_0014B540[1];
-            ref_L00_002F5FB8_14 = *(int *)((char *)sizes + offset);
+            int index = func_002EF010(nextFrame);
+            ref_L00_002F5FB8_01 = D_0014B540_1[0].files[index * 2 + 1].sector + D_0014B540_1[0].base;
+            ref_L00_002F5FB8_14 = D_0014B540_1[0].files[index * 2 + 1].size;
         }
         goto end_frame;
 bad_status:
         if (status == 1) done = 1;
 end_frame:
-
-    } while (!done);
-    func_00133580(0);
-    func_00126DC0(D_001339B0);
-    func_001244B8(0,0);
-    displays = ref_L00_002F5FB8_07;
-    display = &displays[textureIndex];
-    func_001265B0(packet,ref_L00_002F5FB8_08 + display->tex1 * 16);
-    func_001244B8(0,0);
-    func_002F0FA0();
-    display->packet = 0;
-    func_002FC1D8();
+        if (done) {
+            func_00133580(0);
+            func_00126DC0(D_001339B0);
+            func_001244B8(0,0);
+            display = &ref_L00_002F5FB8_07[textureIndex];
+            func_001265B0(packet,ref_L00_002F5FB8_08 + display->tex1 * 16);
+            func_001244B8(0,0);
+            func_002F0FA0();
+            display->packet = 0;
+            func_002FC1D8();
+            break;
+        }
+    }
     if (result == 0 && status == 1) func_002B49E0(2,2,frame,0,0);
     else func_002B4B70(0,0);
 }
-
