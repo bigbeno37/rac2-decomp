@@ -530,7 +530,7 @@ void func_L03_00339268(unsigned char *a0) {
 }
 
 
-INCLUDE_ASM("asm/levels", func_L03_0038AB30);
+/* func_L03_0038AB30 is defined in L03_002AB5C8-ribbon.c (its own loop-pass flags). */
 
 /* func_L03_0038B238 is defined in L03_002AB5C8-g8.c (this unit has no $gp access for it). */
 
