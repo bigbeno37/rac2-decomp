@@ -1,3 +1,13 @@
+/* opus-2 (v2434, 2026-11-04, v2/c05): FAILED. The v2428 overlay draft (own unit, -O2 -G0 -fno-expensive-optimizations)
+ * gives 736/768, 0/5. Two blockers, both compiler-structural:
+ * (1) retail never uses its saved $s0 (sd/ld only): the "unused saved GPR" HUD-text family (0x8710 lookups + draw
+ *     pairs; func_00326A10, func_L05_00421B98, ... all still asm), whose original construct is unknown.
+ * (2) retail keeps only %hi(D_L01_001BD9C0) in $s2 and redoes the %lo after the icon block: cse1 did not skip
+ *     `if (D_L01_001A90CC[0])`. cse.c skips only if the target label has LABEL_NUSES == 1 and no CODE_LABEL lies
+ *     between jump and label, so retail had a split inside that block (or a second jump to its end) at cse1 time
+ *     that left no code. Diagnostic only: -fno-cse-skip-blocks (not used in cflags.txt) gives 744/768 with the
+ *     %hi kept in a saved register; the remaining 24 bytes are the extra $s2/$s0 save shape and FP roles.
+ */
 /* Nonmatching interface overlay reconstruction, 2026-10-28. No C credit.
  * Four US checks, 0/5. Retained 736/768B, frame0x70 exact, with -O2 -G0
  * -ffunction-sections. First diagnostic728B had rectangle-top375 rather
