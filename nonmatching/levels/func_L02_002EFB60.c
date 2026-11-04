@@ -21,6 +21,15 @@
  *   wrappers are an open maintainer question (MATCHING-BLOCKERS.md), so not pursued.
  * Reopen with: a non-volatile reason the decrement directly follows the copy (the loads
  * must not be ready in the copy's next cycle), or evidence that this record is volatile.
+ * Opus 5.5 xhigh (opus-2, v2435, 4 November 2026): same 540/540, 0/8 with this
+ * draft. sched2 (-fsched-verbose-5): the copy asm has priority 33, the $f12 and
+ * $f13 argument loads 32 each, the decrement 3. All three become ready in the
+ * cycle after the asm (its reg_pending_sets_all makes every later insn depend on
+ * it at cost 1), so a load always issues first. Retail's asm/decrement/loads order
+ * cannot come from one sched2 block. It needs a volatile read, or a block boundary
+ * or extra insn between the copy and the loads that vanishes after sched2 (jump2
+ * runs after sched2 here: toplev.c). resource.c assigns needed.volatil at every
+ * MEM (lines 223/244), which confirms the reorg analysis above.
  */
 
 #include "common.h"

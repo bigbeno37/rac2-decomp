@@ -1,24 +1,31 @@
-/* Claude Opus 5.5 xhigh (opus-1), task v2317, 3 November 2026.
- * USA v1.01: 1160/1164 bytes, 0/8 placements, 187/291 cdiff rows differ;
- * default -O2 -G0 -ffunction-sections, reproduced in the original unit (the
- * earlier v0862 draft recompiles here to 1176 bytes, 218/294 rows differ).
- * Change from v0862: neighbor-slot search A written as while/continue. The
- * cause is the LOOP_TEST_THRESHOLD (30) logic. stmt.c expand_end_loop rolls
- * the exit test only up to the break when the break is insn <= 30;
- * jump.c duplicate_loop_exit_test peels when the exit code is <= 30 insns
- * and has no CODE_LABEL. Both for-form slot loops are 29 insns, so both
- * were peeled. Retail peels only B; A is a real loop entered in the middle:
- * aligned top-test label, 255 and the row base not hoisted, bnel back with
- * slot++ in the delay slot. The while/continue form keeps a found-block
- * label, but its break is insn 31, so only the test rolls and A is
- * bottom-tested. A natural A form with the break at <= 30 insns that keeps
- * a label (or otherwise refuses duplication) should give retail A exactly.
- * Also still different (carried over from v0862): visited-base spill at
- * +0x12C, count-increment scheduling, descending neighbor initialization,
- * final vector address materialization, and vertex-loop allocation/order.
+/* Claude Opus 5.5 xhigh (opus-2), task v2435, 4 November 2026.
+ * USA v1.01: 1152/1164 bytes, 0/8 places, 166/291 cdiff rows differ (opus-1's
+ * draft: 1160 bytes, 187/291); default -O2 -G0 -ffunction-sections, in the
+ * original unit L02_002B5F50.c.
+ * Changes from opus-1:
+ * - 0xFF neighbour init written count-up (slot = 0..3): loop.c reverses it and
+ *   gives retail's descending pointer giv; only the giv start order differs
+ *   (ours (n*32+3)+base, retail (n*32+base)+3).
+ * - Slot search A: `unsigned char *neighbor = &regions[nodeA].neighbors[slotA];`
+ *   inside the while/continue form. The break is then within expand_end_loop's
+ *   30-insn scan and is the loop's last insn, so A is not rotated (top-tested,
+ *   row base and 255 inside, as in retail). Still different: our compare
+ *   branches `beq` to the found block with `b top; slot++` on the fallthrough;
+ *   retail branches `bnel top; slot++` and the found block falls through. That is
+ *   the layout of a loop rotated up to the break (`goto start; newstart: slot++;
+ *   start: test; compare -> newstart; stores; break`) whose exit-test copy jump.c
+ *   refused (duplicate_loop_exit_test refuses a CODE_LABEL, call, LOOP_CONT note
+ *   or more than 30 insns); the label before TOP is aligned, so a LOOP_BEG precedes it.
+ * - Measured but not kept: `unsigned char *mark = visited;` (declared after
+ *   depth, used in both search loops, `mark[start] = depth`) gives retail's
+ *   visited-base spill at 0x12C and the first section's loads exactly, but the
+ *   nodeB-start copy (retail $fp) then spills too, to 0x130, making the frame
+ *   0x1A0 (241 rows). Needs: the pair loop's register pressure reduced (retail
+ *   does not hoist either 255 out of the nodeB loop; ours puts B's 255 in $s5).
+ *   Tried: if/else A (same bytes as kept form), for+continue A (worse, 264).
  * Declarations needed: the externs and L02RegionLink below; the unit already
- * declares func_00282E80(void *, void *) and TI128, so drop those copies
- * when inserting.
+ * declares func_00282E80(void *, void *), func_00282C88, func_00282CC0,
+ * func_00282E48 and TI128, so drop those copies when inserting.
  */
 
 #include "common.h"
@@ -79,7 +86,7 @@ int func_L02_0032E508(void *unused, int start, L02RegionLink *regions, int capac
     {
         int node, slot;
     for (node = 0; node < count; ++node)
-        for (slot = 3; slot >= 0; --slot) regions[node].neighbors[slot] = 0xFF;
+        for (slot = 0; slot < 4; ++slot) regions[node].neighbors[slot] = 0xFF;
     }
     {
         int nodeA, nodeB;
@@ -91,11 +98,12 @@ int func_L02_0032E508(void *unused, int start, L02RegionLink *regions, int capac
                 {
                     int slotA = 0;
                 while (slotA < 4) {
-                    if (regions[nodeA].neighbors[slotA] != 0xFF) {
+                    unsigned char *neighbor = &regions[nodeA].neighbors[slotA];
+                    if (*neighbor != 0xFF) {
                         ++slotA;
                         continue;
                     }
-                    regions[nodeA].neighbors[slotA] = nodeB;
+                    *neighbor = nodeB;
                     regions[nodeA].edges[slotA] = scratch.connectionA;
                     break;
                 }
