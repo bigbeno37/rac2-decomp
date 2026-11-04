@@ -1,22 +1,27 @@
 /*
  * func_L20_0039BEC8 -- non-matching draft
- * Tier: Claude Opus 5.5, xhigh effort, task v2204 (opus-1).
+ * Tier: Claude Opus 5.5, xhigh effort, task v2484 (opus-2); builds on v2204 (opus-1).
  * Target file: src/levels/20_yeedil/L20_002DEBE0-g8.c (-G8), replacing
  *   INCLUDE_ASM("asm/levels", func_L20_0039BEC8);
  * Best check.py: "20_yeedil: instruction at +0x8c differs" /
  *   "func_L20_0039BEC8: 0 of 1 places match"; 1252/1252 bytes.
- * What differs (all else, incl. prologue, loop-1 allocation and the four
- *   D_L20_001AECD8 colour loads, matches apart from relocations):
- *   - PRE spill-slot order of the hoisted sp+X addresses (0x148..0x168).
- *     Retail order normal,color,rotated,uv.x,uv.y,rotated+12,obj+0x10,dir,
- *     tangent is reproduced by the gcse hash model only with a 129-bucket
- *     expression table (ours: 135, i.e. ~12 fewer insns at gcse time) and
- *     an obj+0x10 base pseudo numbered 113..127 (ours: reg 85), so the
- *     original probably spells the post-loop-1 part differently (inline
- *     helper taking the object pointer?).
- *   - third loop: retail loads width into $f0 then neg.s $f12,$f0; ours
- *     loads into $f12 (preference through the neg). Shared outer `width`
- *     changes nothing.
+ * What differs: only the PRE spill-slot order of the hoisted sp+X addresses
+ *   (sw/lw at 0x148..0x168, 31 rows). Every other instruction matches
+ *   apart from relocations, including the third loop's lwc1 $f0 / neg.s
+ *   $f12,$f0 (fixed in v2484 by `-(i > 1 ? B4 : 7C)` plus a Vec *p walk;
+ *   the bare `-(...)` alone splits loop 3's position giv, +4 bytes).
+ * Slot order model (verified against x.i.gcse): reaching regs follow
+ *   bucket = (14030 + K) % S for sp+K and (14045 + R) % S for obj+0x10
+ *   with base pseudo R. Retail's order normal,color,rotated,uv.x,uv.y,
+ *   rotated+12,obj+0x10,dir,tangent needs S = 129 (ours 135, so about 12
+ *   fewer insns at gcse) AND R = 112..128 (mod 129); ours R = 85 (the
+ *   parameter). Every other odd S from 61 to 399 fails even ignoring obj.
+ * Tried in v2484 for R: a late scoped `char *object = arg;` after loop 1
+ *   keeps the copy pseudo in its own block, but gcse cprop puts the
+ *   parameter back in later blocks, so the end's obj+0x10 is still
+ *   (plus 85 16) and the two halves stop sharing the PRE register. An
+ *   inline helper for everything after loop 1 (pointer args) gave 1196
+ *   bytes and drops several sp+X PRE regs; not the original shape.
  * Needs from the g8 file: u32/u64, qcopy, SDATA/NOT_SDA, and the existing
  *   externs func_002A7878(float,float) and func_002A7940(void).
  * FastTweenColor (func_00283D38) prototype (int from, int to, float t) is
@@ -114,11 +119,11 @@ void func_L20_0039BEC8(void *arg)
     func_00280B90(&packet, matrix, 0);
     {
         int i;
-        for (i = 0; i < 4; i++) {
-            float width = i > 1 ? D_L20_001AECB4 : D_L20_001AEC7C;
-            func_00282F20(&packet.position[i], &tangent, -width);
-            if ((i & 1) == 0) packet.position[i].f[2] = D_L20_001AEC78;
-            else packet.position[i].f[2] = 0.0f;
+        Vec *p = packet.position;
+        for (i = 0; i < 4; i++, p++) {
+            func_00282F20(p, &tangent, -(i > 1 ? D_L20_001AECB4 : D_L20_001AEC7C));
+            if ((i & 1) == 0) p->f[2] = D_L20_001AEC78;
+            else p->f[2] = 0.0f;
         }
     }
     func_00280B90(&packet, matrix, 0);
@@ -132,3 +137,4 @@ void func_L20_0039BEC8(void *arg)
     func_00281EB8(&normal, 11, color, 1, D_L20_001AECEC, 0.0f, func_002A7940());
     func_00281EB8(object + 0x10, 49, color, 1, D_L20_001AECEC, 0.0f, func_002A7940());
 }
+
