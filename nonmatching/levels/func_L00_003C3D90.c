@@ -1,42 +1,56 @@
-/* Closer b, 2026-11-01, on item 5: retail keeps three values: the madd for the first .w store, a separate mult, and
- * D + mult from loop.c's giv init (the `daddu v1, v0` is cse2 merging two givs' inits). So `.w`'s giv in retail does not
- * start from the madd. Eleven forms of the store (row[n], [r][n], cast and pointer views, no row local) give 56 lines or
- * worse; forms that name D_L00_00240080 fold 12 into the symbol (2760). Item 1 is one if/else over both arguments. */
-/* Tier: opus-1 (v1898), USA v1.01; best 2752/2752 bytes, 0/27 places; 650 of 688 instructions
- * align with retail once relocations are masked. Replaces sol-high's 2708-byte draft.
+/* Tier: opus-2 (v2528), USA v1.01; best 2752/2752 bytes, 0/27 places; 51 of 688 instructions differ with
+ * relocations masked (opus-1 left 60, with a 2752-byte draft that had the wrong structure in four places).
  * Unit: src/levels/shared/L00_003C3D90-g8.c, profile -O2 -G8 -ffunction-sections -g -frac2-hazard-labels.
  * All declarations it needs are below.
  *
- * What settled the structure (each measured here, keep these):
- * - Tables 2950/2970/2990/00240080 are incomplete `sda` arrays: tied lui/addiu macro, no %hi hoist,
- *   so sched2 can move them across calls (retail's s4, s7, s1 before the calls).
- * - The three short tables are ONE array, D_L00_001B2990[][8]: same base keeps the store order.
- * - Every loop counter is its own scoped variable; sharing i/j wrecks global allocation.
- * - Typed struct views (Particle, HitPacket, Moby) are needed: mem/s stores let the $gp scalar loads
- *   schedule past them, which fixed both spawn blocks with no helper locals.
- * - `weapon` pointer, `spread` and `fade` locals, chained slot store, `object` local in the
- *   acquisition block, and two ternaries on `col1` (the only form whose insn count gives gcse's
- *   hash order, hence retail's spill slots 0x84..0x94).
- * - Reload registers are round-robin (allocate_reload_reg), so an early extra reload shifts every
- *   later v0/v1/a0/a1 choice; do not chase those one by one.
+ * REVIEW, must be ruled on before this can land: func_00282978_1 is a void alias of FastDecTimer, which returns int
+ * (two other sites in this function read the result, so one prototype cannot serve all three). It is probably a false
+ * prototype. Without it C4020 is `bne` and C4040 has the two insns swapped. No legal wording found. See 1.
  *
- * What still differs:
- * 1. C4020/C402C: retail `bnel` then `b`; here `bne` then `bnel`. The second test is not threaded.
- *    A gp load does not trap (retail fills non-annulled at C40CC), so a0 looks live on the
- *    fall-through at reorg, perhaps an update_block USE. An if/else gives `bne`/`b` but loses the
- *    spill slot order.
- * 2. C4040: retail `sw v0,8(s3); jal; addiu a0,s3,4`; here the two are swapped. C4058: the 0x10(s3)
- *    address is computed before the call in retail, after it here.
- * 3. C45C8: retail fills the beq slot with `daddu a1,zero`; here `addiu a0,s3,0x20` fills it.
- * 4. C4618: retail `addu v0,s3,v0`; every form tried gives `addu v0,v0,s3`. Natural
- *    ctx->targets[slot] folds (ctx+0x20) into a register instead (expand_assignment alignment test).
- * 5. C4720-C4784, ribbon preheader: retail has `v0 = D + i*160; v1 = v0; s2 = v0+0x1C; s1 = v1+0x10`
- *    with first .w through a separate madd. Here `row` merges with that madd in cse. The inner loop
- *    bottom already matches. The giv must add (reg)+12 without folding 12 into the symbol or being
- *    combined with [n]'s giv. Tried: D[r][n].w, (D[r]+n)->w, ((float *)&D[r][n])[3], in-loop row,
- *    temporary v/w pointers, _1 alias for the first store.
- * 6. C46C4 onward: the a0/v1/a1 swaps look like the round-robin consequence of the above.
- * 54 compiles. Next: items 1 and 5 first; they change insn counts and so the hash order.
+ * Settled by measurement here; keep these:
+ * 1. C4020/C4040 are one problem. Colour selection is a plain if/else (not two ternaries). sched2 breaks the
+ *    `sw v0,8(s3)` / `a0=s3+4` priority tie on dependent count: a0 has 2 (the call, the next a0 set), the store 1,
+ *    because a call_value is v0's next explicit set. A plain `call` leaves v0's use list open, so the store also
+ *    depends on the next v0 set, the tie falls to luid and retail's order results. a0 then goes into the jal slot,
+ *    update_block's USE makes a0 look live in reorg's walk, and the first branch becomes retail's annulled `bnel`.
+ *    So the retail call looks like a `call`, not a `call_value`. Not compiled, from expand_call: a (void) cast or an inline
+ *    wrapper keeps the CALL_EXPR's int type, so still call_value. Untested: a real block boundary between this call and `a0=sp`, which would drop a0's
+ *    second dependent instead.
+ * 2. C45C8: the a0 preheader init must not be PRE'd above the first test. ctx->targets[k] forces ctx+0x20 into a
+ *    register (expand_assignment's alignment test), which gcse then hoists. TARGET() below gives (ctx+k*4)+0x20.
+ * 3. C4618: `<<2` in TARGET(), not `*4`: a MULT sorts first in expand_expr's both_summands, a shifted register does
+ *    not, so this gives retail's `addu v0,s3,v0`. `*4` fixes item 2 and not this one.
+ * 4. The search loop may be written with the break or with `k<4 && x!=target` in the for: the diff did not change.
+ * 5. Spill slots 0x84..0x94 match in this form, and the two ternaries are no longer needed for them.
+ * Earlier findings still true: tables 2950/2970/2990/00240080 are incomplete `sda` arrays; the short tables are one
+ * array D_L00_001B2990[][8]; every loop counter is its own scoped variable; typed Particle/HitPacket/Moby views;
+ * `weapon` pointer, chained slot store, `object` local in the acquisition block. Reload registers are round-robin.
+ *
+ * Still differs (51 rows, three places):
+ * A. C4058-C4084: `addiu v1,s3,0x10` + its spill go before the func_00282D30 call in retail, after it here. sched1
+ *    issues the PRE copies 2101/2104 by priority; 2289 (r666=2970, prio 2 through its s7 copy) beats them, so 2104 lands
+ *    after the call and $3 then depends on that call in sched2. Retail needs them ahead of 2289.
+ * B. C46C4-C46EC: first table address must get v1, second a0, 64 a1 (a reload: the a0 slot is busy, round-robin
+ *    moves on). Local-alloc gives the second v1 because its qty is one insn shorter (gap 4 vs 5: `r494=v0` and the
+ *    spread load sit inside the first). Equal gaps should tie in the first's favour (not reached). Results of trying:
+ *    `D[1][r]=64` literal: v1/a0 right, 46 rows, but 64 lands in v1 and `sh v0,(s0)`/`a0=sp+0x30` swap at C46F0.
+ *    Passing D_L00_001AFF7C directly: second goes to a1, order worse. `short id`: adds a sign extension (690 rows).
+ *    C4700 (`lw a0,0x84(sp)` order) probably follows from B or C.
+ * C. C4720-C4784, ribbon preheader. Retail: three givs s0 [n-1], s1 [n], s2 [n].w with `swc1 f21,0(s2)`, inits
+ *    `v0=D+mult; v1=v0; s2=v0+0x1C; s1=v1+0x10`. So .w is a REGISTER giv: the +12 is applied before n*16 is added
+ *    (otherwise it is mem(r+12) and combine_givs folds it into s1, losing a saved register, so D wins $fp), and the
+ *    add_val must reach sge_plus_constant as (plus D mult), D first, so the emitted tree should be (D+mult)+28 and cse2
+ *    can merge it with [n]'s init, leaving the daddu (reasoned from loop.c and expr.c, not reached). The mult must be loop.c's own, or cse merges it with the madd.
+ *    Measured forms: `row` local (here): s2 from the madd, one insn short (the nop at C4784 is loop alignment).
+ *    aligned(16) on EffectVector with natural D[r][n].v[3]: no fold into the symbol, add ((mult+12)+D), 690 rows.
+ *    `float *w=D[r][n].v; w[3]`, and `v+3` through a second local: cse merges with [n], combined, D takes $fp.
+ *    ((float *)&D[r][n])[3]: 12 folds into the symbol. Pointer `table[r][n].v[3]` or `*(table[r][n].v+3)`: flattened
+ *    by the front end to (mult+table)+n*16, D+12 appears, 690 rows.
+ *    ((Ribbon *)D+r)->pts[n].v[3], struct Ribbon { EffectVector pts[10]; }: right register giv, but add
+ *    ((mult+12)+D) emits (mult+0x10)+(D+0xC), 691 rows. Closest in structure. Next: the same with D first, for which
+ *    the row base must be a register plus a non-MULT index (a MULT always sorts first).
+ * About 30 compiles. Order of work next: rule on the REVIEW item, then C, then B and A (C changes insn counts, hence gcse
+ * buckets and slots).
  */
 #include "common.h"
 extern int D_L00_001A8F00;
@@ -76,6 +90,7 @@ extern float D_L00_001AFF6C __attribute__((sda));
 extern int D_L00_001AFF70 __attribute__((sda));
 extern float D_L00_001AFF7C __attribute__((sda));
 extern void func_L00_0037E640(void);
+extern void func_00282978_1(void *);
 extern int func_002E59B0(void *,int);
 extern int func_002E5CF8(int,int,void *);
 extern void func_002E59F8(int);
@@ -122,6 +137,7 @@ typedef struct { char pad0[2]; unsigned char sprite; char pad3; int colour; char
 typedef struct { float x,y,z; float damage; Moby *source; int flags; unsigned char kind; unsigned char mode; short oclass; float strength; int one; char pad24[0xc]; } HitPacket;
 struct EffectContext { float value; short timer; short pad6; int colour; int sound; float cooldown; int lock; short timers[4]; Moby *targets[4]; };
 extern Moby *D_L00_001C3280[];
+#define TARGET(c,i) (((Moby **)((char *)(c)+((i)<<2)))[8])
 static __inline__ void clearSound(Moby *self,EffectContext *ctx)
 {
     int id=ctx->sound;
@@ -173,9 +189,15 @@ void func_L00_003C3D90(Moby *self)
         ctx->timer=D_L00_001AFF90;
     }
     ratio=func_00283CE0(ctx->timer)/func_00283CE0(D_L00_001AFF90);
-    col1=self->oclass;
-    ctx->colour=func_00283D38(ratio,col1==0xa5c?D_L00_001AFF10:D_L00_001AFF18,col1==0xa5c?D_L00_001AFF14:D_L00_001AFF1C);
-    func_00282978(&ctx->timer);
+    if(self->oclass==0xa5c) {
+        col1=D_L00_001AFF10;
+        col2=D_L00_001AFF14;
+    } else {
+        col1=D_L00_001AFF18;
+        col2=D_L00_001AFF1C;
+    }
+    ctx->colour=func_00283D38(ratio,col1,col2);
+    func_00282978_1(&ctx->timer);
     func_00282D30(offset,D_00189E20_13.moby+0xe0,0.75f);
     func_00282CC0(&self->x,D_00189E20_13.position,offset);
     func_0029FCC0(D_00189E20_13.moby,10,origin);
@@ -265,16 +287,15 @@ void func_L00_003C3D90(Moby *self)
             health=func_002AB1F0(D_L00_001C3280[j]);
             if(health && health[0]<=0) continue;
             freeSlot=-1;
-            for(k=0;k<4;k++) {
-                if(D_L00_001C3280[j]==ctx->targets[k]) break;
-                if(!ctx->targets[k]) freeSlot=k;
+            for(k=0;k<4 && D_L00_001C3280[j]!=TARGET(ctx,k);k++) {
+                if(!TARGET(ctx,k)) freeSlot=k;
             }
             if(k==4) {
                 Particle *effect;
                 Moby *object;
                 if(freeSlot<0) break;
                 object=D_L00_001C3280[j];
-                ((Moby **)ctx)[freeSlot+8]=object;
+                TARGET(ctx,freeSlot)=object;
                 effect=(Particle *)func_L00_00412FF8(object,D_L00_001AFF24);
                 if(effect) {
                     effect->source=self;
@@ -295,9 +316,8 @@ void func_L00_003C3D90(Moby *self)
             float velocity[4],scaled[4];
             int id=func_002A7820(3,45);
             float spread=D_L00_001AFF7C;
-            int fade;
+            int fade=64;
             D_L00_001B2990[2][r]=id;
-            fade=64;
             D_L00_001B2990[1][r]=fade;
             D_L00_001B2990[0][r]=id;
             func_002A7988(velocity,spread,spread);
