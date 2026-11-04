@@ -946,5 +946,6 @@
 #define DrawHrugisRibbon                 func_L10_0039DA48
 #define DrawMenuItemGrid                 func_002D9008
 #define UpdateMenuChoiceListWidgets      func_003489E8
+#define UpdateHeroHeldObject             func_L00_002D5940
 
 #endif /* NAMES_H */
