@@ -937,5 +937,6 @@
 #define DrawCameraFacingRibbon           func_L04_0030C948
 #define UpdateRaceSelectionMenu          func_L04_0040BA68
 #define DrawFacingSkewedQuad             func_L04_0040DCA8
+#define L18_DisableModeGroups            func_L18_003FA180
 
 #endif /* NAMES_H */

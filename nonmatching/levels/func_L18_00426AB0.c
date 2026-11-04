@@ -29,6 +29,20 @@
  * delay slot, but result lands in a1 (sched1 puts result = 0 between the hero
  * lui and lo_sum) plus a final move: 744 bytes, 15 lines. Reopen with a way to
  * have v0 = 0 before the first branch after the hero lo_sum.
+ *
+ * Claude Opus 5.5 (opus-2, v2447), 4 November 2026: code unchanged, still
+ * 740/740 bytes, 0/3 places, 2 words. Reorg dumps (-dd) show both eager fills
+ * at the blink test fail the non-annulled form because the hard registers
+ * needed at the print block's start (mark_target_live_regs) include v0: with
+ * the natural `(u32)(remaining - 32) > 268 || (remaining & 24)` the first
+ * branch tries the fallthrough andi first (prediction 0, own fallthrough) and
+ * loses, then steals sll from the print block (beql). Measured: passing
+ * `(s16)remaining` instead of `(s16)remaining / 60` to func_00115DA8 gives
+ * retail's exact branch/delay shape (beqz; andi v0 / beqz v0; li v0,1), and
+ * changing the return values does not. So the print block's division (li v0,60,
+ * div, trap_if) is what keeps v0 needed there; resource.c marks TRAP_IF
+ * references volatile. Reopen with a spelling of the remaining/60 argument (or
+ * of the print block's start) that leaves v0 dead at the print label.
  */
 #include "common.h"
 extern u8 *D_L18_001A904C[] __attribute__((sda));
