@@ -12,8 +12,6 @@ extern int func_00283CF0(float);
 extern char *func_002BAA28(void *, void *, void *, int, int, int, int, int, int);
 extern int func_001163B0(void);
 
-INCLUDE_ASM("asm/levels", func_L01_003973A0);
-
 
 
 
@@ -50,8 +48,6 @@ void func_L01_00398008(char *a2)
     else
         func_002A7750(a2, 1, -1);
 }
-
-INCLUDE_ASM("asm/levels", func_L01_00399510);
 
 
 INCLUDE_ASM("asm/levels", func_L01_00398B50);

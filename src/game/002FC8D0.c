@@ -83,8 +83,6 @@ void func_002FC8D0(u8 *a0, s32 a1, s32 a2) {
         func_001244B8(0,0);
     }
 }
-
-INCLUDE_ASM("asm/game", func_002FF450);
 /* shared native body of family d50cdefed4015bae (default profile) */
 void func_002FC990(int a0, int a1, int a2)
 {

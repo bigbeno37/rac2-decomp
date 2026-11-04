@@ -130,3 +130,168 @@ extern int func_0029B3E0(int,int);
 extern void func_00282CF0(void *,void *,void *);
 extern float func_L00_002EE290(void *);
 extern int func_002A77E0(int),func_002A7820(int,int);
+
+int func_L04_00412308(RaceObject *object,RaceState *state)
+{
+    float delta[4] __attribute__((aligned(16)));
+    int oldPath, oldPoint, n, level, ticks, limit, done, empty, *bestTime;
+    int *slot, i, rank;
+    RaceRoute *route;
+    RaceObject *other;
+    RaceRivalState *vars, *loopVars;
+    float time, nearest, otherTime, length, distance, start;
+    func_L04_00410F10(object);
+    {
+        float previous=state->x310;
+        int lap=D_L04_001A8FE4, mode=D_L04_001B08F0;
+        oldPath=state->x314; oldPoint=state->x318;
+        state->x3B8=previous;
+        state->x310=func_L04_00410788(object,state,&state->x314,&state->x318,lap,mode);
+    }
+    if (state->x310<state->x3B8 || (state->x318>=451 && oldPoint<3))
+        state->x3A4++;
+    else state->x3A4=0;
+    if (oldPath!=state->x314) state->x3A8=10;
+    if (state->x3A8>0) func_00282948(&state->x3A8);
+    else func_L04_00412130(object,0);
+    {
+    D_L04_001B0918++;
+    D_L04_001A8FE8++;
+    if (func_002ACBC8(object->position,state->x194)) {
+        if (state->x3A4>0) state->x31C=0;
+        else state->x31C=1;
+    }
+    }
+    if (func_002ACBC8(object->position,state->x190) && state->x31C) {
+        if (D_L04_001A8FE4<2) {
+            D_L04_001A8FE4++;
+            D_L04_001B091C=180;
+            func_002E5CF8(13,0,object);
+            D_L04_001B0920=D_L04_001B0918;
+            D_L04_001B0918=0;
+            state->x31C=0;
+        } else {
+            state->x6D0=D_L04_001FE340[state->x6E0];
+            length=func_00283CE0(func_L04_00400AB0(object,state->x6D0,0))*state->x6D0->length;
+            if (D_L04_001B08F0) start=length+20.0f;
+            else start=length+5.0f;
+            state->x6D8=start;
+            route=state->x6D0;
+            func_002C96F8(start,route->length,route,&state->x654,&state->x6D4,&state->x6A0);
+            state->x65C=-1000; state->x710=240; state->x658=0;
+            object->state=3;
+            state->x398=60;
+            D_L04_001B08F8=0;
+            func_002E5CF8(23,17,object);
+            func_002E59F8(state->x330);
+            state->x330=func_002E5CF8(20,4,object);
+            func_002E59F8(state->x334);
+            state->x334=func_002E5CF8(21,4,object);
+            func_L04_00412130(object,1);
+            func_L04_00410F80(object);
+            func_L04_0040E248(object,state);
+            if (state->x320!=1) {
+                int difficulty=D_L04_001B090C;
+                state->x340++;
+                func_L04_0040A2B8(difficulty);
+                func_L01_00323310(state->x48C,-1);
+            } else {
+                func_L01_00323310(state->x75C,-1);
+                {
+                int difficulty=D_L04_001B090C;
+                state->x344++;
+                func_L04_0040A220(difficulty);
+                }
+                n=func_L04_0040A1D0(D_L04_001B090C);
+                if (n>3) n=3;
+                if (n>0) {
+                    int scale=10;
+                    int reward=D_L04_002C63C0[D_L04_001B090C].reward[n-1];
+                    int multiplier=D_001A7A0A;
+                    int money=D_001A79F8;
+                    int total;
+                    if (multiplier) total=reward*scale+money;
+                    else total=money+reward;
+                    D_001A79F8=total;
+                }
+            }
+            if (state->x320!=-1) {
+                int offset=D_L04_001B090C*4;
+                offset=D_001A79F0==4?offset:offset+20;
+                bestTime=(int *)((u8 *)D_001A7368+offset);
+                if (D_L04_001A8FE8<*bestTime || !*bestTime) *bestTime=D_L04_001A8FE8;
+            }
+                D_L04_001A8ED0[5]=1;
+                func_00132AF8(93); func_00132028();
+                level=D_001A79F0;
+                limit=level==4?7800:8820;
+                ticks=D_L04_001A8FE8;
+                done=0;
+                if (ticks>0) {
+                    ticks/=6;
+                    if (limit/6>=ticks) {
+                    if (level==4) {
+                        if (!D_001A7A60[2]) {D_001A7A60[2]=1;D_L04_001B093C=300;done=1;}
+                    } else if (level==11) {
+                        if (!D_001A7A60[3]) {D_001A7A60[3]=1;D_L04_001B093C=300;done=1;}
+                    }
+                    }
+                }
+                if (done || D_001A79F0==4 ||
+                    (D_001A79F0==11 && (D_L04_001B090C!=0 || func_L04_0040A1D0(0)>=2)))
+                    func_0029B3E0(0,-1);
+            return 1;
+        }
+    }
+    time=state->x310;
+    state->x320=1;
+    nearest=999.0f;
+    state->x3B0=0;
+    if (time>700.0f && !state->x31C) time-=D_L04_001B0928;
+    empty=-1;
+    slot=state->x1E4;
+    for (i=20;i>=0;i--,slot++) {
+        if (*slot==empty) continue;
+        other=D_L04_001B24DC+*slot;
+        if ((unsigned)(other->state-2)>=2) continue;
+        loopVars=other->vars;
+        otherTime=loopVars->routeDistance;
+        if (otherTime>700.0f && !loopVars->checkpointArmed) otherTime-=D_L04_001B0928;
+        if (!loopVars->finished) {
+            int otherLap=loopVars->lap, playerLap=D_L04_001A8FE4;
+            if (playerLap>=otherLap) {
+                if (!(time<=otherTime)) goto skipRank;
+                if (otherLap!=playerLap) goto skipRank;
+            }
+        }
+        state->x320++;
+skipRank:
+        loopVars->nearestPlayer=0;
+        func_00282CF0(delta,object->position,other->position);
+        distance=func_L00_002EE290(delta);
+        if (distance<nearest) {state->x3B0=other;nearest=distance;}
+    }
+    if (state->x3B0) {
+        vars=state->x3B0->vars;
+        vars->nearestPlayer=1;
+        if (nearest<10.0f) {
+            rank=(int)((4-D_L04_001B090C)*3.75f)+2+(int)(func_L04_0040A268(D_L04_001B090C)*0.3f);
+            if (D_L04_001A8FE8>=61 && vars->boostRequests<4 && vars->boostTimer<=0 &&
+                !state->x4C4 && state->x3B0->state==2 && state->x314==vars->path &&
+                (D_L04_001A8FE4<=vars->lap || state->x27C<=0.0f) && !func_002A77E0(rank-1)) {
+                int delay;
+                rank=(D_L04_001B090C+1)*120;
+                delay=func_002A7820(120,360)+360;
+                vars->steeringTimer=0; vars->boostTimer=rank+delay;
+                vars->boostAmount=1.0f; vars->boostScale=1.0f; vars->boostPhase=0.0f;
+                vars->boostRequests=0;
+                state->x63C=1.0f;state->x4C4=state->x3B0;
+            } else if (vars->boostTimer<=0) {
+                if (nearest<10.0f) vars->boostRequests=4;
+                else vars->boostRequests=0;
+            }
+        }
+    }
+    if (state->x3AC!=state->x3B0) {state->x3AC=state->x3B0;state->x3B4=0;}
+    return 0;
+}

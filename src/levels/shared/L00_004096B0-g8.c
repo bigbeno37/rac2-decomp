@@ -199,3 +199,123 @@ extern char D_L00_00255BA0[];
 extern char D_L00_001B1FB0[] MACRO_ADDR;
 
 /* Spawns a projectile (moby 0xED7) from owner at position, aimed at target or along the view. */
+char *func_L00_00409E48(char *owner, void *position, char *target, void *color, float height)
+{
+    Vector aim, offset, tmp1, tmp2, tmp3, tmp4;
+    ProjectileObject *m = (ProjectileObject *)func_0029EFD0(0xed7);
+    ProjectileState *s;
+    char *hit;
+    float scale;
+
+    if (m) {
+        m->alpha = 255;
+        m->enabled = 1;
+        m->status = 0;
+        m->color = 255;
+        m->flags |= 0x100;
+        s = m->state;
+        s->sound = -1;
+        if ((unsigned)D_L00_001B0FD8 > 32)
+            D_L00_001B0FD8 = 0;
+        s->index = D_L00_001B0FD8;
+        D_L00_001B0FD8 = (D_L00_001B0FD8 + 1) % 32;
+        scale = (D_L00_00262570 + D_00139583)->value * (1.0f / 60.0f);
+        qcopy(m->position, position);
+        if (target) {
+            func_00282D30(offset, target + 0xe0, height);
+            func_00282CC0(aim, target + 0x10, offset);
+        } else {
+            qzero(aim);
+        }
+
+        if (D_00189E20.mode == 29) {
+            qcopy(m->forward, D_L00_001B8FF0[0]);
+            qcopy(m->right, D_L00_001B8FF0[1]);
+            qcopy(m->up, D_L00_001B8FF0[2]);
+            qcopy(m->position, D_L00_001B8DC0);
+            func_00282D30(offset, D_L00_001B8FF0[2], -0.2f);
+            func_00282CC0(m->position, m->position, offset);
+            func_00282D30(tmp1, D_L00_001B8FF0[1], -0.25f);
+            func_00282CC0(m->position, m->position, tmp1);
+            func_00282D30(tmp2, D_L00_001B8FF0[0], 0.0f);
+            func_00282CC0(m->position, m->position, tmp2);
+            if (target) {
+                func_00282CF0(m->forward, aim, m->position);
+                func_00282F20(m->forward, m->forward, 1.0f);
+                func_00282DD8(m->right, m->forward, D_00189E20.object + 0xe0);
+                func_00282F20(m->right, m->right, 1.0f);
+                func_00282DD8(m->up, m->right, m->forward);
+            } else {
+                func_00282D30(tmp3, D_L00_001B8FF0[0], 30.0f);
+                func_00282CC0(tmp3, D_L00_001B8DC0, tmp3);
+                if (func_002761F8(D_L00_001B8DC0, tmp3, 0, D_00189E20.object, 0))
+                    qcopy(tmp3, D_L00_001BF220);
+                func_00282CF0(tmp4, tmp3, m->position);
+                func_00282F20(m->forward, tmp4, 1.0f);
+                func_00282DD8(m->right, m->forward, D_00189E20.object + 0xe0);
+                func_00282F20(m->right, m->right, 1.0f);
+                func_00282DD8(m->up, m->right, m->forward);
+            }
+        } else if (D_00189E20.orientation == 1) {
+            func_00282F20(m->forward, owner + 0xd0, -1.0f);
+            func_00282D30(m->right, owner + 0xc0, -1.0f);
+            qcopy(m->up, owner + 0xe0);
+        } else if (target) {
+            func_00282CF0(m->forward, aim, m->position);
+            func_00282F20(m->forward, m->forward, 1.0f);
+            func_00282DD8(m->right, m->forward, D_00189E20.object + 0xe0);
+            func_00282F20(m->right, m->right, 1.0f);
+            func_00282DD8(m->up, m->right, m->forward);
+        } else {
+            qcopy(m->forward, D_00189E20.forward);
+            func_00282DD8(m->right, m->forward, D_00189E20.up);
+            func_00282F20(m->right, m->right, 1.0f);
+            func_00282DD8(m->up, m->right, m->forward);
+        }
+        m->forward[3] = m->right[3] = m->up[3] = 0;
+
+        s->owner = owner;
+        s->yaw = func_002A7878(4.0f, 10.0f);
+        if (target)
+            s->yaw = 0;
+        s->spin_speed = func_002A78D8(6.0f, 10.0f);
+        s->speed = scale;
+        s->spin = func_002A7940();
+        s->target = 0;
+        s->age = 1;
+        s->homing = 1;
+        qcopy(s->forward, m->forward);
+        qcopy(s->color, color);
+        if (target) {
+            hit = func_002AB1F0(target);
+            if (hit) {
+                *(unsigned short *)(hit + 0x1e) |= 0x80;
+                if (*(unsigned char *)(hit + 0xb))
+                    s->homing = 0;
+            }
+        }
+        s->life = 300;
+        if (target) {
+            float *target_position = (float *)(target + 0x10);
+
+            s->last_target[0] = *(float *)(target + 0x10);
+            s->last_target[1] = target_position[1];
+            s->last_target[2] = target_position[2] + height;
+            s->height = height;
+        }
+
+        /* Trace from the owner (at the spawn height) to the spawn point. */
+        *(Quadword *)offset = *(Quadword *)(owner + 0x10);
+        offset[2] = ((float *)position)[2];
+        if (func_002761F8(offset, position, 0, D_00189E20.object, 0)) {
+            m->hit = 1;
+            qcopy(m->position, D_L00_001BF220);
+        }
+        func_L00_0040B2C0(m, D_L00_00255BA0 + s->index * 64);
+        func_002A0F48(m);
+        func_002ACA50(m, D_L00_001B1FB0, 31);
+        s->handle = func_002FED90(m, 0, 1.0f, 1.0f, 1.0f);
+        m->radius *= 2.5f;
+    }
+    return (char *)m;
+}

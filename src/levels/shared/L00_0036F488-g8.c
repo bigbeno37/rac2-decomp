@@ -79,3 +79,123 @@ extern void func_0028E138(int);
 extern void func_0029BCD8(void);
 extern void func_00289178(void);
 extern void func_002F52B8(void);
+
+void func_L00_0036F488(void)
+{
+    int blocked;
+    int special;
+
+    if (func_L00_002F43F8() && !func_002B49E0(4, 1, 1, 0, 0))
+        return;
+    if (!D_L00_001A8F00 && (D_001A7424 & 1) && !func_002B49E0(4, 1, 1, 0, 0))
+        return;
+    if (ref_L00_0036F488_00())
+        return;
+
+    special = 0;
+    blocked = HERO->state != 0x31;
+    if (HERO->object) {
+        int id = HERO->object->id;
+        if (id == 0x905 || id == 0x85C || id == 0xEEF || id == 0x10EE)
+            special = 1;
+    }
+    blocked |= special;
+    blocked = (blocked != 0);
+    blocked |= func_L00_002D6728() != 0;
+    blocked |= func_L00_002D67A8(3) != 0;
+    blocked |= func_L00_002D6880() != 0;
+    func_L00_002FC058();
+
+    if (func_L00_0032EF10(16, D_L00_001A8FB8, 0) && D_L00_001B19C4 >= 8) {
+        if (HERO->state != 0x6F && HERO->mode != 2 && HERO->state != 0x31 && blocked
+            && HERO->state != 0x1C && !D_L00_001A8F00 && D_L00_001B18E0 < 0.2f
+            && HERO->f22B4 < 2 && !D_L00_001A8FB4 && D_001A7BB0[3]) {
+            func_00290730();
+            if (func_00290748()) {
+                if (HERO->f22B4 != 1)
+                    func_L00_002CB218();
+                if (!func_002B49E0(4, 1, 7, 0, 0))
+                    return;
+            }
+        }
+    }
+
+    if (!func_L00_0032B270()) {
+        if ((PAD->pressed & 0x800) || D_001A7428) {
+            if (D_L00_001B19C4 < 8)
+                goto normal;
+            if (HERO->state != 0x6F && (HERO->mode != 2 || HERO->submode == 10)) {
+                if (!blocked || D_L00_001A8F00)
+                    goto second;
+                if (!func_002B49E0(3, 1, 1, 0, 0)) {
+                    func_L00_0032B2A8(func_L00_002A3B80() != 0);
+                    func_002E5E58(18, 0, 0);
+                    return;
+                }
+            }
+        }
+    }
+second:
+    if (D_L00_001B19C4 >= 8 && (PAD->pressed & 0x500)) {
+        if (HERO->f229C != 22 && HERO->state != 0x6F && blocked && HERO->state != 0x1C
+            && !D_L00_001A8F00) {
+            if (func_L00_002D6728()) {
+                if (func_L00_002D6768())
+                    goto normal;
+            }
+            if (D_L00_001A8FF0 && !D_L00_001A8FF4) {
+                if ((D_001A79F0 == 26 || (HERO->state != 0x5B && HERO->state != 0x58))
+                    && func_002B49E0(4, 1, 6, 0, 0)) {
+                    if (D_0018C750[35].count < 0xFFFF)
+                        D_0018C750[35].count++;
+                }
+                if (D_0018C750[35].maximum < D_001A7390)
+                    D_0018C750[35].maximum = D_001A7390;
+                D_0018C750[35].levels = (D_0018C750[35].levels | (1 << D_001A79F0)) | 0x80000000;
+                return;
+            }
+            if (!func_002B49E0(3, 1, 2, 0, 0)) {
+                func_L00_0032B2A8(func_L00_002A3B80() != 0);
+                if (D_0018C750[9].count < 0xFFFF)
+                    D_0018C750[9].count++;
+                {
+                    u32 tick = D_001A7390;
+                    if (D_0018C750[9].maximum < tick)
+                        D_0018C750[9].maximum = tick;
+                }
+                D_0018C750[9].levels = (D_0018C750[9].levels | (1 << D_001A79F0)) | 0x80000000;
+            }
+            return;
+        }
+    }
+normal:
+    if (HERO->state != 0x1C)
+        func_L00_003266D8();
+    if (PAD->pressed & 0x200) {
+        if (HERO->state != 0x1C && HERO->state != 0x31) {
+            func_L00_0030C7F8(360);
+            func_L00_0030C710(180);
+        }
+    }
+    if (D_L00_001B1AE0 && !func_002B49E0(6, 1, 0, 0, 0)) {
+        func_L00_0032B2A8(func_L00_002A3B80() != 0);
+        D_L00_001B1AE0 = 0;
+    } else {
+        func_002F5220();
+        func_L00_0037E5C0();
+        func_L00_00310048();
+        func_002B6658();
+        func_002E5F60();
+        func_L00_002A6DD0();
+        func_002B9390();
+        func_L00_002ED808();
+        func_00272368();
+        func_002E4AC8();
+        func_002914B8();
+        func_0029FFB8();
+        func_0028E138(1);
+        func_0029BCD8();
+        func_00289178();
+        func_002F52B8();
+    }
+}

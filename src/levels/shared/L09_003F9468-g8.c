@@ -61,3 +61,87 @@ typedef struct {
     char padB4[0xBC - 0xB4];
     u8 activated;
 } TriggerObject;
+
+void func_L09_0041A700(TriggerObject *obj)
+{
+    TriggerState *s = obj->state;
+    int shade, level;
+    int green, red;
+    char *player;
+    float pos[4] __attribute__((aligned(16)));
+
+    switch (obj->status) {
+    case 0:
+        s->angle = func_002A7940();
+        obj->status = 1;
+        obj->position[2] -= 0.35f;
+        break;
+    case 1:
+        /* Pulse the colour: the angle advances 6 degrees per update. */
+        s->angle = func_00283B98(s->angle, 0.10471977f);
+        shade = func_00283CF0((func_00283198(s->angle) * 4.0f - 3.0f) * 128.0f);
+        if (shade > 128) shade = 128;
+        else if (shade < 32) shade = 32;
+        green = (shade << 8) | (int)0x80000000;
+        red = shade << 16;
+        obj->color = (red | green) | shade;
+        if (D_00189E20.standing != (char *)obj || D_00189E20.busy) {
+            /* Loaded only on this path: reorg moves it into the bne delay slot. */
+            level = D_001A79F0;
+            if (!(D_0019B2E8[obj->owner + level * 16] & 0x80) || s->enabled) {
+                int id;
+                if (!s->enabled) return;
+                id = obj->id;
+                if (!D_L09_0021E9F0.spent[(short)id]) {
+                    int count = D_0019B4A8[((short)id >> 1) + (level << 10)];
+                    if (id & 1) {
+                        if (((count >> 4) & 7) != 0) goto activate;
+                        goto proximity;
+                    } else if (!(count & 7)) goto proximity;
+                }
+            }
+        }
+activate:
+        {
+            int id;
+            obj->status = 2;
+            obj->activated = 1;
+            obj->color = 0x80208020;
+            func_002E5CF8(0, 0, obj);
+            id = obj->id;
+            if (id & 1) {
+                u8 *counts = &D_0019B4A8[((short)id >> 1) + (D_001A79F0 << 10)];
+                if (((*counts >> 4) & 7) != 7) *counts += 16;
+            } else {
+                u8 *counts = &D_0019B4A8[((short)id >> 1) + (D_001A79F0 << 10)];
+                if ((*counts & 7) != 7) ++*counts;
+            }
+        }
+proximity:
+        if (s->enabled) {
+            player = D_L09_001B0834;
+            if (!player) {
+                player = D_L09_001B1648;
+                if (!player) return;
+            }
+            /* Retail fills this raised copy but measures from the position itself. */
+            qcopy(pos, obj->position);
+            pos[2] += 0.35f;
+            if (func_00282E80(obj->position, player + 0x10) < 0.5f) {
+                int id = obj->id;
+                if (id & 1) {
+                    u8 *counts = &D_0019B4A8[((short)id >> 1) + (D_001A79F0 << 10)];
+                    if (((*counts >> 4) & 7) != 7) *counts += 16;
+                } else {
+                    u8 *counts = &D_0019B4A8[((short)id >> 1) + (D_001A79F0 << 10)];
+                    if ((*counts & 7) != 7) ++*counts;
+                }
+                obj->status = 2;
+                obj->activated = 1;
+                obj->color = 0x80208020;
+                func_002E5CF8(0, 0, obj);
+            }
+        }
+        break;
+    }
+}

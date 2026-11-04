@@ -272,6 +272,87 @@ extern void func_0029F338(void *object);
    (state +0x3C); on a hit against anything but the owner it explodes and deletes itself,
    otherwise it commits the predicted position. The trail vectors and the impact request share
    one stack area. */
+void func_L09_003A01D8(u8 *object)
+{
+    struct {
+        float predicted[4];
+        union {
+            struct {
+                Vector_L09_003A01D8 point, velocity, axis;
+            } effects;
+            Impact_L09_003A01D8 impact;
+        } payload;
+    } f;
+    u8 *state = P(object, 0x68), *hit;
+    float length;
+    int collision;
+    int busy;
+
+    if (object[0x20])
+        return;
+    F(object, 0xF0) = func_00283B98(F(object, 0xF0), 0.10471977293491364f);
+    func_00282CC0(f.predicted, object + 0x10, state);
+    busy = D_L09_001B238C > 0.9f || D_L09_001B2390 > 0.9f;
+    if (!busy || !(D_L09_001B2388 & 1)) {
+        length = func_00282DF0(state);
+        f.payload.effects.axis.q = 0;
+        f.payload.effects.axis.f[0] = func_002A7878(-1.0f, 1.0f);
+        f.payload.effects.axis.f[1] = func_002A7878(-1.0f, 1.0f);
+        f.payload.effects.axis.f[2] = func_002A7878(-1.0f, 1.0f);
+        f.payload.effects.velocity.q = f.payload.effects.axis.q;
+        func_00282F20(f.payload.effects.velocity.f, f.payload.effects.velocity.f,
+                      func_002A7878(0.04f, 0.08f) * 0.016666668f);
+        func_00282D30(f.payload.effects.point.f, state, func_002A7878(0.2f, 0.99f));
+        func_00282CC0(f.payload.effects.velocity.f, f.payload.effects.velocity.f,
+                      f.payload.effects.point.f);
+        func_00282F20(f.payload.effects.point.f, state, func_002A7878(0.0f, 1.0f) * length);
+        func_00282CC0(f.payload.effects.point.f, f.payload.effects.point.f, object + 0x10);
+        func_002C16C0(object + 0x10, f.payload.effects.velocity.f, 7, 127, 0xB0B0B0, 3,
+                      40000.0f, 1000.0f, 1.0f, -0.00039999998989515007f, 0.0f);
+        f.payload.effects.axis.q = 0;
+        f.payload.effects.axis.f[2] = 0.01f;
+        func_00283098(f.payload.effects.axis.f, f.payload.effects.axis.f, object + 0xC0);
+        func_002ACEC0(f.payload.effects.axis.f, f.payload.effects.axis.f, object + 0xC0,
+                      func_002A7940());
+        if (func_001163B0() & 1)
+            func_002BD8B0(f.payload.effects.point.f, f.payload.effects.axis.f, 0x4F007FFF,
+                          0x1FFFFFFF, 13, 1, 25000.0f);
+    }
+    func_002A8C00(&f.payload.impact, I(state, 0x3C), 0x10001, F(state, 0x40), state);
+    f.payload.impact.object_class = *(u16 *)(object + 0xAA);
+    func_00282CF0(f.payload.impact.direction, object + 0x10, P(state, 0x3C) + 0x10);
+    f.payload.impact.direction[2] = 0.0f;
+    func_00282F20(f.payload.impact.direction, f.payload.impact.direction, 1.6666667461395264f);
+    f.payload.impact.direction[3] = 5627.9248046875f;
+    f.payload.impact.enabled |= 1;
+    f.payload.impact.kind = 4;
+    collision = func_002761F8(object + 0x10, f.predicted, 0, object, &f.payload.impact);
+    if (collision || func_00277258(object + 0x10, 1, object, 0.3f)
+        || func_00282948(state + 0x38)) {
+        hit = D_L09_001BFE58;
+        if (hit) {
+            if (hit == P(state, 0x3C)) {
+                qcopy(object + 0x10, f.predicted);
+                return;
+            }
+            if (*(short *)(hit + 0xAA) != 0x4E)
+                func_00277F48(object + 0x10, 0, P(state, 0x3C), &f.payload.impact, 0.5f);
+            /* The calls are written out per arm: a call ending a block that falls into a label
+               gets a (use 0) from flow, which stops jump2 from cross-jumping the tails. */
+            func_002ABBB8(object, D_L09_001A8F20, 0, 0.0f, 0.0f, 0, 2, 10, 0.0f, 0.0f, 9.0f,
+                          0.666f, -1, 0.0f, 0, 1, -1, 0, 0x810001);
+            func_002E5CF8(0, 0, object);
+            func_0029F338(object);
+        } else {
+            func_002ABBB8(object, D_L09_001A8F20, 0, 0.0f, 0.0f, 0, 2, 8, 0.0f, 0.0f, 9.0f,
+                          0.5f, -1, 0.0f, 0, 1, -1, 0, 0x810001);
+            func_002E5CF8(0, 0, object);
+            func_0029F338(object);
+        }
+    } else
+        qcopy(object + 0x10, f.predicted);
+}
+
 #undef I
 #undef F
 #undef P

@@ -191,8 +191,6 @@ int func_L09_00326E90(u8 *object)
     return 0;
 }
 
-INCLUDE_ASM("asm/levels", func_L09_003F7CE0);
-
 int func_L09_00329028(char *object, int index)
 {
     unsigned int entry;
@@ -259,8 +257,6 @@ int func_L09_0033E8B0(char *object, int index, void *out, int current, int direc
 }
 
 INCLUDE_ASM("asm/levels", func_L09_0037FCE8);
-
-INCLUDE_ASM("asm/levels", func_L09_003A01D8);
 
 
 /* func_L09_003A01D8 is matched in src/levels/shared/L09_002B7238-g8.c (-G8). */

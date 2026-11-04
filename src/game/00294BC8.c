@@ -144,7 +144,47 @@ typedef struct {
    is queued in the 64-entry upload table and its GS TEX0 value is returned.  The
    TEX0 value is written with RAC1's mixed signed/unsigned grouping (loaders.c):
    the casts stop fold's tree flattening, which keeps retail's term order. */
-INCLUDE_ASM("asm/game", func_00294C40);
+long func_00294C40(char *p)
+{
+    TexDesc t;
+    int w;
+    int cbp;
+    int tbp;
+    int addr;
+    long reg;
+
+    t.clut = p + 0x20;
+    t.clutSize = 0x400;
+    t.tw = func_00282A18(*(int *)(p + 8));
+    t.th = func_00282A18(*(int *)(p + 0xC));
+    t.pix = p + 0x20 + t.clutSize;
+    addr = D_001A72D0[0];
+    cbp = addr >> 8;
+    addr += 0x400;
+    tbp = addr >> 8;
+    D_001A72D0[0] = addr + (1 << (t.tw + t.th));
+    w = t.tw - 6;
+    if (w < 0) {
+        w = 0;
+    }
+    w = 1 << w;
+    reg = (long)((unsigned long)((long)tbp | ((long)w << 14) | ((long)0x13 << 20)
+                                 | ((long)t.tw << 26))
+                 | ((unsigned long)t.th << 30) | ((unsigned long)1 << 34)
+                 | ((unsigned long)cbp << 37))
+        | ((long)4 << 61);
+    if (D_001B15FC[0] < 0x40) {
+        D_001B9340[D_001B15FC[0]].addr = (int)t.clut;
+        D_001B9340[D_001B15FC[0]].cbp = cbp;
+        D_001B9340[D_001B15FC[0]].unk4 = 0;
+        D_001B9340[D_001B15FC[0]].unk8 = (int)t.pix;
+        D_001B9340[D_001B15FC[0]].tw = t.tw;
+        D_001B9340[D_001B15FC[0]].th = t.th;
+        D_001B9340[D_001B15FC[0]].tbp = tbp;
+        D_001B15FC[0]++;
+    }
+    return reg;
+}
 
 
 s32 func_00294E48(s32 index)

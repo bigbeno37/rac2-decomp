@@ -73,10 +73,6 @@ void func_L04_003E5830(float *pos, int count) {
     }
 }
 
-INCLUDE_ASM("asm/levels", func_L04_003F9320);
-
-INCLUDE_ASM("asm/levels", func_L04_003EE090);
-
 
 void *func_L04_003E5E40(unsigned char *a0, void *a1, float f12) {
     unsigned char *obj = func_0029EFD0(a1);

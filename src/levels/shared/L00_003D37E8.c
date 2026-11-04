@@ -562,8 +562,6 @@ INCLUDE_ASM("asm/levels", func_L00_003DDEC8);
 
 /* func_L00_003DE950 lives in L00_003DE950-g8.c. */
 
-INCLUDE_ASM("asm/levels", func_L00_003DF710);
-
 
 /* func_L00_003DF710 lives in L00_003D37E8-g8.c. */
 

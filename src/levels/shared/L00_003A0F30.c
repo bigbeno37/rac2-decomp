@@ -100,10 +100,6 @@ void func_L00_003A2138(int unused, float *p, int n)
     } while (--count != 0);
 }
 
-INCLUDE_ASM("asm/levels", func_L00_003A53E8);
-
-INCLUDE_ASM("asm/levels", func_L00_003A4480);
-
 
 
 

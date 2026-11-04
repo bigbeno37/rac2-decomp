@@ -89,3 +89,87 @@ static __inline__ void CopyTarget(L08Target *dst, L08Target *src)
 /* Per-frame target tracker: a vehicle mode places a marker ahead of the vehicle; on foot
    record [1] replaces record [0] once it has been nearest for long enough, a marker
    follows record [0]'s owner, and [1] is shifted into [2] and cleared for the next frame. */
+void func_L08_003D39F0(u8 *object)
+{
+    float offset[4] __attribute__((aligned(16)));
+    u8 *vehicle;
+    int *data = *(int **)(object + 0x68);
+    int limit;
+
+    switch (object[0x20]) {
+    case 0:
+        func_00115484(&D_L08_001B3490[0], 0, 48);
+        func_00115484(&D_L08_001B3490[1], 0, 48);
+        func_00115484(&D_L08_001B3490[2], 0, 48);
+        D_L08_001B3490[0].dist = 100000.0f;
+        D_L08_001B3490[0].unk18 = 65535;
+        D_L08_001B3490[1].dist = 100000.0f;
+        D_L08_001B3490[1].unk18 = 65535;
+        D_L08_001B3490[2].dist = 100000.0f;
+        D_L08_001B3490[2].unk18 = 65535;
+        D_L08_001B0318 = 0;
+        object[0x20] = 1;
+        return;
+    case 1:
+        break;
+    default:
+        return;
+    }
+    if (*data != -1 && func_002ACBC8(&D_L08_001B9B00, *data))
+        D_L08_001B258C = 2;
+    if (D_00189E20.mode == 0x31 && (vehicle = D_00189E20.vehicle) != 0) {
+        func_002AF000(offset, D_L08_001B0300, *(float *)(vehicle + 0xF8), -*(float *)(vehicle + 0xF4) * 0.5f);
+        func_00282CC0(&D_L08_001B3490[0].pos, offset, D_00189E20.vehicle + 0x10);
+        if (D_L08_001B0318 == 0) {
+            D_L08_001B0318 = func_L00_002D70A0(5);
+            if (D_L08_001B0318 == 0)
+                goto shift;
+        }
+        if (*(s16 *)(D_00189E20.vehicle + 0xAA) == 0x905) {
+            D_L08_001B0318->x0 = D_L08_001B0304;
+            D_L08_001B0318->xC = -1.0f;
+            D_L08_001B0318->x8 = -1.0f;
+        } else {
+            D_L08_001B0318->x0 = D_L08_001B0308;
+            D_L08_001B0318->xC = D_L08_001B0310;
+            D_L08_001B0318->x8 = D_L08_001B0314;
+        }
+        D_L08_001B0318->x1F = 1;
+        func_00282CF0(D_L08_001B0318->pos, &D_L08_001B3490[0].pos, &D_L08_001B9B00);
+        goto shift;
+    }
+    if (D_L08_001B3490[2].owner == D_L08_001B3490[1].owner)
+        D_L08_001B3490[1].unk1C = D_L08_001B3490[2].unk1C + 1;
+    if (D_L08_001B3490[1].owner != D_L08_001B3490[0].owner && D_L08_001B3490[1].owner != 0) {
+        limit = D_L08_001B3490[1].unk1C;
+        if (limit < D_L08_001B02FC)
+            limit = D_L08_001B02FC;
+        D_L08_001B3490[0].unk18++;
+        if (D_L08_001B3490[0].unk18 >= limit) {
+            CopyTarget(&D_L08_001B3490[0], &D_L08_001B3490[1]);
+            D_L08_001B3490[0].valid = 1;
+        }
+    } else if (D_L08_001B3490[0].valid == 0) {
+        CopyTarget(&D_L08_001B3490[0], &D_L08_001B3490[1]);
+        D_L08_001B3490[0].valid = 1;
+    }
+    if (D_L08_001B3490[0].owner != 0) {
+        if (D_L08_001B0318 == 0) {
+            D_L08_001B0318 = func_L00_002D70A0(5);
+            if (D_L08_001B0318 == 0)
+                goto shift;
+        }
+        D_L08_001B0318->x0 = 7.0f;
+        D_L08_001B0318->x1F = 1;
+        func_00282CF0(D_L08_001B0318->pos, &D_L08_001B3490[0].pos, &D_L08_001B9B00);
+    } else if (D_L08_001B0318 != 0) {
+        func_L00_002D7140(D_L08_001B0318);
+        D_L08_001B0318 = 0;
+    }
+shift:
+    CopyTarget(&D_L08_001B3490[2], &D_L08_001B3490[1]);
+    func_00115484(&D_L08_001B3490[1], 0, 48);
+    D_L08_001B3490[1].unk18 = 65535;
+    D_L08_001B3490[1].dist = 100000.0f;
+    D_L08_001B3490[0].valid = 0;
+}

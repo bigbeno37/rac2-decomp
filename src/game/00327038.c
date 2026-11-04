@@ -173,10 +173,6 @@ void func_00328758(char *self)
     }
 }
 
-INCLUDE_ASM("asm/game", func_0032D758);
-
-INCLUDE_ASM("asm/game", func_00329488);
-
 void func_00328848(char *a0)
 {
     char *rec = D_0022B0A0;
@@ -681,8 +677,6 @@ void func_0032BDC8(Vec16_Fc936841d *object, int index)
 }
 
 /* func_0032BE30 is defined in 0032BE30-beam.c. */
-
-INCLUDE_ASM("asm/game", func_0032C2E8);
 
 /* func_0032C2E8 is in 00327038-quads-g8.c. */
 
