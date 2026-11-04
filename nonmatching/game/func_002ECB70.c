@@ -1,18 +1,30 @@
-/* Claude Opus 5.5, opus-1, v2269, USA v1.01.
- * Best: 1252/1252 bytes, 0/28 places (42 differing rows, was 111) with
- * -O2 -G8 -ffunction-sections -g -fno-gcse (as a -g8.c file).
- * New over v0785: `transform = matrix;` after func_0029FC20(object, 0, matrix)
+/* Claude Opus 5.5, opus-2, v2496, USA v1.01.
+ * Best: 1252/1252 bytes, 0/28 places (95 of 313 cdiff rows; 34 differ beyond
+ * relocations, was 42 for opus-1 v2269 and 111 for v0785) with
+ * -O2 -G8 -ffunction-sections -g -fno-gcse (as src/game/002ECB70-g8.c).
+ * New over v2269: `active = 0;` after the colour ternary fixes the prologue
+ * order (retail sets s0 = 2 before s2 = 0).
+ * Kept from v2269: `transform = matrix;` after func_0029FC20(object, 0, matrix)
  * reuses the a2 argument pseudo (retail addiu a2,sp,0x90; daddu s5,a2,zero);
- * a block-local `float *t = transform;` in the active branch splits the
- * pointer: s5 stays live for inactive loops and only the copy spills to
- * 0x100(sp). Under -fno-gcse that matches the active-loop allocation.
- * Remaining: prologue order (s0=2 vs s2=0), active-loop increment order
- * (uv s4 before old s6), was-active lui order, and the quad loop: retail
- * keeps la D_00262350 inside the outer loop and computes i+1 early into s0
- * with `daddu s3,s0` in the jal delay slot (bnez, not bnel). That i+1 shape
- * is gcse PRE (seen with gcse on), but gcse on also hoists the quad-loop
- * bases into all three branches and drops the t split (247+ rows). RAC1-style
- * separate stack arrays and pre-loop pos/tex pointers were worse.
+ * a block-local `float *t = transform;` in the active branch spills only the copy
+ * to 0x100(sp).
+ * Remaining: active-loop increment order (retail uv s4 before old s6; swapping
+ * the uv/old declarations only swaps their registers), was-active lui order
+ * (retail: bne slot lui for the inactive arm, then separate luis v0=E38,
+ * a0=CE0, v1=A30), and the quad loop.
+ * Quad loop, measured in v2496: retail's `addiu s0,s3,1 ... daddu s3,s0` is gcse
+ * PRE of `i + 1` (expression (plus i 1) inserted in the quad preheader; gcse on
+ * reproduces it exactly), so the original was most likely built with gcse on.
+ * Retail also rebuilds la D_00262350 at the top of the outer loop (lui stolen
+ * into the bnez slot, alignment nop before the new label). Neither PRE (it
+ * hoists HIGH(D_00262350)) nor loop.c (moves it out of both loops) leaves it
+ * there for this source, with split addresses or MACRO_ADDR. loop.c refuses to
+ * move only regs created by an inner loop's strength reduction, so the base
+ * probably enters as part of an inner-loop giv's add value. With gcse on (no
+ * -fno-gcse) the rest diverges (245 rows): PRE inserts (plus $at 80/84) and the
+ * HIGHs of D_00214A30/CE0/D_00262350 at the ends of all three branches, since
+ * $at-based frame addresses are killed by calls; retail computes them in the
+ * quad preheader.
  * Matching-behaviour reference: RAC1 space.c render_environment_mapped_object
  * (adapted there from Lombyte, GPL-3.0). Required declarations follow.
  */
@@ -56,10 +68,10 @@ void func_002ECB70(void *object)
  char *o = object;
  float (*points)[4] = D_002620A0;
  float (*normals)[4] = D_002625B0;
- active = 0;
  quad.packet[1] = func_0027C878(21);
  quad.packet[0] = 0;
  color = D_001A8BB0 == 2 ? 0x28a5a281 : 0x3ca5a281;
+ active = 0;
  quad.packet[2] = 0xff9000000260ULL;
  quad.packet[3] = 0x8000000044ULL;
  quad.color[0] = quad.color[1] = quad.color[2] = quad.color[3] = color;
