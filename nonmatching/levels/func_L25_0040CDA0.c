@@ -11,6 +11,27 @@
  * before func_L05_00379B60: two sets stop update_equiv_regs sinking the
  * constant, reproducing retail's addiu s2,zero,1 at +0x158 (this re-set is
  * redundant at source level; a more natural form may exist).
+ *
+ * opus-2 (Claude Opus 5.5, v2478) rechecked on v2/c03: still 1128/1128 bytes,
+ * 0 of 1 places, the same 3 differences. Cause measured: the zero is a reload,
+ * and reload's spill set holds only $v0 for general registers here (the
+ * fix_truncsfsi2 scratch and the four zero stores); $f1 is the only other
+ * spill register. allocate_reload_reg's round-robin can reach $v1 only if $v1
+ * is a spill register, which happens when some reload anywhere in the
+ * function needs a general register while $v0 is busy. Confirmed: a test
+ * reload in case 3 with $v0 live moved the second clear to the new spill
+ * register ($a0, because $v1 was busy there). With spill set {$v0,$v1,$f1}
+ * the order comes out v0, v0 (inherited), v1, v1 (inherited), as in retail.
+ * Best lead: case 3's `lui v1; addiu v1; lw v0,0x14(v1)` would be exactly such
+ * a reload if retail's base there were a spilled REG_EQUIV pseudo for
+ * &D_L25_00221850 (the reload avoids $v0, which the loaded value holds).
+ * Tried here, all far worse: a function-scope ctx used everywhere, ctx set at
+ * entry and used in cases 0 and 3, ctx set in case 3 before the call (each
+ * takes a saved register), and L05's `int one; one = 1;` form for active.
+ * Same bytes: L05 func_L05_00420A88's `typedef union { TI128 q; float f[4]; }
+ * Vector;` with a.q = 0 ... c.q = 0; d.q = 0; (a more natural form).
+ * Matched siblings of this state machine: src/levels/05_feltzin_system/
+ * L05_0041DA20-g8.c, src/levels/15_gorn/L15_0042DCE0-g8.c.
  */
 #include "common.h"
 typedef unsigned int Quad __attribute__((mode(TI)));
