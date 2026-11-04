@@ -1,4 +1,18 @@
-/* opus-1 worker v2398 (Claude Opus 5.5, xhigh), 2026-11-04.
+/* opus-2 worker v2524 (Claude Opus 5.5, xhigh), 2026-11-05: recompiled on
+ * the c03 toolchain, same result (2340/2340 bytes, 0/27, 131 rows). Rule,
+ * from resource.c: mark_referenced_resources assigns `volatil` at every MEM
+ * it reads, so in the forward scan of fill_simple_delay_slots only a later
+ * load clears the asm's flag in `needed` (a store's MEM only resets `set`).
+ * Retail's own reloads `lw s7,0xBE0(sp)` / `lw s5,0xBE4(sp)` stand between
+ * the copy and i = 0, and retail also leaves `lui s4` (the other candidate,
+ * unsplit la) in place, so all trials after the copy are blocked. That fits
+ * a reorg rule (sticky volatil, or a forward scan that stops at an asm, as
+ * the backward scan's stop_search_p does) and no C wording: no label, jump,
+ * USE or zero-length insn can sit there and survive both reorg passes.
+ * A retail census (jal + nop after a qcopy with a forward candidate) would
+ * back an upstream transformer like trap_delay_barrier.py.
+ *
+ * opus-1 worker v2398 (Claude Opus 5.5, xhigh), 2026-11-04.
  * Best check.py result: 2340 compiled bytes / 2340 retail bytes; 0/27 places;
  * 6 instructions differ (131 rows counting relocation-only ones).
  * Profile: default game -O2 -G8 -ffunction-sections in a standalone -g8.c
