@@ -1,97 +1,77 @@
-/* Complete-strand offset reconstruction, 2026-11-03; not linked.
- * Check: USA v1.01, -O2 -G0 -ffunction-sections -fno-rerun-loop-opt,
- * 696/708 bytes, 0/27 placements; frame 0x130 rather than retail 0x120.
- * Two int32 byte-offset streams describe previous/current points within the
- * one real 800-byte owner. Pointers form only at accessed points, not at a
- * synthetic pre-array symbol. The scalar color contract is u32 in the matched
- * renderer; its six GPR and three FP arguments consume exactly 160 input bytes.
- * This form is 696 bytes (prior indexed form 680), and still misses retail's
- * address re-materialization, loop scheduling or register allocation.
- * Reopen with independent source evidence for those operand lifetimes.
- */
-
-/* Retained strand refresh/draw, 2026-10-28: best680/708B,0/27US.
- * Six bounded trials. Cached record pointer612; narrow no-rerun-loop-opt632;
- * explicit owner indexing680. Adding no-strength-reduce656; broad no-gcse680
- * (no improvement, rejected). Both real color loads and unsigned alpha shift
- * retain680. Best required profile -O2 -G0 -ffunction-sections -fno-rerun-loop-opt.
- * The one canonical array owns five real160B records. Retail separately forms
- * 00240070/00240080 views around adjacent points; this source preserves that
- * overlap without independent alias declarations to manufacture CSE failures.
- * Remaining gap: address re-materialization, multiply/add and store scheduling.
- * Scratch delta[10] indexes1..9 only, matching retail unused slotsp10 and
- * nine initialized delta vectorssp20..AF. Anchor16B, private minimum40B.
- * Draw002EBE88 has six GPR and three FP arguments, void contract; its 776B
- * retail loops count-1 from point1 through9, consuming exactly160 inputbytes.
+/* Claude Opus 5.5 xhigh, v2430, 2026-11-04; not linked.
+ * Best check: USA v1.01, unit L00_003B9CB8-nointerblock-g8.c
+ * (-O2 -G8 -ffunction-sections -fno-sched-interblock), 708/708 bytes,
+ * 0/27 places, first difference +0x8C, 70 rows / 47 words differ beyond
+ * relocation immediates (v2418's starting form: 72 rows).
+ * Gains over v2418: the previous-point view as a flat D_L00_00240070[i*10 + j]
+ * gives retail's (i*160 + D70) + 16 operand order in both loops (the
+ * [i][j] form expands as i*160 + (j*16 + D), so its giv add is (D + i*160));
+ * D_L00_001B29B0 MACRO_ADDR gives retail's adjacent lui/addiu.
+ * Still differs:
+ * - fadeBase: retail lui fp/addiu fp,fp (an unsplit la); ours lui a0/addiu fp,a0.
+ *   MACRO_ADDR on D_L00_001B29A0 (or D_L00_001B2990) removes the fadeBase
+ *   pseudo (uses get per-use la) and hoists the D80 la out of the outer loop into fp
+ *   (156-157 rows); fadeBase set before the if is also 157.
+ * - loop 2 setup: retail builds D80 three times (two adjacent la pairs = likely
+ *   a spilled REG_EQUIV D80 pseudo that reload rematerializes) and the w store
+ *   starts at (D80 + i*160) + 0x1C; ours folds +12 into the symbol
+ *   ((i*160 + 16) + (D80 + 12)). A row pointer for loop 2 is 668 bytes.
+ * - render loop: s0-s4 permuted; retail's D2990/D29A0 pointer inits are
+ *   adjacent la pairs (MACRO_ADDR-like), ours split.
+ * Earlier drafts here (2026-10-28 and 2026-11-03, 680-696 bytes with
+ * -fno-rerun-loop-opt) are replaced; the integ draft (sol-high b1122) is on orch/main.
  */
 #include "common.h"
+extern short D_L00_001B2990[];
+extern short D_L00_001B29A0[];
+extern short D_L00_001B29B0[] MACRO_ADDR;
 typedef float Vector[4] __attribute__((aligned(16)));
+extern Vector D_L00_00240080[5][10];
+extern Vector D_L00_00240070[];
+extern float D_L00_001B29D4[] __attribute__((sda));
+extern float D_L00_001AFF8C __attribute__((sda));
+extern unsigned int D_L00_001AFF24 __attribute__((sda));
+extern unsigned int D_L00_001AFF20 __attribute__((sda));
 extern void func_00282CF0(void *, void *, void *);
 extern void func_00282CC0(void *, void *, void *);
 extern float func_00283CE0(int);
 extern int func_00283CF0(float);
-extern void func_L00_002EBE88(void *, int, int, int, u32, u32, float, float, float);
-extern Vector D_L00_00240080[5][10];
-extern s16 D_L00_001B2990[], D_L00_001B29A0[], D_L00_001B29B0[];
-extern float D_L00_001AFF8C_gp SDATA(D_L00_001AFF8C);
-extern int D_L00_001AFF24_gp SDATA(D_L00_001AFF24);
-extern int D_L00_001AFF20_gp SDATA(D_L00_001AFF20);
-extern float D_L00_001B29D4 __attribute__((sda));
-
-/* Five independent ten-point strands. Both previous/current point views use
- * one canonical storage declaration, preserving their true overlap. Scratch
- * index0 is unused because differences are indexed by the target point1..9.
- * The draw helper consumes exactly ten complete16-byte points including W. */
-void func_L00_003C48D0(u8 *object)
+extern void func_L00_002EBE88(void *, int, int, int, unsigned int, unsigned int, float, float, float);
+void func_L00_003C48D0(char *owner)
 {
-    Vector anchor, delta[10];
-    int i, j, color, alternate;
-    u32 alpha;
-    float numerator, ratio;
-    qcopy(anchor, *(u8 **)(object + 0x68) + 0x30);
-    for (i = 0; i < 5; i++) {
+    Vector pos, vectors[10];
+    int i,j,k;
+    char *a;
+    float ratio;
+    qcopy(pos, *(char **)(owner + 0x68) + 0x30);
+    for (i=0;i<5;i++) {
         if (D_L00_001B2990[i]) {
-            {
-                int previous_offset = i * (int)sizeof(D_L00_00240080[0]);
-                int current_offset = previous_offset + (int)sizeof(Vector);
-                for (j = 1; j < 10; j++) {
-                    void *current = (u8 *)&D_L00_00240080 + current_offset;
-                    void *previous = (u8 *)&D_L00_00240080 + previous_offset;
-                    func_00282CF0(delta[j], current, previous);
-                    previous_offset = current_offset;
-                    current_offset += (int)sizeof(Vector);
-                }
+            short *fadeBase = D_L00_001B29A0;
+            for (j=1;j<10;j++) {
+                func_00282CF0(vectors[j],D_L00_00240080[i][j],D_L00_00240070[i * 10 + j]);
             }
-            qcopy(D_L00_00240080[i][0], anchor);
-            D_L00_00240080[i][0][3] = 0.03999999910593033f;
-            {
-                int previous_offset = i * (int)sizeof(D_L00_00240080[0]);
-                int current_offset = previous_offset + (int)sizeof(Vector);
-                for (j = 1; j < 10; j++) {
-                    void *current = (u8 *)&D_L00_00240080 + current_offset;
-                    void *previous = (u8 *)&D_L00_00240080 + previous_offset;
-                    func_00282CC0(current, previous, delta[j]);
-                    ((float *)current)[3] = 0.03999999910593033f;
-                    previous_offset = current_offset;
-                    current_offset += (int)sizeof(Vector);
-                }
+            qcopy(D_L00_00240080[i],pos);
+            D_L00_00240080[i][0][3]=0.04f;
+            for (j=1;j<10;j++) {
+                func_00282CC0(D_L00_00240080[i][j],D_L00_00240070[i * 10 + j],vectors[j]);
+                D_L00_00240080[i][j][3]=0.04f;
             }
-            if (D_L00_001B2990[i] > 0) {
-                numerator = func_00283CE0(D_L00_001B2990[i]);
-                ratio = numerator / func_00283CE0(D_L00_001B29B0[i]);
-                D_L00_001B29A0[i] = func_00283CF0(D_L00_001AFF8C_gp * ratio);
-            } else
-                D_L00_001B29A0[i] = 0;
+            if (D_L00_001B2990[i]>0) {
+                ratio=func_00283CE0(D_L00_001B2990[i])/func_00283CE0(D_L00_001B29B0[i]);
+                fadeBase[i]=func_00283CF0(D_L00_001AFF8C*ratio);
+            } else fadeBase[i]=0;
         }
     }
-    for (i = 0; i < 5; i++) {
-        if (D_L00_001B2990[i]) {
-            alpha = (u32)func_00283CF0(func_00283CE0(D_L00_001B29A0[i]) * D_L00_001B29D4) << 24;
-            alternate = D_L00_001AFF24_gp;
-            color = D_L00_001AFF20_gp;
-            if (*(s16 *)(object + 0xAA) == 0x1192)
-                color = alternate;
-            func_L00_002EBE88(D_L00_00240080[i], 23, 14, 10, alpha | 0x7F7F7F, alpha | color, 0.0f, 4.0f, 0.0f);
-        }
+    a=(char *)D_L00_00240080;
+    { short *life=D_L00_001B2990, *fade=D_L00_001B29A0;
+    for (k=4;k>=0;a+=160,fade++,k--,life++) {
+        unsigned int alpha,c,c0;
+        if (!*life) continue;
+        alpha=func_00283CF0(func_00283CE0(*fade)*D_L00_001B29D4[0])<<24;
+        c0=D_L00_001AFF24;
+        c=D_L00_001AFF20;
+        if (*(short *)(owner+0xAA)==0x1192) c=c0;
+        func_L00_002EBE88(a,23,14,10,alpha|0x7F7F7F,alpha|c,0.0f,4.0f,0.0f);
+    }
     }
 }

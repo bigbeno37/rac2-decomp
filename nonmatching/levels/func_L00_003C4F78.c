@@ -1,3 +1,15 @@
+/* Claude Opus 5.5 xhigh, v2430, 2026-11-04: no closer (916/916, 0/27, same 11 words).
+ * Mechanism, from -ds/-dL dumps: retail's source start last*16 + (i*320 + X)
+ * needs the giv add_val (plus (mult i 320) X) with X opaque when the giv is
+ * reduced. Ours is (plus (plus (mult i 320) -16) D): cse1 relates
+ * const(D-16) to the destination's D register (use_related_value), so X is a
+ * PLUS movable that simplify_giv_expr substitutes; expand_mult_add's fold
+ * then pulls the -16 out. A LO_SUM movable, or a register already outside the loop
+ * (reduction only in the rerun pass), would stay opaque. In one cse block,
+ * source-first makes the destination X+16 instead (952). Same bytes: struct-row type
+ * D[i].p[j]. Worse: dest via a row pointer (924, computed before blez),
+ * u128 copy (908, -16 folds into lq). X has savings 1/life 1, so pass 1 always moves it.
+ */
 /* Complete-owner follow-up, 2026-11-03; no linked match.
  * One new check under -O2 -G8 -ffunction-sections: int32 byte-offset cursors
  * over the actual four 20-point rows stay 916/916 bytes, 0/27 US placements.
