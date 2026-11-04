@@ -1,22 +1,34 @@
-/* opus-1 worker (Claude Opus 5.5 xhigh), task v2040. USA v1.01 game compiler.
- * Best check.py: 2340/2340 bytes, 0/1 places, 393 of 585 rows differ at
- * -O2 -G0 -ffunction-sections (own unit, default flags by name, jump table in
- * .rodata). First real difference at +0x114. The prologue and the first two
- * wait loops match; most later rows differ only through a one-row shift.
- * Needs: the declarations below; nothing else. Prototypes were corrected from
- * their definitions: func_001261F0 returns int (the ignored call_value moves
- * the next temp to v1, as retail has after each jal 1261F0).
- * CONTRIVED, not for promotion: the accessor stack (Loader, ActiveOf,
- * LoaderResult, LoaderFrames, the "int w = v" copies) exists only to take the
- * exit test past LOOP_TEST_THRESHOLD. Original construct unknown.
+/* opus-2 worker (Claude Opus 5.5 xhigh), task v2482. USA v1.01 game compiler.
+ * Best check.py: 2340/2340 bytes, 0/1 places, 392 of 585 rows differ at
+ * -O2 -G0 -ffunction-sections (own unit, e.g. src/game/0026EA00-loader.c, default
+ * flags by name, jump table in .rodata). Supersedes opus-1's draft (393 rows).
+ * Needs: the declarations below; nothing else.
+ * CONTRIVED, not for promotion: the accessor stack (Loader, StateOf, ActiveOf,
+ * LoaderResult, LoaderFrames, the "int w = v" copies) only keeps jump1 from
+ * copying the exit test (> LOOP_TEST_THRESHOLD 30 raw insns). Original unknown.
  *
- * Differs: (1) third-loop preheader and roles. Retail fp=-4, s7=hi(0x181),
- * s6=7, first-arm hi in place (lui v0,0x180). Mine fp=first-arm hi, s7=-4,
- * s6=hi(0x181), 7 in place, so beq becomes beql and the loop is one row short.
- * (2) Pad read: retail lui a0/addiu a0, mine v0. (3) Preheader base: retail
- * lui v0; addiu s0; lw 8(s0). Mine addiu v1,s3; lw 8(v1); daddu s0,v1. (4) After
- * the loop: table-loop roles, the D_001A7BB4 double load, the movie arm.
+ * New findings (third loop, the disc/memcard wait):
+ * - The state read belongs IN the loop test (no read before the loop, none at
+ *   the body end). toplev.c runs a JUMP_AFTER_REGSCAN jump pass after loop and
+ *   before cse2: duplicate_loop_exit_test copies the rotated test there, i.e.
+ *   AFTER loop.c's hoists; cse2 then bases the copied read on the hoisted base,
+ *   and jump2 cross-jumps the copy back except its first insn. That gives
+ *   retail's preheader exactly: lui v0,0x14; addiu s0,v0,lo; lw v0,8(s0); b bne.
+ *   jump1 must NOT copy it (else "Loop ignored due to multiple entry points").
+ * - The body must not end in `if (a && b) break;`: expand_end_loop's early-end
+ *   transform then sets needs_end_jump=0 and the loop is never rotated. Nested
+ *   `if (frames >= 61) { if (pad) break; }` keeps rotation.
+ * - Roles: retail = first-arm hi, -4, hi(0x181), 7 all hoisted in pass 2, the
+ *   first-arm hi (and the pass-1 pad la) spilled and rematerialised. Verified by
+ *   a diagnostic (frames clamp removed, pass-2 count 52): preheader and fp/s7/s6
+ *   then equal retail. Now pass 2 counts 55 (T: 61,58,55 then 7 at 52 < 55).
+ *   Needed: pass-2 loop count 50..52 (3 fewer RTL insns, invisible in the final
+ *   code; the USE nop after the else-if call is the only candidate found), or
+ *   the first-arm hi hoisted in pass 1 (life 2 there) with count 53..55.
+ * - Still differs after that: the pad remat register (retail a0, interleaved
+ *   with the mask), then the table loop, D_001A7BB4 double load, movie arm.
  *
+ * Earlier findings (opus-1) kept below.
  * Findings:
  * - LOOP_TEST_THRESHOLD is 30 here (expr.h), not stock 20.
  *   duplicate_loop_exit_test copies a shorter test before LOOP_BEG and the loop
@@ -68,10 +80,13 @@ extern LoaderMemory D_001BAEC0;
 extern LoaderDisc D_0014B540;
 extern char D_001393E0[];
 #define LS ((LoaderState *)D_001393E0)
+static inline LoaderState *GetLoader(void) { return LS; }
 static inline LoaderState *Loader(void) { LoaderState *p = LS; LoaderState *l = p; return l; }
 static inline int ReadActive(LoaderState *l) { int v = l->active; return v; }
 static inline int ReadResult(LoaderState *l) { int v = l->result; return v; }
 static inline int ReadFrames(LoaderState *l) { int v = l->frames; return v; }
+static inline int ReadState(LoaderState *l) { int v = l->state; return v; }
+static inline int StateOf(LoaderState *l) { int v = ReadState(l); int w = v; return w; }
 static inline int ActiveOf(LoaderState *l) { int v = ReadActive(l); int w = v; return w; }
 static inline int LoaderResult(void) { LoaderState *l = Loader(); int v = ReadResult(l); return v; }
 static inline int LoaderFrames(void) { LoaderState *l = Loader(); int v = ReadFrames(l); int w = v; return w; }
@@ -133,12 +148,9 @@ void func_0026EDE8(void)
     while (LS->status!=2 || LS->request>=0) {
         func_00298F00();func_00298178();func_001261F0(0);
     }
-    {
-    int st;
-    st = LS->state;
     for (;;) {
         LoaderState *l = Loader();
-        if (!(st!=2 || (ActiveOf(l)!=0 && LoaderResult()<-1 && LoaderFrames()<475))) break;
+        if (!(StateOf(l)!=2 || (ActiveOf(l)!=0 && LoaderResult()<-1 && LoaderFrames()<475))) break;
         loaded=1;
         if (LS->status<3 && LS->request<0) {
             if (LS->state!=2) func_0026EAC8((int)D_01806380);
@@ -151,9 +163,9 @@ void func_0026EDE8(void)
         func_002B9000();func_00298F00();func_00298178();
         if(frames<=119) frames++;
         func_001261F0(0);
-        if(frames>=61 && (D_00138180.pressed&0xFFFF0FFF)) break;
-        st = LS->state;
-    }
+        if(frames>=61) {
+            if (D_00138180.pressed&0xFFFF0FFF) break;
+        }
     }
     func_00290758();
     if(loaded) {func_0027D330(5);{int i; for(i=29;i>=0;i--)func_001261F0(0);}}
