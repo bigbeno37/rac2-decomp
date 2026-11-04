@@ -221,6 +221,9 @@
 #define MorphorayUpdate                  func_L00_00405808
 #define volume_camera_swing              func_L06_0047A408
 #define pick_idle_fidget                 func_L00_002CA4E0
+#define EnsureMenuCacheEntry             func_L00_00308700
+#define RevealMapAroundPosition          func_L00_003080D0
+#define DecodeMapRleRow                  func_00297550
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20

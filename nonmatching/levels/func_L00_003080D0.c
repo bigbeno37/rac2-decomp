@@ -1,3 +1,16 @@
+/* v2411 (Opus 5.5, xhigh): draft below still closest (820/820, 19 of 205 rows,
+ * 0/27). Local-alloc model of the first sample (block after the first call): qty
+ * A = x&31 (andi+sra, 4 refs) scores 8/6, qty B = samples (lw+2 addu, 6 refs)
+ * 12/14, so A takes v0. Retail needs B ahead of A, i.e. the samples load born
+ * late or A living longer (refs are unweighted here; in the loop the loop-depth
+ * weights tie the two at 6 and creation order already gives retail's v0/v1).
+ * Moving `y & 31` out of the call's cycle alone does not flip it. The inner
+ * `packed` (first global allocno) takes v0 because no conflicting non-call-
+ * crossing allocno prefers v0; retail's v1 needs such a preference or conflict.
+ * Tried, no gain: RAC1's packed/selected `?:` form (reveal_map_around_position,
+ * rac1-decomp level_runtime_and_menus.c) in the loop (same bytes) and for the
+ * first sample (180 rows), swapped compare operands, bounds after the call.
+ */
 /* Claude Opus 5.5 (opus-1), v1655, 2026-10-30: 820/820 bytes, 0/27 US places
  * (also 0/27 PAL and US v2.00). Profile: default -O2 -G0 -ffunction-sections
  * (src/levels/shared/L00_002FC7A0.c, in place of the marker).

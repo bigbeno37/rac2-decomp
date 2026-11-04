@@ -343,7 +343,7 @@ void func_L00_002FD400(void)
 /* func_L00_002FD480 is matched in its own unit, src/levels/shared/L00_002FD480-g8-qcopy.c (-O2 -G8 -ffunction-sections -frac2-qcopy). */
 
 
-INCLUDE_ASM("asm/levels", func_L00_002FE268);
+/* func_L00_002FE268 is defined in L00_002FC7A0-g8.c (-G8 small data). */
 
 
 /* Object render class: three LOD tables of 16-byte records, then 80-byte GS texture packets. */
