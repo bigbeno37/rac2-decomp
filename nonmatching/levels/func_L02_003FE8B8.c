@@ -1,3 +1,28 @@
+/* Claude Opus 5.5 (xhigh), task v2461, 5 November 2026. FAILED; body below unchanged (still the
+ * closest allowed form): 3560/3552 bytes, 0 of 1 places, recompiled here in a dedicated -g8 unit
+ * with -O2 -G8 -ffunction-sections -fno-schedule-insns. Word LCS ignoring relocations: 589/888.
+ * New measurements (diagnostics only, none landable):
+ * - Retail's serial chains are a sched2 block split between the rounding chains and the argument
+ *   set-up of each draw: `do { func_002802E0(...); } while (0)` around the six rectangle calls and
+ *   around func_00300A00 in LBL (loop notes are full haifa barriers) gives retail's chain/argument
+ *   order everywhere: 3568 bytes, 662/888 words. The split must also be cse-transparent:
+ *   `if (y != 0) {h chain} else {h chain}` gives the same order (593 words, 3672 bytes) but cse
+ *   loses 0.5f and 3 at each join. In LBL the call-result copy `daddu $a0,$v0` sits inside the
+ *   chain, so there is no split between the lookup call and the chain, only after the chain.
+ * - With the barriers, what is left: 0.5f in $f22 (retail $f20; here -1.0f gets $f20 first),
+ *   &r50/&r70/&rF0/&rD0 held in saved regs where retail rebuilds `addiu $a0,$sp,N` at each call
+ *   and saves $s4/$s6 unused, &r90/&rB0 not in retail's PRE-copy shape (`addiu $a0,$sp,0x90;
+ *   daddu $s5,$a0`), and the constant 3 (retail: $s1 rects 1-4, fresh $v0 rect 5, $s3 set in rect
+ *   3's block for rect 6 and the mode test, so retail's blocks also cut cse before rect 5).
+ * - The FF6E8 dead-test probe (`if (D_L02_001B3E00 == 1) t = 1.0f;` before each rounding) with the
+ *   barriers: 3612 bytes, 646 words; it splits the constant 3 per block and gives a `daddu $fp,$s0`
+ *   copy of &r90, but no unused save. Without barriers: 3584 bytes, 583 words, no change in pointers.
+ * - No change from -frac2-gcse-unsplit-edges (589 / 662). sched1 on is worse (531; 569 with barriers).
+ * - flow.c (this tree): an emptied arm's conditional jump is tidied and its label merged away
+ *   when the join has one predecessor, so a flow2-vanishing test leaves no split for sched2; a
+ *   jump2-vanishing test keeps its compare inputs. The original split construct is still unknown
+ *   (same family: func_L11_00444400, func_L04_00417308, func_L02_003FF6E8).
+ */
 /* Claude Opus 5.5 (xhigh), task v1870, 31 October 2026.
  * Near miss, USA v1.01 level 02: 3560/3552 bytes, 0 of 1 places match; frame 0x180 and the
  * save set agree. 572 of retail's 888 words lie in a common subsequence that ignores relocated
