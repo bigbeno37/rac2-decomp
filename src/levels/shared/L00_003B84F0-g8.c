@@ -1,40 +1,9 @@
-/* Claude Opus 5.5 (tier opus-1), worker v2406, 4 November 2026.
- * Dedicated unit required, flags:
- * -O2 -G8 -ffunction-sections -frac2-zero-ti-por -frac2-hazard-labels
- * (-g makes no difference.) The declarations this needs are the ones below.
- * Best check.py: 2404/2404 bytes, 0/27 places, first mismatch +0x70,
- * 134 of 601 rows differ, of which 23 are real (the rest are relocations).
- * All 23 are prologue register swaps, 0x3B8550-0x3B85F4; everything from the
- * loop on matches. Ours -> retail: hero lui v1 -> a0; alpha0 chain a0 -> v1;
- * D_L00_001AFD1C term v1 -> a0; D_L00_001AFD04 term t1 -> t0;
- * D_00138180 lui/addiu t0 -> t1; 0xFF9000000260 a0 -> v1; constant 4 v1 -> a0.
+/* Draws a beam from the position in D_L00_001AFD78's state object, four quads per segment, and
+ * tracks its length: it grows towards the target moby while the hero holds one of its buttonMask
+ * buttons and shrinks otherwise.
  *
- * What fixed the loop: writing the colour pack in both arms of the alpha
- * override test. jump2 cross-jumps the tails, but flow counts both, so
- * r/g/bl reach 6 refs and the saved-register order becomes retail's. The
- * stores are in source order col[3]..col[0] (the REG_DEAD one issues first).
- *
- * What is left is two local-alloc priority flips (number = floor_log2(refs)
- * * refs / length): r131 = high(D_00189E20), 3 refs, length 3, 1.0, must fall
- * below chain {r118,r115}, 8 refs, length 41, .585; and {r129,r128}
- * = D_00138180, 10/39, must fall below {r109,r110}, 10/45. Retail also has a0
- * taken before {r106,r105} (.45) is placed, and a length of 5 or 7 for r131
- * does not land in .45-.585, so the refs must differ as well, not just order.
- * r129/r131 each have one ref from the PRE copy: block PRE puts r446/r445 =
- * high at the end of bb 1 and cse2 turns that into a copy. lcm.c makes
- * OPTIMAL & REDUNDANT empty, so pre_insert_copies never fires in block mode.
- *
- * Tried without gain (rows): `on` after the alpha chains in any position (23),
- * before them (41, 42); swapped & operands or a hero pointer local (47);
- * a pointer local for D_00138180 (23); early dead high() in bb 0 as a
- * diagnostic (34, reload remats both lui in v1, so retail is not a remat);
- * _1 aliases in the prologue (230-558, so the bb 1 PRE copies are real);
- * direct | chains for alpha0 (34), alpha1 (45), both (46); v = a; v |= b<<2
- * for alpha0 (23), alpha1 (216); a shared <<4 local (553);
- * -fno-rerun-cse-after-loop (575); -fno-gcse (559);
- * -frac2-gcse-unsplit-edges (23).
- * Untried: a chain form adding refs to {r118,r115} and {r109,r110} with no
- * extra code, such as a copy into a spilled pseudo that combine cannot merge.
+ * A unit of its own for its flags: the `a.bits = 0` clear needs -frac2-zero-ti-por, the branch
+ * onto a divide needs -frac2-hazard-labels, and the small data needs -G8.
  */
 #include "include_asm.h"
 #include "common.h"
@@ -173,16 +142,34 @@ void func_L00_003B84F0(Moby_L00_003B84F0 *obj)
     float u;
     float s;
     float phase;
-    float inset;
     float range;
+    float inv;
 
     ctl = D_L00_001AFD78;
     if (ctl == 0) {
         return;
     }
     pkt.q78 = func_0027C878(D_L00_001AFD14);
-    { long long v; v = (long long)D_L00_001AFD00 | ((long long)D_L00_001AFCFC << 2); v |= (long long)D_L00_001AFD04 << 4; v |= (long long)D_L00_001AFD08 << 6; v |= (long long)D_L00_001AFD0C << 32; alpha1 = v; }
-    { long long v; v = (long long)D_L00_001AFCFC | ((long long)D_L00_001AFD00 << 2); v |= (long long)D_L00_001AFD04 << 4; v |= (long long)D_L00_001AFD08 << 6; v |= (long long)D_L00_001AFD0C << 32; alpha0 = v; }
+    {
+        /* Two ALPHA register values: alpha1 swaps the A and B fields of alpha0. The order of
+           these steps, and building each value in a local of its own, decides sched1's order
+           and so local-alloc's priorities for the whole block. */
+        long long aShifted = (long long)D_L00_001AFCFC << 2;
+        long long bShifted = (long long)D_L00_001AFD00 << 2;
+        long long plain, swapped, swappedFull, plainFull;
+
+        inv = 1.0f - D_L00_001AFD34;
+        swapped = (long long)D_L00_001AFD00 | aShifted;
+        plain = (long long)D_L00_001AFCFC | bShifted;
+        plainFull = plain | (long long)D_L00_001AFD04 << 4;
+        swappedFull = swapped | (long long)D_L00_001AFD04 << 4;
+        plainFull |= (long long)D_L00_001AFD08 << 6;
+        swappedFull |= (long long)D_L00_001AFD08 << 6;
+        plainFull |= (long long)D_L00_001AFD0C << 32;
+        alpha0 = plainFull;
+        swappedFull |= (long long)D_L00_001AFD0C << 32;
+        alpha1 = swappedFull;
+    }
     pkt.col[3] = D_L00_001AFD10;
     pkt.col[2] = D_L00_001AFD10;
     pkt.col[1] = D_L00_001AFD10;
@@ -192,13 +179,13 @@ void func_L00_003B84F0(Moby_L00_003B84F0 *obj)
     pkt.uv[0] = D_L00_001AFD34;
     pkt.uv[4] = D_L00_001AFD34;
     pkt.q80 = 0xFF9000000260LL;
-    pkt.uv[2] = 1.0f - D_L00_001AFD34;
-    pkt.uv[6] = 1.0f - D_L00_001AFD34;
+    pkt.uv[2] = inv;
+    pkt.uv[6] = inv;
     pkt.uv[1] = D_L00_001AFD34;
     pkt.q70 = 4;
     pkt.uv[3] = D_L00_001AFD34;
-    pkt.uv[5] = 1.0f - D_L00_001AFD34;
-    pkt.uv[7] = 1.0f - D_L00_001AFD34;
+    pkt.uv[5] = inv;
+    pkt.uv[7] = inv;
 
     dist = D_L00_001AFCF4;
     if (D_00189E20.f340 == 0 || D_00189E20.f34E != 0 || D_L00_001AFCE0 != 0 || D_00189E20.f1E0 != 0) {
