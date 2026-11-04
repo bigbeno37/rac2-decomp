@@ -1,23 +1,6 @@
-/* Tier: opus-1 (v2314), 3 November 2026; supersedes the v1019 draft.
- * Separate unit src/levels/shared/L00_003C6298-burst-g8.c with
- * -O2 -G8 -ffunction-sections -fno-sched-interblock: 1180/1180 bytes,
- * 0/27 places, 3 rows differ at +0x114 (retail stores the &temp spill
- * sw v1,0x80(sp) before the first_life lui/mtc1 f23; ours after).
- * Retail has no sched1 interblock motion in loop 1 (the counter decrement
- * stays in the latch). haifa's region estimate counts notes; our loop 1 is
- * about 72 LUIDs (88 with -g, 100 needed), so without the flag it becomes a
- * region and hoists the if(p)/rotation setup above beqz/bc1f (+1 insn,
- * p/tail in s0/s1). With the flag, p/tail are s1/s0 as in retail.
- * Also needed: loop 1 as for(i=0;i<10;i++) (the dbra reversal emits the 9
- * init after the hoisted constants: ori s2 then li s4, as retail); stores
- * ordered so color2 is p's last use (sched1 register weight pulls the store
- * where p dies forward); a struct D_L00_001FE940 with the colour table at
- * 0x16C (la hoisted into s5, p in a0).
- * Tried for +0x114: tail->w = 2.0f directly reshuffles f21/f23/f20 (as
- * v1019 found); first_life = 2.0f before qcopy(&start) sets f23 before a
- * call. Needed: first_life's set after the &temp pseudo in sched1 order.
- * Required declarations follow; no linked build was run for this near miss.
- */
+/* func_L00_003C94D8: a unit of its own for -fno-sched-interblock (retail has no interblock
+ * motion in the first loop).  tailW has a lifetime of more than one insn, so loop.c hoists it
+ * on its first pass; the 0.05f and 0.5f stores then fit the second pass's threshold. */
 #include "common.h"
 typedef int BurstQuad __attribute__((mode(TI)));
 typedef struct { float x,y,z,w; } BurstVec __attribute__((aligned(16)));
@@ -55,7 +38,6 @@ void func_L00_003C94D8(char *object)
 {
     BurstVec matrix, start, saved, position, velocity, local, temp, offset;
     float angle, speed, life;
-    float first_life;
     int i, kind, mode;
 
     *(BurstQuad *)&local = 0;
@@ -68,7 +50,6 @@ void func_L00_003C94D8(char *object)
     object[0xBC]=6;
     func_002ACEC0(&saved,D_0018A550,D_0018A550+0x10,0.3490659f);
     qcopy(&start,&saved);
-    first_life = 2.0f;
     for(i=0;i<10;i++) {
         BurstParticle *p;
         angle=func_00283B98(angle,func_002A7878(0.0f,0.6283186f));
@@ -77,11 +58,13 @@ void func_L00_003C94D8(char *object)
         p=func_L00_00333F90(&position,&velocity);
         if(p) {
             BurstVec *tail;
+            float tailW;
             func_00282D30(&velocity,&start,0.75f);
             tail = &p->velocity;
+            tailW = 2.0f;
             func_00282CC0(&p->position,&position,&velocity);
             qcopy_nc(&p->previous,&position);
-            tail->w=first_life;
+            tail->w=tailW;
             p->position.w=0.05f;
             p->previous.w=0.5f;
             p->color=0x307F7F7F;

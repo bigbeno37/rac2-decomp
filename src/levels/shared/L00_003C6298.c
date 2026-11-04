@@ -134,7 +134,7 @@ void func_L00_003C8A58(Rac2Native_9cdc323a4d0c2fbd_AnalysisOwner *owner)
 }
 
 
-INCLUDE_ASM("asm/levels", func_L00_003C94D8);
+/* func_L00_003C94D8 is defined in L00_003C6298-burst-g8.c. */
 
 INCLUDE_ASM("asm/levels", func_L00_003C9978);
 
@@ -338,4 +338,4 @@ INCLUDE_ASM("asm/levels", func_L00_003D1D28);
 
 /* func_L00_003D2ED0 is defined in L00_003D2ED0-g8.c. */
 
-INCLUDE_ASM("asm/levels", func_L00_003D3388);
+/* func_L00_003D3388 is defined in L00_003C6298-arc-g8.c. */
