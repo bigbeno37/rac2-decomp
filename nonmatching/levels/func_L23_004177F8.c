@@ -1,3 +1,21 @@
+/* 5 November 2026 (Claude Opus 5.5 xhigh, v2475): rechecked on c01, C unchanged.
+ * us: v[2] as below = frame 0x80 vs 0x100 plus the 0x60/0x88 store swap; with Quad v[10] (padding,
+ * not landable) the only difference is the swap (check.py: instruction at +0x5b4).
+ * Swap, measured with -fsched-verbose-5: every store in the run before the func_002B60B0 call has
+ * sched1 priority 9 (sched2 10), the same class and 3 INSN_DEPENDs, so both passes issue them by
+ * REG_DEAD weight, then LUID; st58 goes last only because it has no REG_DEAD. Retail's sw 0x88 before
+ * swc1 0x60 therefore needs flags88 before f60 in source. With that order the li run is
+ * 0.4,-7,7,1.5708,1.553 and the store run 5C,88,60,80,58, so 1.5708 and 1.553 have equal spans and
+ * 2 refs each: no position of 0.4 (3 refs) ranks it strictly between them, which retail's
+ * f3=1.5708, f7=0.4, f8=1.553 needs. An extra INSN_DEPEND on sw 0x88 puts it first in the run, not
+ * after 5C. Only a counted insn between st60 and st80 that later vanishes (flow2-deleted store with
+ * a REG_DEAD and no li of its own) fits; no real source for one was found.
+ * Frame: GCC 2.9-ee leaves unreferenced frame only from unused BLKmode/array locals, inline callee
+ * frames (integrate.c: assign_stack_temp of DECL_FRAME_SIZE per expansion) or by-reference struct
+ * temps (EABI passes structs over 8 bytes by reference; TImode is exempt on the r5900). Retail
+ * references only SP+0 and SP+0x10, so an inlined helper whose stack locals became dead is the most
+ * plausible origin, but no such helper was identified.
+ */
 /* 4 November 2026: faithful retained C; no linked match.
  * Retain only the two actually used local vectors instead of the ten-vector diagnostic allocation.
  * us: 2292/2292 bytes, 0/1 places; us2: absent; pal: absent.
