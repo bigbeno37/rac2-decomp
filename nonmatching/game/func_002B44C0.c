@@ -1,54 +1,48 @@
-/* Claude Opus 5.5 xhigh (opus-1), 3 November 2026, task v2270; retained near miss.
+/* Claude Opus 5.5 xhigh (opus-2), 5 November 2026, task v2489; retained near miss.
  * Best current-toolchain check: 1252/1248 bytes, 0/28 USA v1.01 places,
- * 145 of 313 cdiff rows differ. Profile: -O2 -G0 -ffunction-sections, isolated
- * source unit. No linked match. Required types and declarations are included
- * below; common.h supplies qcopy and qcopy_nc.
+ * 144 of 313 cdiff rows differ. Profile: a unit of its own (common.h clashes
+ * with 002B3868.c's s32/u8 typedefs) with
+ *   -O2 -G0 -ffunction-sections -frac2-keep-block-order
+ * i.e. config/cflags.txt line "src/game/002B44C0.c<TAB>-O2 -G0 -ffunction-sections
+ * -frac2-keep-block-order". No linked match. Types and declarations are below;
+ * common.h supplies qcopy and qcopy_nc.
  *
- * Fixed in this version: the first snapshot uses qcopy_nc. The "memory"
- * clobber of qcopy made reload_cse forget that the spill slot at sp+0xC0
- * equals a0, so self was reloaded; with qcopy_nc self stays in a0 and the
- * prologue gives retail's daddu v0,a0,zero.
- *
- * Earlier work kept from the GPT-6.1 Sol-high draft (task v0788): approved
- * qcopy for the second snapshot and the offset-to-work transfer, an ordinary
- * TI work-to-angles assignment, a separate kick-loop counter (recovers push
- * in s4, the main-loop counter spill at sp+0xC4 and the loop's saved
- * registers), and explicit target/player call blocks.
+ * Fixed in this version (all of the branch layout up to 0x002B45A8 now
+ * matches retail):
+ * - Control flow is `if (target || (player.target == self && player.state >= 2))
+ *   { if (target) T; else P; active } else decay`. cse1 threads the outer
+ *   tests: bnez target -> T, the player tests branch to decay (addiu a1,a1,0x80
+ *   in the second slot), then `b P`, as in retail.
+ * - With the default profile cygnus_merge_blocks pulls P up and jump2
+ *   cross-jumps the two func_00282CF0 calls (1236 bytes). With
+ *   -frac2-keep-block-order P stays after T and falls into the active block,
+ *   so flow's (use (const_int 0)) after P's call blocks the cross-jump.
+ * - The clamps are written `x > limit` (angles[0], angles[1], roll): this
+ *   gives retail's lwc1 0x44(sp) before lwc1 0x64(s2) in the second clamp.
  *
  * Remaining differences:
- * 1. Branch layout. Retail: bnez target -> T; state tests branch to decay
- *    (the second one with addiu a1,a1,0x80 in its delay slot); b P; T call;
- *    b active+4; P call; active; decay sits just before the update loop.
- *    This goto form inverts the player-state test (it branches to the player
- *    call). A structured if/else form gets the test direction right, but
- *    flow.c cygnus_merge_blocks (CYGNUS LOCAL, runs after jump1 and cse1)
- *    moves the single-predecessor P block before T, and jump2 then cross-jumps
- *    the two calls (1236 bytes). Retail probably needs P to have two
- *    predecessors at cse1 time, or the inner target test folded only in cse2.
- * 2. Spill slots 0xC8..0xEC are permuted. gcse PRE hashes
- *    (plus (reg R) (const_int X)) as 14029 + R + X, bucket = raw mod
- *    ((max_cuid/2)|1); reaching registers are numbered in bucket order and
- *    slots are given in that pseudo order (soft frame pointer = reg 1 with X
- *    = final sp offset). This compile has 119 buckets, self = reg 84,
- *    sway = reg 85. With those registers no table size gives retail's order.
- *    Retail's order is reachable with 111 buckets (max_cuid about 222) and a
- *    sway base pseudo numbered 114..128, i.e. a later copy of sway such as
- *    an inline helper parameter, plus either a self base = 98 (mod 111) or
- *    self + 0xC0 held in a non-PRE early pseudo.
- * 3. The delta-pointer update reloads its spill (0xEC) after the store at
- *    0x002B47C4, adding one word; explicit pointer induction does not fix it.
+ * 1. Spill slots 0xC8..0xE8 are permuted (9 PRE reaching registers). The
+ *    order is gcse's hash-bucket order (raw = 14029 + base regno + offset,
+ *    fp = reg 1 "at"; bucket = raw % ((max_cuid/2)|1)); this compile has
+ *    max_cuid 239 -> 119 buckets, self = reg 84, sway = reg 85, and its
+ *    predicted order equals the measured one. An offline search over odd
+ *    table sizes 61..399 finds retail's order only for 111 buckets (also
+ *    217, 235, 239) with self's base pseudo 98..110 (mod 111) and sway's
+ *    114..128 (mod 111). So retail had about 16-19 fewer insns entering gcse
+ *    (220..223) AND later base pseudos for self/sway (e.g. late copies that
+ *    cprop restores, see the b0523 note). None found.
+ * 2. The delta-pointer giv (slot 0xEC) is reloaded a second time for its
+ *    increment after the store (lw v1,0xEC(sp) at 0x002B47C8, the +4 bytes).
+ *    The x.i.greg dump shows reload's inheritance not reusing v1 between the
+ *    store (insn 504) and the in-out reload of the increment; the multiply
+ *    feeding the store carries a REG_EQUIV (mem (reg P)) from
+ *    update_equiv_regs. reload_cse cannot remove it (the SF store through v1
+ *    may alias the slot). Cause not found.
  *
- * Measured alternatives (this toolchain): structured if/else with shared
- * active block: 1236 bytes, P first, calls merged. Structured form with
- * distinct call arguments: P first, no merge. Goto form with decay placed
- * first: 1252 bytes, T moved up, test direction still wrong. Folding the
- * player address into a temporary (A) and a delta-pointer variant (Dv) were
- * worse. Sol-high notes: reversed inner target test reaches 1248 bytes only
- * with a shared counter and wrong allocation; -fno-thread-jumps 1268 bytes;
- * -fno-gcse 948 bytes; do not trust the -fstrict-aliasing 1248 result (TI
- * casts over float arrays propagate the earlier zero into the angle copy).
- * Reopen with source evidence for how sway is reached (a later pseudo) and
- * for the original target/player conditional.
+ * Earlier notes still valid: qcopy_nc for the first snapshot keeps self in a0
+ * (retail's daddu v0,a0,zero); approved qcopy for the second snapshot and the
+ * offset-to-work transfer; TI work-to-angles assignment; separate kick-loop
+ * counter. -fno-thread-jumps 1268 bytes; -fno-gcse 948 bytes.
  */
 
 #include "common.h"
@@ -116,31 +110,24 @@ void func_002B44C0(char *self, Sway_2B44C0 *sway, float *target)
     qcopy_nc(old_position, self + 0x10);
     qcopy(old_rotation, self + 0xF0);
     func_00115484(push, 0, 16);
-    if (target != 0)
-        goto target_delta;
-    if (D_00189E20.target == self && D_00189E20.state >= 2)
-        goto player_delta;
-    goto decay;
-target_delta:
-    func_00282CF0(delta, target, self + 0x10);
-    goto active;
-player_delta:
-    func_00282CF0(delta, &D_00189E20.position, self + 0x10);
-active:
-    func_002AFDD8(self, delta, delta, 0);
-    func_00282CF0(delta, delta, &sway->offset);
-    push[0] = -delta[1] * sway->scale[0];
-    push[1] = delta[0] * sway->scale[1];
-    push[2] = -sway->scale[2];
-    if (sway->timer == 0) {
-        for (kick_axis = 0; kick_axis < 3; kick_axis++)
-            sway->velocity[kick_axis] += push[kick_axis] * sway->kick[kick_axis];
-        sway->timer = 10;
+    if (target != 0 || (D_00189E20.target == self && D_00189E20.state >= 2)) {
+        if (target != 0)
+            func_00282CF0(delta, target, self + 0x10);
+        else
+            func_00282CF0(delta, &D_00189E20.position, self + 0x10);
+        func_002AFDD8(self, delta, delta, 0);
+        func_00282CF0(delta, delta, &sway->offset);
+        push[0] = -delta[1] * sway->scale[0];
+        push[1] = delta[0] * sway->scale[1];
+        push[2] = -sway->scale[2];
+        if (sway->timer == 0) {
+            for (kick_axis = 0; kick_axis < 3; kick_axis++)
+                sway->velocity[kick_axis] += push[kick_axis] * sway->kick[kick_axis];
+            sway->timer = 10;
+        }
+    } else {
+        func_00282948(&sway->timer);
     }
-    goto update;
-decay:
-    func_00282948(&sway->timer);
-update:
     for (i = 0; i < 3; i++) {
         sway->velocity[i] += sway->spring[i] * (push[i] - sway->position[i]);
         sway->velocity[i] -= sway->damping[i] * sway->velocity[i];
@@ -152,11 +139,11 @@ update:
     work[0] = sway->position[0] + delta[0];
     work[1] = sway->position[1] + delta[1];
     *(Vec128_2B44C0 *)angles = *(Vec128_2B44C0 *)work;
-    if (sway->limit[0] < angles[0])
+    if (angles[0] > sway->limit[0])
         angles[0] = sway->limit[0];
     else if (angles[0] < -sway->limit[0])
         angles[0] = -sway->limit[0];
-    if (sway->limit[1] < angles[1])
+    if (angles[1] > sway->limit[1])
         angles[1] = sway->limit[1];
     else if (angles[1] < -sway->limit[1])
         angles[1] = -sway->limit[1];
@@ -170,7 +157,7 @@ update:
     func_00282CF0(shift, &sway->anchor, moved);
     func_00282CC0(self + 0x10, self + 0x10, shift);
     roll = -sway->position[2];
-    if (sway->limit[2] < roll)
+    if (roll > sway->limit[2])
         roll = sway->limit[2];
     else if (roll < -sway->limit[2])
         roll = -sway->limit[2];
