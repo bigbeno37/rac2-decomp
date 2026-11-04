@@ -1,3 +1,21 @@
+/* Opus-2 v2443, 4 November 2026: recompiled here, unchanged: default
+ * profile 264/264 bytes, 0/4 places (frame 0x90); -O2 -G0 -ffunction-sections
+ * -mastra-quad-saves gives retail's 0xA0 frame and body, `sq $16,0` +
+ * `sq $31,16` against retail's `sq $s0,0x10` + `sd $ra,0`.
+ * Why no C reaches it: this cc1 sizes every GPR slot as
+ * GET_MODE_SIZE(mips_reg_mode[0]) (DImode after neutralise_timode_anchor.py)
+ * and takes each save's width from mips_reg_mode[regno], which
+ * mips_check_reg_mode widens to TImode when an insn sets that register in
+ * TImode (the array is global and never reset, so it carries to later
+ * functions of a unit). Both walks put $ra in the highest slot: the default
+ * ascends from the bottom (s0 lowest), quad-saves descends from the top.
+ * Retail's two stdarg frames (this one and func_L01_00324550) have $ra in
+ * the lowest 16-byte slot and s0 above it, i.e. 16-byte slots walked s0-first
+ * downward from the top, s0 in TImode and $ra in DImode. func_L02_00411D18
+ * (8-byte slots, TImode s2 in its own slot below s0) follows a third layout.
+ * A match needs a measured compiler model of this layout; no source wording,
+ * attribute or existing flag changes the slot order.
+ */
 /* Opus-1 v0735, 29 October 2026: recompiled with this cc1 (scratch, both
  * profiles): unchanged, 264 bytes; with -mastra-quad-saves only the four
  * save/restore words differ (last check.py record: 264/264, 0/4 places).
