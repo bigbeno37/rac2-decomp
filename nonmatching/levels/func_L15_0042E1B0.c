@@ -1,3 +1,20 @@
+/* 5 November 2026, Opus 5.5 xhigh (opus-2), USA v1.01, -O2 -G8 -ffunction-sections, own unit
+ * src/levels/15_gorn/L15_0042E1B0-g8.c (marker taken out of L15_00315428.c).
+ * Best check.py: 3128 bytes, expected 3140; 0 of 1 places match. No forbidden constructs.
+ * PAL and v2.00 do not have this function. The linked build was not attempted.
+ * New, keep: y = scaled_screen_coord(D_L15_001B2E80[0], 200.0f, 4.0f), the same inline as matched
+ *   func_002D3D88 (src/game/002D3390.c). Integration sets the 200.0f parameter pseudo before the scale
+ *   load, which gives retail's f3/f2 constant order. +0x370 to +0x428 (the old "+0x374" difference)
+ *   now match.
+ * Still differs (3 words short): the beqz delay slot at +0x60 (retail steals lw $a0 from the
+ *   fall-through), and every text and panel call: retail has a scheduling barrier between the x/y
+ *   conversion and the remaining argument moves, present in sched1 AND sched2 (in this cc1 jump2
+ *   runs after sched2). Measured here, with no effect: a static inline draw wrapper (no barrier;
+ *   per-call 0.8f/0.0f), and if (mode == 1) <dead local> = ... (jump.c turns the arm into a
+ *   conditional move and flow1 deletes it before sched1). Candidates not yet tried: a branch whose
+ *   condition only combine or register allocation proves constant (left as a no-op jump until
+ *   jump2), or a real test of a live register against zero.
+ */
 /* 4 November 2026: faithful retained C; no linked match.
  * Remove the invented private-pointer test, identical rounding arms, empty do/while panel wrapper and unused historical helper.
  * us: 3128/3140 bytes, 0/1 places; us2: absent; pal: absent.
@@ -89,6 +106,15 @@ extern void func_L05_003263F8(int);
 extern int func_L05_00324DB8(void);
 extern void func_L00_0030CF60(void),func_L05_0037A5F8(void);
 
+/* A screen coordinate scaled for the display; mode 1 also takes an offset in unscaled pixels. */
+static __inline__ int scaled_screen_coord(int mode, float value, float offset)
+{
+    float scaled = value * D_L15_001B2E84[0] + 0.5f;
+    if (mode == 1)
+        return (int)(scaled + offset);
+    return (int)scaled;
+}
+
 #define HudText(X,Y,TEXT,R) { int sx,sy; \
     sx=(X); sy=(int)((Y)*D_L15_001B2E84[0]+R); \
     func_0027F5B8(sx,sy,0x80808080,TEXT,128); }
@@ -108,7 +134,7 @@ int func_L15_0042E1B0(void)
     int selection;
     char *label;
     float half;
-    float x,y,ratio,base,alpha,four,round;
+    float x,y,ratio,alpha,four,round;
     int frame0,frame1,frame2;
 
     switch(D_L15_001B1530) {
@@ -150,9 +176,7 @@ int func_L15_0042E1B0(void)
         D_L15_001B1570=func_00336D50(D_L15_001A904C+0x8710,132);
         D_L15_001B1574=func_00336D50(D_L15_001A904C+0x8710,133);
         x=func_00283CE0(D_001A7340)*0.5f;
-        base=D_L15_001B2E84[0]*200.0f+0.5f;
-        if(D_L15_001B2E80[0]==1) y=(int)(base+4.0f);
-        else y=(int)base;
+        y=scaled_screen_coord(D_L15_001B2E80[0],200.0f,4.0f);
         func_00300968((char *)D_L15_001B1560,x,y,0x60442D00,1,0);
         func_00300968((char *)D_L15_001B1564,x,y,0x55F0C070,1,0);
         kind=func_002ED8A0(6);
