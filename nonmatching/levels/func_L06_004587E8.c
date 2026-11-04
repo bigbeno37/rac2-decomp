@@ -1,14 +1,33 @@
-/* 2 November 2026: lawful retained reconstruction, not a match.
- * Removed the older draft's always-true regen test and unreachable else arm.
- * Those branches were invented to influence compiler PRE/loop behavior; they
- * do not describe runtime state and cannot support matching credit. The
- * unconditional timer/alpha reset and trail regeneration remain explicit.
- * Current check.py: 1596/1572 bytes, 0/1 USA v1.01 placement. The old
- * 1564/1572-byte measurement depended on the diagnostic and does not qualify
- * this source. Scratch collision[112] remains an inferred capacity;
- * the owner-hit position copy, null-hit emission and real state reloads are
- * preserved. Reopen matching work with evidence for the genuine original
- * loop/control-flow and local lifetimes. No linked match is claimed.
+/* opus-2 (Claude Opus 5.5, xhigh), v2457: NOT A MATCH. Lawful form only.
+ * check.py: 1596/1572 bytes, 0/1 USA v1.01 places, frame 0x100 vs retail 0xF0.
+ * Aligned instruction diff: 137 of 393 retail instructions differ (the
+ * previous lawful draft: 141; opus-1's forbidden `int regen = 1; if (regen)`
+ * form in git 1713ac2cd: 77, 1564 bytes).
+ *
+ * New here: the collision buffer and velocity/axis are block-scoped locals
+ * (collision[112] in case 0's block, velocity[4]/axis[4] in the trail loop's
+ * body). gcc 2.95's expand_decl gives block locals assign_stack_temp(keep=1)
+ * slots that are freed at block end and split on reuse, so velocity lands at
+ * sp+0x10 and axis at sp+0x20 inside the freed collision slot: retail's layout
+ * without the inferred scratch union, with identical code.
+ *
+ * Still differs: gcse PRE hoists sp+0x10 (velocity) and sp+0x20 (axis) out of
+ * the trail loop (inserted on the default arm, available from case 0), so both
+ * become spilled loop-invariant pseudos (sp+0x84, sp+0x88; i+1 moves to 0x8C).
+ * Retail computes `addiu s0,sp,0x10` per outer iteration and `addiu s1,sp,0x20`
+ * in the inner preheader, i.e. neither address was anticipatable at the outer
+ * loop entry during PRE: some path through the loop body skipped the trail
+ * regeneration at gcse time and vanished afterwards (the regen test does this,
+ * but it is an always-true test). Also the case-1 dispatch constant (retail
+ * `addiu v1,zero,1` at +4, a pseudo set before the switch), scan registers,
+ * clear-loop `mult zero; mflo`. Tried here, worse: the regeneration as a static
+ * inline helper (frame base const-equiv is substituted per use: 180 differ)
+ * and only the segment loop inline (frame 0xF0 but velocity still hoisted:
+ * 156 differ). Next: find the real source of a gcse-time path around the
+ * regeneration (a loop exit/continue that later folds), not a placeholder test.
+ *
+ * Declarations below. L06_00458138.c declares func_002761F8's fifth argument
+ * as int: pass `(int)collision` there (same code) or give this its own unit.
  */
 #include "common.h"
 extern short D_L06_001B3790[] __attribute__((sda));
@@ -54,20 +73,19 @@ extern void func_L06_00458F30(char *);
 
 void func_L06_004587E8(char *o) {
     float pos[4];
-    typedef union { NotakQuad q; float f[4]; } Vec;
-    union { char collision[112]; struct { Vec velocity, axis; } vectors; } scratch;
     char *st = *(char **)(o + 0x68);
     int i, j, sign, snd;
     typedef NotakQuad Trail[6][4];
     float direction;
     float size;
     switch (*(unsigned char *)(o + 0x20)) {
-    case 0:
+    case 0: {
+        char collision[112];
         *(float *)(o + 0xF0) = func_00283B98(*(float *)(o + 0xF0), 0.104719773f);
         func_00282CC0(pos, o + 0x10, st);
-        func_002A8C00(scratch.collision, o, 1, st, *(float *)(st + 0x40));
-        *(unsigned short *)(scratch.collision + 0x1A) = *(unsigned short *)(o + 0xAA);
-        if (func_002761F8(o + 0x10, pos, 0, o, scratch.collision) ||
+        func_002A8C00(collision, o, 1, st, *(float *)(st + 0x40));
+        *(unsigned short *)(collision + 0x1A) = *(unsigned short *)(o + 0xAA);
+        if (func_002761F8(o + 0x10, pos, 0, o, collision) ||
             func_0031EBF8(0.3f, o + 0x10, 0, o) || func_00282948(st + 0x38)) {
             char *hit = D_L06_001BFC80.hit;
             float *impact = D_L06_001BFC80.point;
@@ -90,6 +108,7 @@ void func_L06_004587E8(char *o) {
     update_position:
         qcopy(o + 0x10, pos);
         break;
+    }
     case 1: {
         int index, row, col;
         index = D_L06_001B3778[*(int *)(st + 0x48)];
@@ -126,18 +145,19 @@ void func_L06_004587E8(char *o) {
     scanned:;
     }
     for (i = 0; i < 6; i++) {
+        float velocity[4], axis[4];
         if (--D_L06_001B3790[i] < 0) D_L06_001B3790[i] = 0;
         D_L06_001B3790[i] = 2;
         D_L06_001B37A0[i] = 64;
-        func_002A7988(scratch.vectors.velocity.f, 0.2f, 0.2f);
-        if (func_00282DF0(scratch.vectors.velocity.f) > 0.2f) func_00282F20((char *)scratch.vectors.velocity.f, (char *)scratch.vectors.velocity.f, 0.2f);
+        func_002A7988(velocity, 0.2f, 0.2f);
+        if (func_00282DF0(velocity) > 0.2f) func_00282F20((char *)velocity, (char *)velocity, 0.2f);
         qcopy(&((Trail *)D_L06_0025FFC0)[*(int *)(st + 0x48)][i][0], pos);
         direction = 1.0f;
         for (j = 1; j < 4; j++) {
-            func_00282CF0(scratch.vectors.axis.f, (float *)(&((Trail *)D_L06_0025FFC0)[*(int *)(st + 0x48)][i][j - 1]), (float *)D_L06_001B9840);
-            func_002ACEC0(scratch.vectors.velocity.f, scratch.vectors.velocity.f, scratch.vectors.axis.f, func_002A7878(0.17453295f, 0.7853982448577881f) * direction);
+            func_00282CF0(axis, (float *)(&((Trail *)D_L06_0025FFC0)[*(int *)(st + 0x48)][i][j - 1]), (float *)D_L06_001B9840);
+            func_002ACEC0(velocity, velocity, axis, func_002A7878(0.17453295f, 0.7853982448577881f) * direction);
             direction = -direction;
-            func_00282CC0(&((Trail *)D_L06_0025FFC0)[*(int *)(st + 0x48)][i][j], &((Trail *)D_L06_0025FFC0)[*(int *)(st + 0x48)][i][j - 1], scratch.vectors.velocity.f);
+            func_00282CC0(&((Trail *)D_L06_0025FFC0)[*(int *)(st + 0x48)][i][j], &((Trail *)D_L06_0025FFC0)[*(int *)(st + 0x48)][i][j - 1], velocity);
         }
     }
     if (!func_002A77E0(2)) {
