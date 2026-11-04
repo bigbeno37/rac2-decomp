@@ -227,7 +227,6 @@ the placement rules are in `tools/fcheck.py`'s docstring; its tests are
 | [`func_002B44C0`](game/func_002B44C0.c) | 1248 | 1192 bytes: the same folded pointer on the two copies at the top, which changes the saved registers holding `self + 0x10` and `target` and the order of the spills at 0xC8-0xEC |
 | [`func_0033A520`](game/func_0033A520.c) | 360 | 28 October 2026 recheck: plain C is 360/360 bytes but 0/28 USA v1.01 placements; 26 words differ in the rounding/allocation block. A non-empty `do/while(0)` barrier reproduces the block boundary, but its admissibility remains pending maintainer review. See source and blocker #23. |
 | [`func_L06_0047C1D0`](levels/func_L06_0047C1D0.c) | 24 | Catalogue defect: three `jr $ra; nop` stubs in a row at 0x47C1D0 (one 24-byte C function cannot emit three returns); no C can be placed |
-| [`func_L22_003F54B8`](levels/func_L22_003F54B8.c) | 196 | Candidate is 200 bytes; retail uses the annulled conditional store (`beql $v0,$zero,L; swc1` with the negative pi/2 above the branch), this cc1 emits the plain branch and both arms |
 | [`func_L22_002A8B98`](levels/func_L22_002A8B98.c) | 172 | Recorded instruction mismatch at +0x4. |
 | [`func_L22_003D0840`](levels/func_L22_003D0840.c) | 60 | 4; matches size and every other word, but the parameter copy is `daddu $v1,$a0,$zero` against retail's `$a3`. |
 | [`func_00129410`](core/func_00129410.c) | 64 | Dead VU0 remnant, not a function: COP2 stores, no `jr $ra`, linker fill at the end, and no reference from the boot. |
