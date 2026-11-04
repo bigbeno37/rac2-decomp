@@ -1,15 +1,30 @@
-/* Claude Opus 5.5 (xhigh), 3 November 2026 (task v2095); USA v1.01, default game profile.
- * Tier: sol-high draft improved. Best check.py: 1336/1336 bytes, 0/1 places,
- * first difference at +0xac; 6 instruction words differ, all one $s6/$s7 swap.
- * The UV loop now matches: `D_L19_001B1C08[] MACRO_ADDR` (unsplit la keeps lui+addiu
- * adjacent) plus struct UV fields.
- * Remaining: global-alloc priority tie 173/173 between PRE reg d+0x2C0 (refs 2, sched1
- * live 115) and the PRE copy of &origin (refs 4, live 231, doubled to 462 by the
- * update_equiv_regs REG_EQUIV rule). The tie goes to the lower regno, d+0x2C0
- * (gcse bucket 118 < 129 of 147), which takes $s6; retail gives &origin $s6.
- * Fixes that would work: one more sched1 insn after the second corner's a1 (live 116),
- * &origin live <= 229, or a gcse table of 139/143/153 buckets (max_cuid now 292-295).
- * A plain TI store for the final copy flips $s6 but drops the $s7 frame slot (1324 bytes).
+/* Claude Opus 5.5 (xhigh), 5 November 2026 (task v2472, opus-2); USA v1.01, default game profile.
+ * Best landable form (below, unchanged from v2095): 1336/1336 bytes, 0/1 places, first difference
+ * at +0xac, 6 instruction words differ, all one $s6/$s7 swap.
+ * Cause (verified): global-alloc priority tie 173/173 between the PRE reaching reg for d+0x2C0
+ * (refs 2, sched1 live 115) and the PRE copy of &origin (refs 4, live 231 doubled to 462 by
+ * update_equiv_regs). The tie goes to the lower regno, and PRE numbers reaching regs in gcse
+ * bucket order. gcse hash = 14029 + regno + offset for (plus reg const) (PLUS 71, SImode 6,
+ * REG 57, CONST_INT 52, sp hashes as reg 1): &origin = 14094, d+0x2C0 = 14818 (d is pseudo 85,
+ * fixed by its load in the first jal delay slot). With 147 buckets (max_cuid 295) the buckets are
+ * 129 vs 118. Table sizes that put &origin first: 129, 135, 139, 143, 153, 163..179
+ * (max_cuid 256-259, 268-271, 276-279, 284-287, 304-307, 324-359).
+ * EXACT-BYTES FORM (not landable): replace the UV-loop line with
+ *   { int i; i=1;i=2;i=3;i=4;i=5;i=6;i=7;i=8;i=9; for(i=0;i<4;i++){...same body...} }
+ * Those 9 dead stores reach gcse (flow1 deletes them), so max_cuid becomes 304 (153 buckets).
+ * check.py then reports 1 of 1 places for us, pal and us2. 10 stores (305) also match.
+ * Repeated `i=0` stores add nothing (cse drops a set to the value already held).
+ * Measured as count-neutral (max_cuid stays 295): do-while, while, and float-index (2*i)
+ * loops; a TI-copy inline helper for the corners. `int hit = 0;` plus `hit = func_002761F8(..)`
+ * gives exactly +1 and no other change, so the five allowed declaration inits reach only
+ * max_cuid 300 (151 buckets, no flip).
+ * Measured as harmful: an inline DrawGlow(pos, color, size) helper (frame 0x1D0, f24 lost,
+ * max_cuid 294); a second induction variable j+=2 (+3, but the loop code changes); a `UV *uv`
+ * destination pointer (loop changes).
+ * Still open: a natural source change of +9..+12 (or -8..-11) gcse insns that leaves the
+ * output alone, or two vanishing sched1 insns between 0x418290 and 0x4183CC (one after 0x4183CC).
+ * Earlier notes (v2095): the UV loop matches with `D_L19_001B1C08[] MACRO_ADDR` plus UV struct
+ * fields; a plain TI store for the final copy flips $s6 but drops the $s7 frame slot (1324 bytes).
  * Declarations: below, matching the later externs in L19_003E9400.c.
  * Approved helpers qcopy/qcopy_nc come from common.h.
  */
