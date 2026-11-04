@@ -302,6 +302,8 @@ f32 func_L18_0035D5F8(void *out, void *origin, void *direction, char *path, floa
 
 /* func_L18_003F5650 is matched in L18_003F5650-g16.c (built with -G16). */
 
+INCLUDE_ASM("asm/levels", func_L18_003F6CA8);
+
 /* func_L18_003F6CA8 is matched in L18_002C4000-move.c (built with -frac2-qcopy -frac2-qcopy-barrier). */
 
 extern void func_002A93B0(void *);
@@ -984,6 +986,8 @@ BatchA_A18_s32 func_L18_004271C0(BatchA_A18_u8 *a0) {
 /* func_L18_00427208 is defined in L18_00427208-qcopy.c. */
 
 /* func_L18_004273F0 is matched in L18_004273F0-g8.c (built with -frac2-qcopy). */
+
+INCLUDE_ASM("asm/levels", func_L18_00427688);
 
 /* func_L18_00427688 lives in L18_00427688-g32.c. */
 

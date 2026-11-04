@@ -149,6 +149,8 @@ void func_L08_003D3928(void *owner, void *pos)
     }
 }
 
+INCLUDE_ASM("asm/levels", func_L08_003D39F0);
+
 /* func_L08_003D39F0 is defined in L08_003D3928-g8.c. */
 
 /* One resident word, two states, and a 16-byte table entry: hands the entry to
@@ -216,6 +218,8 @@ s32 func_L08_003DB4E8(void)
 INCLUDE_ASM("asm/levels", func_L08_003DB518);
 
 /* func_L08_003DB8E8 is matched in its own unit, L08_003DB8E8-g8.c. */
+
+INCLUDE_ASM("asm/levels", func_L08_003F6610);
 
 
 

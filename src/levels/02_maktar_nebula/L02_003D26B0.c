@@ -96,6 +96,10 @@ void func_L02_003D46B8(char *arg0) {
     func_002B0990(arg0, state + 0x340, 6, 1, 2.5f);
 }
 
+INCLUDE_ASM("asm/levels", func_L02_003D91A0);
+
+INCLUDE_ASM("asm/levels", func_L02_003D5748);
+
 /* func_L02_003D47B0 is matched in L02_003D47B0-g8.c (built with -frac2-qcopy -frac2-qcopy-barrier). */
 
 void func_L02_003D4900(char *arg0) {

@@ -47,24 +47,6 @@ extern MissionMenuItem D_00256418[];
 /* Refresh the four mission menu items from the mission IDs in D_001A9AC8:
  * a known mission's item gets its count, id and color and is passed to
  * func_0033A9D0 with 0, an unknown one with 2. */
-void func_0029B910(void) {
-    int i;
-    int *ids;
-    if (D_001A8CFC != 0) {
-        ids = D_001A9AC8;
-        for (i = 0; i < 4; i++) {
-            int idx = func_002ED8A0(ids[i]);
-            if (idx >= 0) {
-                D_00256418[i].second = D_00262940[idx].count;
-                D_00256418[i].id = D_00262940[idx].level;
-                D_00256418[i].color = D_00262940[idx].flag >= 1 ? 0x6029A1FF : 0x60F0F0B0;
-                func_0033A9D0(D_001A8CFC + 0x3F138, i, 0);
-            } else {
-                func_0033A9D0(D_001A8CFC + 0x3F138, i, 2);
-            }
-        }
-    }
-}
 int func_0029BB30(void) {
  int result, changed;
  if (D_001A9A50 == 0) return -1;

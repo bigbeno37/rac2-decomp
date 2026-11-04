@@ -244,6 +244,8 @@ void func_003313E0(TI128 *a0, void *dir)
     } while (i >= 0);
 }
 
+INCLUDE_ASM("asm/game", func_00334160);
+
 extern s32 func_00283CF0(f32 value);
 extern u8 *func_002C16C0(f32 *pos, f32 *sym, s32 a2, s32 a3, u32 color, s32 alpha, f32 f12, f32 f13, f32 f14, f32 f15, f32 f16);
 extern u8 *D_001F26B0;

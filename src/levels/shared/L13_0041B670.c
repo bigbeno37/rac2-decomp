@@ -11,6 +11,10 @@ extern void func_0032F620(int, int, int);
 
 /* func_L13_0041BAE0 is in L13_0041BAE0-ring.c (-G32). */
 
+INCLUDE_ASM("asm/levels", func_L13_0041FBE0);
+
+INCLUDE_ASM("asm/levels", func_L13_00438D88);
+
 /* func_L13_0041FBE0 is in L13_0041FBE0-g64.c (-G64). */
 
 

@@ -195,6 +195,8 @@ void func_L00_002AFBC0(void) {
  func_L00_002AEB18();
 }
 
+INCLUDE_ASM("asm/levels", func_L00_002B1350);
+
 #define ITEM_DEF(id) (&D_L00_00262570[D_00139568[id]])
 #define HERO_ITEMS (&D_00189E20_items)
 

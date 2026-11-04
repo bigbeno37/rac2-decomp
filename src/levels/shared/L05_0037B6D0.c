@@ -349,6 +349,8 @@ void func_L05_0037DA58(float *position, int count, int color, int duration)
 
 /* func_L05_003979B0 is in L05_003979B0-g8.c. */
 
+INCLUDE_ASM("asm/levels", func_L05_00397B30);
+
 /* func_L05_00397B30 is in L05_0037B6D0-g8.c. */
 
 /* func_L05_00397F48 is in L05_00397F48-g8.c. */
@@ -762,6 +764,8 @@ void func_L05_003D19F0(char *object)
 }
 
 /* func_L05_003D1AB8 is in L05_003D1AB8-g8.c. */
+
+INCLUDE_ASM("asm/levels", func_L05_003D2048);
 
 
 

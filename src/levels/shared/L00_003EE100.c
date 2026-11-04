@@ -172,6 +172,10 @@ void func_L00_003EE100(char *object)
     *(float *)(data + 12) = func_00283B98_3(*(float *)(data + 12), 0.5f);
 }
 
+INCLUDE_ASM("asm/levels", func_L00_003F4210);
+
+INCLUDE_ASM("asm/levels", func_L00_003F0CC8);
+
 /* calls two guards and returns 1 only when both succeed and the object's float field is not positive */
 int func_L00_003EE228(char *object)
 {

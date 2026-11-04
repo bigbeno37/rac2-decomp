@@ -124,6 +124,8 @@ void func_L05_003D33E8(char *obj)
     D_L05_001B2FD0[*st] = 0.0f;
 }
 
+INCLUDE_ASM("asm/levels", func_L05_0041A228);
+
 
 /* shared native body of family 5a97ab89858c */
 void func_L05_00416630(char *p)
@@ -261,6 +263,8 @@ void func_L05_00418508(char *a0)
 
 
 /* func_L05_00419370 is defined in L05_00419370-g8.c. */
+
+INCLUDE_ASM("asm/levels", func_L05_00419888);
 
 /* func_L05_00419888 is defined in L05_003D33E8-g8.c (it reaches D_L05_001B104C through $gp). */
 

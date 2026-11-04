@@ -111,6 +111,10 @@ void func_002D5E98(int param_1)
   func_002D5B58(*(short *)(param_1 + 2), *(int *)(param_1 + 4), &auStack_20[0]);
   return;
 }
+
+INCLUDE_ASM("asm/game", func_002DDA10);
+
+INCLUDE_ASM("asm/game", func_002D7698);
 /* func_002D5EC0 is in 002D5E98-list-g8.c. */
 
 INCLUDE_ASM("asm/game", func_002D6230);

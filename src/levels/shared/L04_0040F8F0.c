@@ -91,6 +91,12 @@ void func_L04_00410518(L04_RouteObject *object, L04_RouteState *state, int *link
     *result = func_L04_0040F8F0(object, state, *link, *point, mode, object->modelId == 0xBBC);
 }
 
+INCLUDE_ASM("asm/levels", func_L04_00416018);
+
+INCLUDE_ASM("asm/levels", func_L04_004167B0);
+
+INCLUDE_ASM("asm/levels", func_L04_00412308);
+
 INCLUDE_ASM("asm/levels", func_L04_00410788);
 
 /* Scans the 0x20 slots at +0x110 of the state block for the first whose stored id the

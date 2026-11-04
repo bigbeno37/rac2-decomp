@@ -39,6 +39,8 @@ s32 func_0029AE78(s32 *a0) {
  return n+8;
 }
 
+INCLUDE_ASM("asm/game", func_0029B910);
+
 extern int D_00256138[];
 
 int func_0029AEB0(char *data, int length)
