@@ -1,3 +1,23 @@
+/* Task v2487, Opus 5.5 xhigh, 5 November 2026. Code below unchanged (still the closest by
+ * aligned rows); recompiled here: 2996/2988 bytes, 0 of 28 places, same differences as below.
+ * Same-size variant: move `int i;` of the two D_001A6860 loops to function scope (one shared
+ * counter, p still per arm): 2988/2988 bytes, check.py "instruction at +0x40c differs", 34 rows
+ * differ (both preheaders' order, t0/t1 swapped in the then-loop, difference 2 below). Sharing p too:
+ * 2988 bytes, 42 rows. Without -fno-rerun-loop-opt the size also hits 2988, by accident: the
+ * D_001A6D40/D_00138850 loops become count-down loops, which retail does not have.
+ * Measured mechanism of retail's lone `lui $s0` (dbr dump, -dd): reorg fills the beqz slot from
+ * the then-arm, skipping its `i = 0` (it skips it here too), and relax_delay_slots then removes
+ * the else-arm's first insn if it is identical to the slot insn. In the shared-i variant that pair is
+ * `i = 0`; in retail it is HIGH(D_001A6600), so retail's else-arm sched2 order began
+ * `lui s0; i = 0; lui s1..`, and its then-arm had p's init after the luis.
+ * p's init after the loop pass's constants means loop.c emitted it as a reduced giv (giv inits follow
+ * movables). In this loop.c (a) increments 1-3 of a 4-increment biv become separate givs unless
+ * loop_has_volatile, or a jump lies between them and the biv is live after the loop; (b) a
+ * DEST_ADDR giv on volatile MEMs is never replaced (loop runs with volatile_ok = 0: validate_change
+ * fails); (c) (mem p) on the biv itself has benefit 0, under the 4 * add_cost the biv_count costs;
+ * (d) q[n] or *(q + n) addresses are in-struct (expr.c, PLUS_EXPR), so FA gets hoisted, unlike retail.
+ * The original therefore has some other construct; -frac2-gcse-unsplit-edges changes nothing here.
+ */
 /* Current retained result, 1 November 2026: 2996/2988 bytes. Explicit goto alternatives for the two strip
  * loops kept that size and reduced opcode agreement; retain the structured loops. No new volatile access or
  * artificial loop was introduced. The preheader and wide-shift scheduling constraints below remain.
