@@ -18,6 +18,19 @@
  *     live past the else arm.
  * Next useful experiment: a wording in which the base pointer and owner are
  * referenced in more than one block with no extra instruction.
+ * Opus-2 recheck (task v2474, 2026-11-05): this draft still gives 1212/1212,
+ * 0/1 places, 6 rows off once relocations are masked (0x310F50-0x310F84).
+ *  - Owner global confirms difference 1: with the owner store moved into the
+ *    else arm (owner then crosses a block), hero takes v1. But the store then
+ *    stays in the else arm, because reorg cannot put a store that may trap
+ *    into a non-annulled bne slot, so retail's store comes from before the
+ *    bne. Owner needs a second block reference that leaves no code, with
+ *    2 refs and its REG_EQUIV-doubled live length so hero ranks first.
+ *  - switch (mode) { case 4: case 5: } gives two compares (226 rows); dropped.
+ *  - Difference 2 needs the base to stay live past the else arm (then all
+ *    three loads tie at weight 1 and keep source order), or lower needs a
+ *    dependent in its block. A path-following cse copy (st = base) would keep
+ *    it live but costs a daddu where retail has addiu s4,s7,lo.
  * Needs the declarations below. No linked equality is claimed.
  */
 
