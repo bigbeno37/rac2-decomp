@@ -23,6 +23,26 @@
  * -frac2-sticky-volatile-refs modelled exactly this and is not upstream.
  * Tried: -frac2-qcopy (+barrier) grouped copies instead of the asm (same slot),
  * the branch polarity (same).
+ *
+ * Task v2405 (opus-2, 4 November 2026): best unchanged, 412/412 bytes, 0/27 places.
+ * The `|=` reading above is not needed. With `=`, retail fits if the addiu stands
+ * behind the second qcopy with no load between (next to ref_01): the search from
+ * ref_00 then still has needed.volatil set. So the addiu belongs in the block before
+ * the pclass test, yet must keep its lo_sum through cse2 and share the %hi by PRE,
+ * which needs a block boundary there that leaves no code. No legal source for that
+ * was found. Grouped copies cannot use this route (no asm, no volatile flag).
+ * Tried, same slot: -frac2-gcse-unsplit-edges, -frac2-keep-block-order, both;
+ * qcopy_nc on one or all copies; TImode copies under -frac2-qcopy -frac2-qcopy-barrier.
+ * Second base `h = HERO` after ref_01: cse merges it into the first (29 rows differ).
+ * A bare no-clobber asm as the second copy does stop cse but gives a second lui, and
+ * corrupts the copy (no $v0 clobber); probe only. Arms `x = 0x10` with one store after
+ * the join: the test folds and its loads go.
+ *
+ * The identical arms below are no longer allowed; a match needs arms that differ in
+ * the source. Inline helper mark(m, on, off) called with 0x10, 0x10: 412 bytes, arms
+ * merge, but the constant moves ahead of the test into $a1. `m[0x63] = 0x10 | bits`
+ * against `m[0x63] = 0x10`, bits 0: `bnez` and two `li` survive (size changes). Neither
+ * is closer, so the body stays as it was.
  */
 #include "common.h"
 
