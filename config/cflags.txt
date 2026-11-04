@@ -3149,3 +3149,4 @@ src/levels/01_oozla/L01_003BB9D0-debris-g8.c	-O2 -G8 -ffunction-sections -g
 src/levels/03_endako/L03_0041CA78-g8.c	-O2 -G8 -ffunction-sections -Wa,--r5900-unsigned32-mask=sn
 src/levels/07_siberius/L07_00389EB8-trail-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels
 src/levels/02_maktar_nebula/L02_003E91F0-g8.c	-O2 -G8 -ffunction-sections -g -frac2-hazard-labels
+src/levels/07_siberius/L07_003F4578-beam-g8.c	-O2 -G8 -ffunction-sections -g
