@@ -3146,3 +3146,4 @@ src/levels/02_maktar_nebula/L02_003D0408-g8.c	-O2 -G8 -ffunction-sections -frac2
 src/levels/shared/L00_004233F8-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/levels/shared/L18_00427BE0-shot-g8.c	-O2 -G8 -ffunction-sections -frac2-keep-block-order
 src/levels/01_oozla/L01_003BB9D0-debris-g8.c	-O2 -G8 -ffunction-sections -g
+src/levels/03_endako/L03_0041CA78-g8.c	-O2 -G8 -ffunction-sections -Wa,--r5900-unsigned32-mask=sn
