@@ -6,6 +6,20 @@
  * unsupported.
  * Earlier measurements below are historical where superseded by this note.
  */
+/* Claude Opus 5.5 xhigh, 2026-11-05 (task v2511): body unchanged, still the closest form.
+ * Reorg: fill_simple_delay_slots scans back from the jal. The volatile T0 `sw` sets
+ * set.volatil, the plain `sd` resets it (resource.c 713), and nothing between the clear
+ * and the jal reads memory, so the only conflict that can keep `daddu $s3` out of the
+ * slot is a volatile `sd` (or a sticky set.volatil, which this compiler lacks).
+ * RAC1-style declaration volatile (989snd.c `extern volatile long ... MACRO_ADDR`) with
+ * `clock = D_001A7200; D_001A7200 = clock + T0;` (also `clock += T0`): 3432 bytes, slot
+ * nop, but $a0/$v1 swap. Measured with -fsched-verbose-5: at t=2 sched1 has the volatile
+ * ld 741 and the address ori 2300 tied on priority (20/20), reg weight and class, and
+ * rank_for_schedule takes 741 for its 6 dependents (2300 has 4). The clock qty then
+ * lives 9 insns (24/9) against the address's 30/11, so the address takes $v1. It needs
+ * the ld after the ori, i.e. a non-volatile load, which is the forbidden cast again.
+ * Moving the flush/extra clears after the T0 store changes nothing (they fill t=3/t=4).
+ */
 /* Claude Opus 5.5 xhigh retry, 2026-10-31 (task v1862). Unmatched: not a linked match.
  * Goes in src/levels/shared/L00_002A3B88-g8.c (-G8; take the marker out of L00_002A3B80.c).
  * This body, USA v1.01, -O2 -G8 -ffunction-sections: 3428/3432 bytes, 0/27 places.
