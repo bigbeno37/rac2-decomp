@@ -1,25 +1,27 @@
-/* Claude Opus 5.5 (xhigh), 3 November 2026: FAILED, 1496/1496 bytes,
- * 0/1 USA v1.01 places (142 cdiff lines). Standalone game unit profile:
- * -O2 -G2 -ffunction-sections -mastra-quad-saves (src/core/001185E8.c).
- * Same size as retail; every block's code shape matches. Fixes over the
- * 1472-byte draft: the fraction loop exits with `goto round` (a break as last
- * insn rotated it and lost the hoisted 10.0 in $s7); the integer loop keeps
- * its top test as `while (++e < 163) { ...; if (f < 1.0) break; }`; the
- * scale-down loop is a rotated `while ((value *= 10.0) < 1.0 && e >= -1020)
- * e--; e--;` (beql slot); `if (ndigits != 0)` / `if (ch != 'f')` arm order;
- * the '.' shift loop reuses n (retail $s2, giv len + p); `n = u.i[0];
- * n &= ~0xFFFF;` truncates straight into $s2.
- * Left: (1) retail has a once-through loop note before the switch (no back
- * edge): it is a sched2 barrier, so param spills and all saves precede the
- * extraction, and $L17 at 0x678 gets the .p2align 3 nop at 0x674. A
- * diagnostic do { ... } while (0) around the dispatch reproduces both (60
- * lines left) but is forbidden; the original construct is unknown.
- * (2) e is $s5 and eps/precision $s4, retail the reverse: eps (9 refs, live
- * 70) outranks e (34 refs, live 472) in the global queue. (3) Integer loop
- * store `p[n] = digit + '0'`: retail emits the value (v1) before the address
- * (v0) and puts the floatsidf a0 move in the jal slot, n++ after the call;
- * here sched1 keeps address first and n++ fills the slot. n++ position and
- * p[n++] made no difference. All declarations follow.
+/* Claude Opus 5.5 (xhigh), 5 November 2026: FAILED, 1496/1496 bytes,
+ * 0/1 USA v1.01 places (111 cdiff lines; previous draft 142). Standalone game
+ * unit profile: -O2 -G2 -ffunction-sections -mastra-quad-saves
+ * (src/core/001185E8.c). Change over the 3 November draft: the integer-part
+ * loop counts with its own local k (`k = 0; while (++k < 163)`) instead of e.
+ * That lowers e's ref count in that loop and puts e in $s4 and eps/precision
+ * in $s5, as retail does (all the $s4/$s5 rows are gone).
+ * Left: (1) retail has a once-through loop note before the dispatch: it is a
+ * sched2 barrier (param spills and all saves come before the extraction) and
+ * gives $L17 at 0x678 the .p2align 3 nop at 0x674. A diagnostic
+ * do { u.d = value; ... switch ... } while (0); around the dispatch alone
+ * reproduces both and leaves 47 lines, but it is forbidden. Ending that loop
+ * later (after the sign test, the integer part, len, rounding, '.', or the
+ * whole body) gives 83-360 lines. (2) Integer loop store `p[n] = digit + '0'`:
+ * retail gives the address $v0 and the value $v1, stores, puts the litodp a0
+ * move in the jal slot and n++ after the call. Here sched1 issues the address
+ * (insn 245, ready one cycle before the value) with the digit copy, so the
+ * value has the shorter life, local-alloc gives it $v0, and the a0 move goes
+ * before the sb. A shared int temp (`c = digit + '0'; p[n] = c;`, c also used
+ * by the reverse loop) gives the address $v0 but puts c in $a1. These make no
+ * difference: n++ placement, p[n++], an int temp used only here, (char)digit.
+ * The value must come first in sched1 (as in the fraction loop, where digit
+ * dies at the value insn), and the source form that does that is unknown.
+ * All declarations follow.
  */
 #include "common.h"
 
@@ -54,6 +56,7 @@ char *func_001185E8(double value, int ndigits, char ch, int dot) {
     int digit;
     int len;
     int precision;
+    int k;
 
     u.d = value;
     n = u.i[0];
@@ -72,7 +75,7 @@ char *func_001185E8(double value, int ndigits, char ch, int dot) {
     }
 
     precision = ndigits;
-    e = 0;
+    k = 0;
     n = 0;
     if (value < 0) {
         D_0013C080[0] = '-';
@@ -85,7 +88,7 @@ char *func_001185E8(double value, int ndigits, char ch, int dot) {
     if (value >= 1.0) {
         f = func_00117650(value);
         value = value - f;
-        while (++e < 163) {
+        while (++k < 163) {
             digit = (int)func_00117848(f, 10.0);
             p[n] = digit + '0';
             f = (f - (double)digit) * 0.1;
