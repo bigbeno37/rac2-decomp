@@ -934,5 +934,6 @@
 #define UpdateShipWeapons                func_L05_00443D08
 #define MeshDrawFourSigns                func_L00_003B4560
 #define UpdateLockOnWeapon               func_L00_003C8A90
+#define DrawCameraFacingRibbon           func_L04_0030C948
 
 #endif /* NAMES_H */

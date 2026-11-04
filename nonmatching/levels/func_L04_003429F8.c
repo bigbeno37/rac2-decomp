@@ -16,6 +16,19 @@
  *
  * closer D, 1 November 2026: for/while/limit/pointer-local forms of the moby area loop do not
  * change out's priority: 25, 44, 74 and 153 words.
+ *
+ * opus-2, task v2439 (4 November 2026), same 920/920, 0/4 with this draft:
+ * - Moving the count>0 branch's three pointer assignments after its hero loop gives out
+ *   21 refs (live 157, priority 0.535) and fixes the s4/s5 swap, and i = 0 / limit then
+ *   lead that preheader as in retail; but gcse PRE hoists out+0x10/0x20/0x30 into new
+ *   regs (s2/s3/s5) live across the loop and the spill stores move after it (188 rows).
+ *   So retail's out has about 20+ refs: likely its three pointer computations are
+ *   counted inside the hero loop's notes (loop depth 2), as loop.c-hoisted invariants
+ *   are (cf. the moby loop's count-1, placed after NOTE_INSN_LOOP_BEG).
+ * - sched2 ties here: the pointer addiu's win over i = 0 / limit on dependent count
+ *   (store + jump), so source order alone cannot put i = 0 first.
+ * - for (i = 0; i < count - 1; i++) with the pointers first: 49 rows (limit hoisted last).
+ * - valid = 1 after the distance call: no change (sched1 already puts it there).
  */
 #include "common.h"
 #define WBYTE(p,o) (*(unsigned char *)((char *)(p)+(o)))
