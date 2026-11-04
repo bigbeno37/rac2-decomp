@@ -950,5 +950,6 @@
 #define UpdateItemPurchaseConfirmation   func_L00_00373F48
 #define DrawPurchaseItemList             func_L00_003769C0
 #define DrawEffectRecordQuads            func_L00_003A8940
+#define UpdateHomingMissile              func_L00_003E2510
 
 #endif /* NAMES_H */
