@@ -1,3 +1,25 @@
+/* 5 November 2026, Opus 5.5 xhigh (opus-2), task v2494. Body below unchanged: recompiled here as its own
+ * -G8 unit (src/game/002D3390-002D3FA0-g8.c) it still gives 2428/2468 bytes, 0/28 places, 605 of 617 rows
+ * differ. Probes below are measurements only (invented dead code or do/while(0)); none is landable.
+ * Score = retail instructions that align (difflib on normalised check.py rows): body below 283/617.
+ * Each probe writes every rounding as its own statement into a local, then B(local) after it:
+ * `h = (int)((float)(D_001A7344[0] / 2) * D_001B23A4[0] + 0.5f); B(h); py = (float)h;` and
+ * `y0 = R(326); B(y0); y1 = R(387); B(y1); func_0028FC48(228, y0, 230, y1, color, 0);`, also x for 116/134/187.
+ * - `if (D_001B23A0[0] == 1) probe = 1.0f;` (probe overwritten by `probe = 2.0f; D_001B23A4[3] = probe;` at
+ *   the end, so flow1 deletes every arm): leaves no word, D_001B23A0 loads included (flow2 drops the empty
+ *   branch, then its life_analysis deletes the inputs). cse keeps ONE 0.5f across all 26 such tests (the 9-branch
+ *   cse path limit does not bite), so if-without-else tests are cse-transparent. But sched2 then sees one block
+ *   and hoists 1.0f/0.0f and the argument setup, which retail does not: retail's split survives sched2. 332/617.
+ * - Loop notes alone (do { } while (0) after each rounding): f20-f22 and 0.5f right, frame 0x90, 2416 bytes.
+ * - Both together, `#define B(v) do { if ((v) != 0) probe = 1.0f; } while (0)` (the test reads only the live
+ *   rounding result, as retail needs): t in $a2, 1.0f/0.0f after the first rounding, rect groups' colour copy
+ *   `daddu $s0,$sX` as in retail, f20-f22: 412/617 (2504 bytes, part of it probe residue). With `== 1`: 394.
+ *   Still differs: colour in $s1 (retail $s2, so something call-crossing held $s1 in retail's first part), no
+ *   $s6/$s7/$fp saves, frame 0x90 (retail 0xA0); the loops differ only in i/x taking $s2/$s0 (retail $s0/$s2).
+ * So retail's per-rounding construct is a real CFG edge through combine and local-alloc, a scheduling barrier
+ * in sched1 and sched2, transparent to cse, leaves no word, and accounts for three call-crossing GPR pseudos
+ * deleted after allocation ($s6/$s7/$fp, probably live across the loops, where $s0-$s5 are all busy).
+ */
 /* 2 November 2026: retained nonmatching C; no linked matching credit.
  * Profile: -O2 -G8 -ffunction-sections.
  * USA v1.01 check: 2428/2468 bytes, 0/28 placements.
