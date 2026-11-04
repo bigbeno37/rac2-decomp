@@ -851,7 +851,6 @@ int func_L09_003FB908(unsigned char *object, void *src)
     return 0;
 }
 
-INCLUDE_ASM("asm/levels", func_L09_003FB9F8);
 
 typedef struct {
     int x;
