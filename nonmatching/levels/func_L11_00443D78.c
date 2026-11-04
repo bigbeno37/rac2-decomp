@@ -1,3 +1,23 @@
+/* Claude Opus 5.5 (xhigh), task v2466, 5 November 2026. FAILED, 1324/1332 bytes, 0 of 1 places
+ * (dedicated -O2 -G8 -ffunction-sections unit L11_00443D78-g8.c). Body unchanged except
+ * D_L11_001B1664 is now MACRO_ADDR: retail loads it as the unsplit `lui $at; lwc1 0x1664($at)`
+ * macro (nosda gave a split lui/lwc1); byte count unchanged.
+ * Measured (diagnostics, none landable):
+ * - Retail's `addiu $s1,$zero,1` in the entry block (the SEL == 1 compare constant held in a saved
+ *   register) is reproduced by the L02 dead-test probe
+ *     static __inline__ int HS(float v) { float y; if (D_L11_001B3E00 == 1) y = 1.0f;
+ *         y = v * D_L11_001B3E04 + 0.5f; return (int)y; }
+ *   on the three box conversions (D_L11_001B3E00 = the level's display mode next to the scale,
+ *   like boot D_001B23A0/D_001B23A4): cse shares the probe's constant 1 with SEL == 1, and the
+ *   mode load/compare vanish (flow tidies the emptied arm). So retail very likely has a
+ *   `mode == 1` test per conversion whose arm dies. But with the probe the chains still overlap
+ *   (D_1664 and the D_166C/D_1654/D_1670 loads issue inside conversion 1), so retail's arm must
+ *   survive sched1 (e.g. a store flow2 deletes, the b1013 pattern), not die in flow1.
+ * - The 002D3D88 if/else helper (mode = text pointer, +0 adjust) serializes the chains but
+ *   reloads 0.5f per join and turns the lwc1 loads into lw+mtc1 (1372 bytes).
+ * - -fno-schedule-insns: 1312 bytes. Dead `if (x == 0) y = 0;` stores between conversions die
+ *   before cse (no effect). Family: func_L02_003FDDE8, func_L02_003FE8B8, func_L11_00444400.
+ */
 /* 4 November 2026 actual-contract review; retained near miss, not linked.
  * USA v1.01 check.py: 1324/1332 bytes, 0/1 placements; first difference size mismatch.
  * Profile: -O2 -G8 -ffunction-sections.
@@ -43,7 +63,7 @@ extern int D_L11_001B1654 __attribute__((sda));
 extern int D_L11_001B1658 __attribute__((sda));
 extern int D_L11_001B165C __attribute__((sda));
 extern int D_L11_001B1660 __attribute__((sda));
-extern int D_L11_001B1664 __attribute__((nosda));
+extern int D_L11_001B1664 MACRO_ADDR;
 extern int D_L11_001B1668 __attribute__((nosda));
 extern int D_L11_001B166C __attribute__((nosda));
 extern int D_L11_001B1670 __attribute__((sda));
