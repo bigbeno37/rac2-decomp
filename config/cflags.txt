@@ -3140,3 +3140,4 @@ src/levels/shared/L00_003F4210-g8-dbg.c	-O2 -G8 -ffunction-sections -frac2-qcopy
 src/levels/shared/L05_00443D08-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/levels/shared/L05_0041A228-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/levels/shared/L00_003A53E8-g16.c	-O2 -G16 -Wa,-G16 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -g
+src/levels/11_joba/L11_00420C88-state-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
