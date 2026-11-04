@@ -152,8 +152,6 @@ int func_002D6E78(void)
     return 0;
 }
 
-INCLUDE_ASM("asm/game", func_002D6F38);
-
 extern void func_0029D830(int *);
 extern int func_0029DB28(unsigned int, unsigned int, unsigned int, int);
 extern int D_001C51D0;
