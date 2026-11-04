@@ -1,3 +1,33 @@
+/* 5 November 2026, opus-2 (Claude Opus 5.5, xhigh effort): closer draft, 1940/1952 bytes, 0/27 US places; cdiff
+ * 212 of 488 rows (relocations included) against 229 for the opus-1 draft recompiled here. 141 non-relocation rows
+ * differ, nearly all from the 3-instruction shift these three causes leave in loop 4. Build it as its own unit (e.g. src/levels/shared/L00_0037E898-burst.c, default
+ * -O2 -G0 -ffunction-sections), because L00_0037E898.c declares func_00282DF0, func_00282F20 and func_002BF728 differently.
+ * Solved here:
+ * - Prologue: object in s4, velocity in s5. The first weapon-table read written index-first
+ *   ((BurstWeapon *)(D_00139568[12] * 224 + (int)D_L00_00262570)) gives retail's `addu v1,v1,a1`. The register swap
+ *   came from loop 4: a colour constant queued before object took s4. With the loop-4 colours below, object gets s4.
+ * - Loop 3 is exact apart from the missing `daddu fp,zero,zero`: `unsigned int r = 96; int g = 96, b = 127;` at the top of
+ *   the if-block, used in both loops. The unsigned r keeps `| r` outside the CYGNUS tree rebalancing, so 0x167F6000 and
+ *   0x7F6000 are hoisted, with `ori 0x60` in the body. The count-up `for (i = 0; i < 100; i++)`, which loop.c reverses to
+ *   li 99/bgez, puts &drift in s6 at retail's position.
+ * - Loop 4 colour 1: `(0x7F000000 | (b << 16) | (g << 8)) | r` with loop 3's b and g. gcse PRE carries b<<16 and g<<8
+ *   over from loop 3. Their reaching registers are single-set, single-use constants, so update_equiv_regs substitutes
+ *   them into the preheader (lui 0x7F; lui 0x7F00 / ori 0x6000; or), and the or is not folded. This is retail's
+ *   unfolded t3. Using loop-local channels here folds t3 to 0x7F7F6000 instead.
+ * - Loop 4 colour 2: retail's s3 = 0x3F3000 comes out of `(((hg >> 1) << 8) | ((hb >> 1) << 16)) | (hr >> 1)` with
+ *   loop-local hr/hg/hb set just before the loop. cse2 then knows them in the preheader. Literal halves also give
+ *   0x3F3000 but leave hr >> 1 unfolded.
+ *   Inline-function parameters do not help: integrate.c passes the caller's pseudo directly.
+ * Still different:
+ * - Retail's dead `daddu fp,zero,zero` in loop 3's preheader. All nine saved GPRs are live in loop 3 there, so it is a
+ *   call-crossing zero pseudo that flow kept live. A shared counter `i` for loops 3 and 4 does not give it, and it
+ *   swaps s4/s5 back.
+ * - Loop 4: hr >> 1 (pseudo 277 here) is single-set to 48, so it carries a REG_EQUIV. global.c doubles its live length
+ *   (134) and gives priority 3/134, which loses to t3 (3/74). t3 takes fp and 0x30 is rematerialised as `ori a1,s3,0x30`.
+ *   Retail keeps 0x30 in fp and spills t3 to 0xC4, so retail's 0x30 pseudo has no REG_EQUIV. Most likely it is the same
+ *   pseudo as the dead fp = 0 above: set twice, live from loop 3 on. The t3 spill (sw/lw 0xC4) and the slots 0xC4/0xCC
+ *   for &shard follow from this. Next: find what keeps a zero live across loop 3 and is reassigned to r >> 1 before loop 4.
+ */
 /* 4 November 2026, opus-1 (Claude Opus 5.5, xhigh effort): closer draft, 1936/1952 bytes, 0/27 US places; masked
  * diff 171 differing rows against 204 at the start of this attempt (same default game compiler). Built as its own
  * unit because L00_0037E898.c declares func_00282DF0, func_00282F20 and func_002BF728 differently.
@@ -98,9 +128,9 @@ extern void *func_002BCB00(float, void *, void *, int, int, int, int, int, int, 
 extern void *func_00312B70(void *, void *, int, void *);
 extern void func_0029F338(void *);
 
-static __inline__ unsigned int BurstColor(unsigned int r, unsigned int g, unsigned int b, unsigned int a)
+static __inline__ unsigned int BurstHalf(unsigned int r, int g, int b)
 {
-    return r | (g << 8) | (b << 16) | (a << 24);
+    return (((g >> 1) << 8) | ((b >> 1) << 16)) | (r >> 1);
 }
 
 void func_L00_0038E880(char *object, BurstVector *velocity, BurstVector *normal)
@@ -112,7 +142,7 @@ void func_L00_0038E880(char *object, BurstVector *velocity, BurstVector *normal)
     BurstWeapon *w;
 
     tmpl = D_L00_002A26A0;
-    scale = 1.0f + func_00283CE0(D_L00_00262570[D_00139568[12]].enabled != 0);
+    scale = 1.0f + func_00283CE0(((BurstWeapon *)(D_00139568[12] * 224 + (int)D_L00_00262570))->enabled != 0);
     func_00282D30(velocity, velocity, scale);
     func_00282CF0(&delta, D_L00_001B8DC0, object + 0x10);
     distance = func_00282DF0(&delta);
@@ -159,10 +189,11 @@ void func_L00_0038E880(char *object, BurstVector *velocity, BurstVector *normal)
     height = func_002A89A8(&random, 0, 0.5f);
     ground = func_002A8A20(&random);
     if (height != ground && height - ground < 1.2f) {
-        int r = 96;
+        unsigned int r = 96;
+        int g = 96, b = 127;
         {
             int i;
-            for (i = 99; i >= 0; --i) {
+            for (i = 0; i < 100; i++) {
                 float half = 0.5f;
                 float radius, angle;
                 point.q = 0;
@@ -180,17 +211,18 @@ void func_L00_0038E880(char *object, BurstVector *velocity, BurstVector *normal)
                 point.f[2] = height + half;
                 drift.f[2] -= radius;
                 func_L00_0033AA40(&point, &drift, 0, func_002A7878(0.25f, 1.0f), height,
-                (0x16000000 | (0x7F << 16) | (0x60 << 8) | r), 1.0f / 180.0f, ((0x7F << 16) | (0x60 << 8) | r), 1);
+                ((0x16000000 | (b << 16) | (g << 8)) | r), 1.0f / 180.0f, (((b << 16) | (g << 8)) | r), 1);
             }
         }
         {
             int i;
-            int r = 96, g = 96, b = 127;
+            unsigned int hr = 96;
+            int hg = 96, hb = 127;
             for (i = 19; i >= 0; --i) {
                 int color1, color2;
                 float life;
-                color1 = func_L00_0031C998(0x7F000000, r | (g << 8) | (b << 16) | 0x7F000000, func_002A7878(0.25f, 1.0f));
-                color2 = func_L00_0031C998(0, (r >> 1) | ((g >> 1) << 8) | ((b >> 1) << 16), func_002A7878(0.5f, 1.0f));
+                color1 = func_L00_0031C998(0x7F000000, (0x7F000000 | (b << 16) | (g << 8)) | r, func_002A7878(0.25f, 1.0f));
+                color2 = func_L00_0031C998(0, (((hg >> 1) << 8) | ((hb >> 1) << 16)) | (hr >> 1), func_002A7878(0.5f, 1.0f));
                 point.f[0] = func_002A7878(-3.0f, 3.0f);
                 point.f[1] = func_002A7878(-3.0f, 3.0f);
                 point.f[2] = func_002A7878(4.0f / 60.0f, 14.0f * (1.0f / 60.0f));
