@@ -1,3 +1,22 @@
+/* Claude Opus 5.5 (xhigh), task v2473, 5 November 2026. FAILED; body below unchanged (still the
+ * closest allowed form, recompiled here: 4640/4684 bytes, 0 of 1 places, in a dedicated -g8 unit with
+ * -O2 -G8 -ffunction-sections -fno-schedule-insns). do-while(0) around the box and label calls
+ * (diagnostic only): 4692 bytes, 957/1171 words by opcode.
+ * New measurements and reading of this cc1 (cse.c, flow.c, reload1.c):
+ * - Retail's splits are real CFG edges at local-alloc time, not only sched2 barriers. regalloc.py: here
+ *   -1.0f (pseudo 241) and 0.0f (242) are local-alloc'd ($f20/$f21) because every label call of an arm
+ *   sits in one basic block; 0.5f (104) is then a global and gets $f22. Retail gives -1/+1 $f21, 0 $f22,
+ *   0.5 $f20, so its -1.0/0.0 pseudos span blocks. Loop notes (do-while) do not create blocks.
+ * - 0.5f must be cse-shared through all six boxes and the title labels: reload_cse forgets every value at
+ *   a CODE_LABEL, so two 0.5 pseudos both in $f20 would keep a second `li.s` behind a surviving label.
+ *   So the split is cse-transparent: only an `if` without an else (cse skip-block, AROUND) or a jump to a
+ *   label after a BARRIER (TAKEN) keeps the table; an if/else join ends the cse block.
+ * - flow.c merges a block into a single-predecessor join and deletes the jump, so an arm emptied before
+ *   flow2's find_basic_blocks leaves no sched2 split; it survives only if the arm is still non-empty there
+ *   (emptied by flow2's life_analysis) or the join has two predecessors. jump2 then deletes only the jump.
+ * - The fresh `li $v0,3` in boxes 5 and 6 (and $s1 in 1-4) still needs a cse break before boxes 5 and 6
+ *   that does not affect 0.5; not explained.
+ */
 /* 4 November 2026 actual-contract review; retained near miss, not linked.
  * USA v1.01 check.py: 4640/4684 bytes, 0/1 placements; first difference size mismatch.
  * Profile: -O2 -G8 -ffunction-sections -fno-schedule-insns.
