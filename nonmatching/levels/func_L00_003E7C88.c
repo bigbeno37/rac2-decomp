@@ -1,3 +1,78 @@
+/* Tier opus-2 (Claude Opus 5.5, xhigh), task v2431, 4 November 2026; supersedes the opus-1 body below.
+ * Profile: -O2 -G64 -Wa,-G64 -ffunction-sections -fno-rerun-loop-opt (strength reduction ON), as its
+ * own unit src/levels/shared/L00_003E3258-fade.c (append that cflags line; replace the INCLUDE_ASM
+ * marker in L00_003E3258.c with a comment). Body from interrupted worker v2425.
+ * USA v1.01 check.py: 436/436 bytes, 0/27 places; v2.00 0/27. cdiff 23 of 109 rows, all relocation-only
+ * except two loads: retail reads the fade twice as `lwc1 0($s4)` (fade pointer), this reads
+ * `lwc1 0xC($s2)` (record pointer + 12). Every register, including i $s3 / fade $s4 and base-32 from
+ * $s6, now matches retail.
+ * Why: cse1's find_best_addr rewrites MEM(fade) as MEM(t + 12) (t = base + i*32), so the fade DEST_REG
+ * giv has one use (the call argument) and combine_givs may not absorb the loads; they go to p's giv.
+ * Tried: an invariant `int fades = (int)&base->fade;` and `fade = (float *)(fades + i * 32)` keeps
+ * the loads on the fade pointer (giv add val is a register, not reg+const), but then fade has 11 refs
+ * (1 + 3 uses*2 + increment 4) over 106 insns and outranks i (9 refs/110-122) in global, giving the old
+ * i/fade swap (34 rows). Retail has fade at 11 refs and still gives i the earlier register, so i must
+ * carry 2+ extra in-loop refs at local-alloc time (an insn that vanishes after global: a no-op copy,
+ * a flow2-deleted insn, an empty same-register extension) or fade a longer life. Not found.
+ */
+#include "common.h"
+
+typedef struct {
+    char *object;
+    unsigned char rgb[4];
+    int unused;
+    float fade;
+    void (*callback)(char *);
+    int rest[3];
+} FadeEntry;
+
+extern FadeEntry D_L00_0024EFC0[];
+extern int D_L00_001B2B60[] __attribute__((sda));
+extern float D_L00_001B065C __attribute__((sda));
+extern int D_L00_001B0648[3] __attribute__((sda));
+extern char *D_L00_001B0650[] __attribute__((sda));
+extern void ref_L00_003E7C88_00(float *, float, float);
+extern void func_L00_003E7E40(char *, void *, float);
+extern void func_L00_003E80A8(int, char *);
+extern void func_002A0488(char *, int, int, int);
+extern void func_0029F338(char *);
+
+void func_L00_003E7C88(void) {
+    int i;
+    i = 0;
+    if (D_L00_001B2B60[0] > 0) {
+        FadeEntry *base = D_L00_0024EFC0;
+        int offset = 0;
+        do {
+            float *fade = &base[i].fade;
+            FadeEntry *p = &base[i];
+            char *o = p->object;
+            if (*fade != 0.0f) {
+                ref_L00_003E7C88_00(fade, 0.0f, D_L00_001B065C * 0.01666666753590107f);
+                func_L00_003E7E40(o, D_L00_001B0648, *fade);
+                func_L00_003E80A8(i, D_L00_001B0650[0]);
+            } else {
+                int callbacks = (int)&base->callback;
+                void (**callback)(char *) = (void (**)(char *))(offset + callbacks);
+                if (*callback) {
+                    func_002A0488(o, p->rgb[0], p->rgb[1], p->rgb[2]);
+                    *(unsigned char *)(o + 35) = 128;
+                    *(unsigned short *)(o + 52) &= ~2;
+                    (*callback)(o);
+                } else func_0029F338(o);
+                {
+                    FadeEntry *end = (FadeEntry *)((char *)(D_L00_0024EFC0 - 1) + D_L00_001B2B60[0] * 32);
+                    D_L00_001B2B60[0]--;
+                    *p = *end;
+                }
+            }
+            i++;
+            offset += 32;
+        } while (i < D_L00_001B2B60[0]);
+    }
+}
+
+/* Earlier opus-1 attempt, kept for reference: -fno-strength-reduce -fno-rerun-loop-opt, 33 rows. */
 /* 4 November 2026 actual-contract review; retained near miss, not linked.
  * USA v1.01 check.py: 436/436 bytes, 0/27 placements; first difference 0xc.
  * Profile: -O2 -G64 -Wa,-G64 -ffunction-sections -fno-strength-reduce -fno-rerun-loop-opt.
@@ -40,8 +115,7 @@
  *    form keeps the operand order, but loop.c hoists its high/lo_sum pair (savings 2).
  *    A separate int temp gives `addiu v0,base,16; addu s1,offset,v0` (life 1, not hoisted).
  */
-#include "common.h"
-
+#if 0
 typedef struct {
     char *object;
     unsigned char rgb[4];
@@ -98,3 +172,4 @@ void func_L00_003E7C88(void) {
         } while (i < D_L00_001B2B60[0]);
     }
 }
+#endif

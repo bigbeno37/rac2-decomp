@@ -1,3 +1,19 @@
+/* Tier opus-2 (Claude Opus 5.5, xhigh), task v2431, 4 November 2026. Code below unchanged; model notes.
+ * Unit for testing: src/levels/shared/L00_003E3258-quad.c with "-O2 -G8 -ffunction-sections -ffast-math"
+ * (the -g8.c sibling lacks -ffast-math). USA v1.01 and v2.00: 1108/1108 bytes, 0/27; cdiff 64 of 277 rows.
+ * Slot model (measured from x.i.gcse/x.i.lreg): 0x100 data, then 0x104-0x110 hold ORIGINAL pseudos
+ * (sp+32, sp+192, sp+224, sp+240; regno order, already right), then 0x114-0x130 hold PRE reaching
+ * registers in gcse bucket order: obj+192, sp+80, sp+84, sp+208, idx+1, sp+16, sp+48, sp+64 in retail.
+ * Bucket = (14030 + v) % T, v = N for (plus frame N) (frame is reg 1 here) and regno+c-1 for (plus reg c);
+ * 14030 = PLUS 71 + SImode 6 + 1 + 128*(REG 57 + CONST_INT 52), checked against rtl.def and the dump.
+ * Solving every odd T in 61..499: only T = 111 gives retail's order (obj regno 98-110, index regno
+ * 98-126); T = (max_cuid/2)|1, so retail had 220-223 insns at PRE time. This draft has 242 (T=121).
+ * A frame-base pseudo would fit T=121 only at regno 170-184, but cse folds such a copy back to the frame.
+ * A local accumulator for q.gs[3] (unsigned long tex = ...; tex |= ...; q.gs[3] = tex;) removes the 3
+ * dead intermediate stores: same bytes, T=119. A pair pointer (short *pair = D_L00_002983B0[index][i])
+ * keeps T=119 and adds a row; one colour pointer for both arms gives T=117 but changes 239 rows.
+ * Still needed: about 16 more insns gone at gcse time with identical final code, plus late obj/index.
+ */
 /* 4 November 2026 actual-contract review; retained near miss, not linked.
  * USA v1.01 check.py: 1108/1108 bytes, 0/27 placements; first difference 0x4c.
  * Profile: -O2 -G8 -ffunction-sections -ffast-math.
