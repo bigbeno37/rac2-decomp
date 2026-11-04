@@ -1,37 +1,42 @@
-/* Reconstructed on 2026-10-23, revised 2026-11-03 (v2138); default -O2 -G8 -ffunction-sections.
- * US: 1412/1428 bytes, 0/27 placements (previous draft 1360/1428).
- * The 2026-11-03 revision recovers these retail forms:
- * - NOT_SDA on D_L00_0025C64C: split lui in the beq delay slot.
- * - MACRO_ADDR on the four short arrays: per-access lui/addiu pairs.
- * - A separate scan index k: the scan loop gets caller-saved registers.
- * - Count-up indexed j-loops: loop.c recomputes i*80 per preheader, and the
- *   D[i][0] store uses retail's mtlo/madd.
- * Remaining difference: the giv start of &D[i][j-1].
- * - Retail computes (i*80 + la(D-16)) + 16 for every j-1 pointer and
- *   (la(D) + i*80) + 16 for every j pointer, with separate D and D-16 loads.
- * - Here, &D[i][j - 1] keeps the D-16 load, but cse use_related_value
- *   rewrites whichever of D / D-16 comes second as reg +/- 16.
- * - The pointer forms (&D[i][j] - 1, D[i] + j - 1 and (&D[i][j])[-1]) all give
- *   la(D) + (i*80 - 16): +52 bytes over the canonical form, still wrong.
- * - MACRO_ADDR on the table hoists la(D) into a saved register and spills
- *   (1364-1384 bytes).
- * Other remaining differences:
- * - object stays in $s6 rather than $fp.
- * - The beqz delay slot is copied from case 0 rather than stolen.
- * - bnez rather than bnel at the else arm.
- * - The !emitting path branches straight to the loop end; retail branches
- *   to a `b; addiu s6,s4,1` stub. A nested if gives identical code.
- * Reopen with a spelling that keeps both D and D-16 table loads, unrelated by cse.
- * The older comments below are preserved as historical provenance, not conclusions.
+/* Opus 5.5 tier (v2521, 2026-11-05); default -O2 -G8 -ffunction-sections, so it goes in a
+ * <file>-g8.c unit (tried as src/levels/shared/L00_0038F178-arc-g8.c).
+ * US: 1400/1428 bytes, 0/27 placements, 246 of 357 rows differ (previous draft 1412, 253 rows).
+ * PAL: not in its catalogue. v2.00: 0/27, same bytes.
+ * This revision fixes:
+ * - case 0: a count-up indexed loop with its own counter n gives retail's caller-saved
+ *   v0/v1/a0/a1 registers and pointer order exactly.
+ * - The table blocker the previous header named: &(D[i] + -1)[j] for the j-1 pointer.
+ *   pointer_int_sum turns the -1 into a wrapped unsigned sizetype (4294967280 on this
+ *   64-bit host), and plus_constant folds it into the symbol. cse use_related_value
+ *   no longer ties D to D-16 (the offset is not a SMALL_INT), so every loop keeps
+ *   separate D and D-16 pseudos. Reload rematerialises them per preheader, as retail
+ *   does. The j pointer is now retail's (la D + i*80) + 16.
+ *   The canonical &D[i][j - 1] (also j - 1u, (D[i] - 1)[j] and (&D[i][0])[j - 1],
+ *   which fold to the same tree) gives D = reg(D-16) + 16 at cse1 and a j pointer of
+ *   la D + (i*80 + 16). &D[i][j] + -1 gives 1412 (la D+16 + (i*80 - 16)).
+ *   A row pointer `prev = D[i] - 1` before each loop gives 1420, but the else arm then
+ *   shares prev across both loops and spills i+1.
+ * Still differs:
+ * - j-1 init order: ours (la(D-16) + i*80) + 16, retail (i*80 + la(D-16)) + 16.
+ * - The D[i][0] store: retail does mtlo D / madd with a separate mult for the loop.
+ *   Here cse2 shares the loop's mult, so the store is a plain addu. The canonical form
+ *   kept the madd.
+ * - Allocation: object $s7 (retail $fp), i/i*2 in s5/s4 (retail s4/s5), i+1 in $fp
+ *   (retail s6), D_L00_001B8DC0's %hi in s6 (retail s7).
+ * - bnez rather than bnel (with addiu v1,80 in the likely slot) at the else arm.
+ * - The !emitting `continue` steals i+1 into the beqz delay slot and branches to
+ *   the latch. Retail branches to a `b latch; addiu s6,s4,1` stub.
+ * - beqz on the switch: delay slot copied from case 0 (retail fills from fallthrough).
+ * Declarations: the externs below, plus include "common.h" (NOT_SDA, MACRO_ADDR).
+ * The older comments below are kept as history, not as conclusions.
  */
-/* MMI (SPECIAL2) instruction: no C spelling. 1428 bytes, level
-   00_aranos_tutorial. Retail at 0x00395428 carries the SPECIAL2 words
-   0x72821800, 0x72821800 (+0x030C, +0x049C) - opcode 0x1C, which rabbitizer
-   prints as `INVALID`; it is the MMI family (pcpyld and its relatives) the
-   sixth wave recorded and that no C spelling reaches. This cc1 emits
-   `lq`/`sq` for a `mode(TI)` local and `ldl`/`ldr`/`sdl`/`sdr` for a struct
-   assignment, never the packed copy. ASM_FUNC candidate, as for the rest of
-   the family. */
+/* Reconstructed on 2026-10-23, revised 2026-11-03 (v2138): NOT_SDA on D_L00_0025C64C (split
+ * lui in the beq delay slot); MACRO_ADDR on the four short arrays (per-access lui/addiu);
+ * separate scan index k (caller-saved scan loop); count-up indexed j-loops (loop.c
+ * recomputes i*80 per preheader; the D[i][0] store uses mtlo/madd).
+ * The MMI (SPECIAL2) words claimed by the 2026-10 note (0x72821800 at +0x030C, +0x049C)
+ * are the madd instructions this C emits: they are not a blocker.
+ */
 
 #include "common.h"
 typedef int Quadword __attribute__((mode(TI)));
@@ -73,11 +78,11 @@ void func_L00_00395428(char *object)
     case 0:
         *(unsigned char *)(object + 0x20) = 2;
         {
-            short *a = D_L00_001B2778, *b = D_L00_001B27A8, *c = D_L00_001B27C0;
-            for (i = 9; i >= 0; i--) {
-                *a++ = 0;
-                *b++ = 2;
-                *c++ = 1;
+            int n;
+            for (n = 0; n < 10; n++) {
+                D_L00_001B2778[n] = 0;
+                D_L00_001B27A8[n] = 2;
+                D_L00_001B27C0[n] = 1;
             }
         }
         D_L00_001B27D4 = D_L00_001AF278;
@@ -135,23 +140,23 @@ void func_L00_00395428(char *object)
             {
                 float sign = 1.0f;
                 for (j = 1; j < 5; j++) {
-                    func_00282CF0(&difference, (&D_L00_00239EF0[i][j] - 1), &D_L00_001B8DC0);
+                    func_00282CF0(&difference, &(D_L00_00239EF0[i] + -1)[j], &D_L00_001B8DC0);
                     func_002ACEC0(&random, &random, &difference,
                                  func_002A7878(0.174532949924469f, 0.7853982448577881f) * sign);
                     sign = -sign;
-                    func_00282CC0(&D_L00_00239EF0[i][j], (&D_L00_00239EF0[i][j] - 1), &random);
+                    func_00282CC0(&D_L00_00239EF0[i][j], &(D_L00_00239EF0[i] + -1)[j], &random);
                 }
             }
         } else {
             for (j = 1; j < 5; j++) {
-                func_00282CF0(&offsets[j], &D_L00_00239EF0[i][j], (&D_L00_00239EF0[i][j] - 1));
+                func_00282CF0(&offsets[j], &D_L00_00239EF0[i][j], &(D_L00_00239EF0[i] + -1)[j]);
                 offsets[j].f[0] += func_002A78D8(0.0f, 0.1f);
                 offsets[j].f[1] += func_002A78D8(0.0f, 0.1f);
                 offsets[j].f[2] += func_002A78D8(0.0f, 0.1f);
             }
             D_L00_00239EF0[i][0].q = origin.q;
             for (j = 1; j < 5; j++)
-                func_00282CC0(&D_L00_00239EF0[i][j], (&D_L00_00239EF0[i][j] - 1), &offsets[j]);
+                func_00282CC0(&D_L00_00239EF0[i][j], &(D_L00_00239EF0[i] + -1)[j], &offsets[j]);
             if (D_L00_001B2778[i] > 0)
                 D_L00_001B2790[i] = 32;
             else
