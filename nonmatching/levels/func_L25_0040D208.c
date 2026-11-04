@@ -1,3 +1,28 @@
+/* Claude Opus 5.5 xhigh tier (opus-2), task v2486, 5 November 2026. C below unchanged (opus-1's):
+ * recompiled here in its own unit L25_00373ED0-hud-g8.c (-O2 -G8 -ffunction-sections, needed because
+ * L25_00373ED0-g8.c typedefs s32/f32 against common.h): 2752/2760 bytes, 0/1 places (check.py).
+ * New measurements (diagnostics only; none is landable):
+ * - Retail has a real basic-block boundary in text block 1, not just a sched barrier: fmt is
+ *   `lui v1; addiu s1,v1` (the HIGH pseudo not tied to s1), which needs the fmt pseudo to be
+ *   global. A flow1-emptied arm after `tx`/`ty` locals reproduced exactly that, but flow2's
+ *   tidy_fallthru_edge deletes such a branch before sched2, so the arguments still rise.
+ * - Only identical two-armed if/else arms reach jump2's cross-jump (conditional jumps cross-jump
+ *   only in loop shapes; reload_cse and flow2 delete no-op-move arms; call arms don't merge).
+ *   A helper `float s = D_L25_001B2904; if (m != 0) return (int)(v*s + half) + adjust;
+ *   return (int)(v*s + half);` with v = (float)(D_L25_001B0D14-8) evaluated as the inline
+ *   argument, x = D_L25_001B0D10-60 computed first, and 0.5 as a real local `half` (crosses the
+ *   join without cse) gives retail's text-1 schedule: 0.5 from f20, and a3/a2/t0 stay below
+ *   mfc1 a1. Tested on `(int)state` (a placeholder). No real tested value was found.
+ * - x still lands in a0 as a global pseudo: tools/regalloc.py shows it conflicts only with
+ *   v0/a1/sp/f0/f1, and global's copy preference takes a0. Retail's v1 needs a0 in find_reg's
+ *   `used` (a0 conflict, or a larger lower-priority conflicting allocno preferring a0), or a
+ *   non-copy arg move. `(set (reg:DI a0) (sign_extend:DI x))` prints as daddu (extendsidi2 =
+ *   mips_move_1word) and leaves only a full preference, so v1 wins by order. That needs a
+ *   64-bit first parameter, but func_0027F5B8 is defined `int x` in src/game/0027F128.c (false
+ *   prototype). `(long)D_L25_001B0D10 - 60` is narrowed back to SImode (same bytes as here).
+ *   truncdisi2 is dsll/dsra, so it is no route.
+ * - `float half = 0.5f` alone (no test) gives the same bytes as this draft.
+ */
 /* Claude Opus 5.5 xhigh tier (opus-1), task v1897, 31 October 2026.
  * Best check.py, USA v1.01: 2752 bytes versus 2760 retail, 0 of 1 places match.
  * No linked build and no PAL/us2 check (not a match).
