@@ -1,20 +1,28 @@
-/* Claude Opus 5.5 (xhigh), 2026-11-03, task v2261: 1004/1004 bytes, 0/1 USA v1.01 places,
- * 16 differing instructions (was 23). Profile (own unit, e.g. L02_003EB258-g8.c):
+/* Claude Opus 5.5 (xhigh), 2026-11-05, task v2465: 1004/1004 bytes, 0/1 USA v1.01 places,
+ * 8 differing instructions (was 16), all one $s7/$fp swap. All stack slots now match.
+ * Profile (own unit, e.g. L02_003EB258-g8.c):
  * -O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -mno-split-addresses -g
- * (-g is needed: without it 996 bytes; -mno-split-addresses makes no difference here).
- * New: `vertex += 16, i++` (pointer before index) fixes the vertex-loop increment schedule.
- * Remaining, both allocation only:
- * 1. Entry spill slots: retail 0x198..0x1A4 = sp+0x50, +0x140, +0x150, +0x180; ours put sp+0x50
- *    last. These are gcse PRE reaching regs (numbered in bucket order); raw hash of (plus fp C) =
- *    14030+C, table 103 buckets here. Only 111 buckets (max_cuid 220..223, about 16 more insns at
- *    gcse than this C) gives retail's order; 105/107 do not, so five declaration inits cannot fix it.
- * 2. $s7/$fp: V-source cursor (la D_L02_001B0D6C) gets $fp, destination-U cursor (sp+0x50) $s7.
- *    The V cursor's init has a REG_EQUAL constant, so update_equiv_regs doubles its live length
- *    (99 -> 198): priority 27/198 = 1363 < U-dest 14/102 = 1372. Retail order needs U-dest live
- *    exactly 103 (1359, still above the spilled V-dest giv 1346), i.e. its sched1 copy one insn
- *    earlier. Moving step/normal/vertex inits, or U/V statement order, does not help (V first is worse).
- * Both point to a source with more gcse-time insns around the vertex loop (inline helper?).
- * Indexed packet[k].vertex[i] form: 1116 bytes, frame 0x240 (worse). No linked build.
+ * (-mno-split-addresses IS needed here: without it the D_L02_001B0DAC/DB0/DB4 lui+lw pairs split;
+ *  -g only places two nops around the div.s).
+ * New in v2465:
+ * - `float (*uv)[2] = packet[0].uv;` (top-level local, used for the U store): sp+0x50 is held by a
+ *   user pseudo instead of the last-bucket gcse PRE reaching reg, so it no longer gets the last of
+ *   the four entry slots. The alternative, PRE table size 111 (max_cuid 220..223, now 206/207),
+ *   would need 14..17 more insns at gcse that disappear later; none found.
+ * - `mask = 0x00FFFFFF;` in a top-level local assigned just before the vertex loop: keeps the
+ *   spilled constant's slot (0x194) ahead of uv's (0x198), as retail has. Assigning it inside the
+ *   fade block or before the blend code gives the same bytes; initializing it at the declaration
+ *   is far worse (set moves above the layer loop).
+ * - FastTweenColor uses the canonical (int, int, float) prototype (same bytes as float-first).
+ * Remaining: V-source cursor (la D_L02_001B0D6C) gets $fp and destination-U cursor (copy of uv)
+ * gets $s7; retail has the reverse. Priorities: U-src 27/196 (s6) > U-dest 14/102 = 1372 >
+ * V-src 27/198 = 1363 (REG_EQUAL doubles it) > spilled V0-dest giv 14/104 = 1346. Only U-dest
+ * live length exactly 103 gives retail. In sched1 the U-dest copy (insn 891) is in the big block
+ * after the layer loop (it is hoisted above the calls), 3 slots ahead of the V-src set; it needs
+ * one more insn between itself and the V-src set, or to issue one slot earlier. Adding an insn
+ * after both does not help (V-src goes up by 2).
+ * Tried, worse: indexed packet[k].vertex[i][j] stores (1108 bytes); mask initialized at the
+ * declaration. No linked build.
  */
 #include "common.h"
 typedef int Quad __attribute__((mode(TI)));
@@ -37,7 +45,7 @@ extern float func_00283198(float);
 extern float func_00283B98(float, float);
 extern float func_00282DF0(void *);
 extern int func_00283CF0(float);
-extern unsigned int func_00283D38(float, unsigned int, unsigned int);
+extern unsigned int func_00283D38(unsigned int, unsigned int, float);
 extern void func_00283658(void *, void *);
 extern void func_00280B90(void *, void *, int);
 
@@ -51,7 +59,9 @@ void func_L02_003EB258(char *actor) {
     char *state = *(char **)(actor + 0x68);
     int i, slice, count;
     float step;
+    unsigned int mask;
     char *vertex;
+    float (*uv)[2] = packet[0].uv;
     {
         int layer;
         for (layer = 0; layer < 2; layer++) func_00281DE8(packet + layer, D_L02_001B0D60[layer], 0, 0x80);
@@ -63,16 +73,17 @@ void func_L02_003EB258(char *actor) {
     *(Quad *)normal = 0;
     normal[3] = 1.0f;
     step = 2.0f / (float)count;
+    mask = 0x00FFFFFF;
     for (i = 0, vertex = (char *)&packet; i < 4; vertex += 16, i++) {
-        packet[0].uv[i][0] = D_L02_001B0D68[i][0];
+        uv[i][0] = D_L02_001B0D68[i][0];
         packet[0].uv[i][1] = D_L02_001B0D6C[i][0];
         packet[1].uv[i][0] = D_L02_001B0D68[i+4][0] + *(float *)(state + 0x18);
         packet[1].uv[i][1] = D_L02_001B0D6C[i+4][0];
-        packet[0].color[i] = func_00283D38(blend.weights[0], D_L02_001B0DA8, D_L02_001B0DAC[0]);
-        packet[1].color[i] = func_00283D38(blend.weights[1], D_L02_001B0DB0[0], D_L02_001B0DB4[0]);
+        packet[0].color[i] = func_00283D38(D_L02_001B0DA8, D_L02_001B0DAC[0], blend.weights[0]);
+        packet[1].color[i] = func_00283D38(D_L02_001B0DB0[0], D_L02_001B0DB4[0], blend.weights[1]);
         if (*(float *)(state + 0x1C) < 1.0f) {
-            packet[0].color[i] = func_00283D38(*(float *)(state + 0x1C), packet[0].color[i] & 0x00FFFFFF, packet[0].color[i]);
-            packet[1].color[i] = func_00283D38(*(float *)(state + 0x1C), packet[1].color[i] & 0x00FFFFFF, packet[1].color[i]);
+            packet[0].color[i] = func_00283D38(packet[0].color[i] & mask, packet[0].color[i], *(float *)(state + 0x1C));
+            packet[1].color[i] = func_00283D38(packet[1].color[i] & mask, packet[1].color[i], *(float *)(state + 0x1C));
         }
         qcopy(vertex, normal);
         if (i >= 2) *(float *)vertex = -1.0f; else *(float *)vertex = 1.0f;
