@@ -1,18 +1,22 @@
-/* Opus-1 (v1496), 29 October 2026: GNU game -O2 -G0 -ffunction-sections.
- * US, US2 and PAL: 644/644 bytes, 0/2 places each ("instruction at +0x4 differs").
- * One instruction is out of place: retail schedules the a1 spill `sw $a1,0x10($sp)`
- * at +0x4, ahead of every register save; here it follows `addiu $s0,$s6,0x10` (+0x20).
- * Everything else matches, including the tail: with qcopy_nc for the a1 copy the
- * call argument reuses the copy's $a3 reload (`daddu $a0,$a3`), as in retail; with
- * the "memory" clobber of qcopy it is reloaded from 0x10($sp) instead.
- * Measured cause of the residue (cc1 -fsched-verbose-5): in sched2 the spill store
- * (insn 6) ties the five saves that have five dependents (priority 14) and loses on
- * INSN_LUID; retail needs one more dependent for it. Stale pre-reload LOG_LINKS survive
- * into sched2: an entry alias `float *out = a1;` gives it that dependent (the store goes
- * to +0x4) but costs a second slot and store (652 bytes). const parameters, -g and
- * -fno-schedule-insns do not fix it. Reopen with a source shape that gives the a1
- * parameter copy a block-0 dependent without extra code.
- * Declarations below are the ones L03_002AB5C8.c already has.
+/* Opus-2 (v2438), 4 November 2026: GNU game -O2 -G0 -ffunction-sections.
+ * US: 644/644 bytes, 0/2 places, one instruction misplaced ("instruction at +0x4 differs").
+ * On the current compiler the opus-1 draft below also swapped the 0x1C/0x20 spill slots:
+ * they are gcse PRE reaching registers (reg 192 = i + 1, reg 194 = o + 0x200), numbered in
+ * hash-bucket order with a 61-bucket table (o+0x200 in bucket 49, i+1 in 36). `int r = 0;`
+ * (one declaration initializer, to disclose) adds one insn to GCSE's count and restores
+ * retail's order. Remaining: retail schedules the a1 spill `sw $a1,0x10($sp)` at +0x4, before
+ * every save; here it follows `addiu $s0,$s6,0x10` (+0x20). sched2 (-fsched-verbose-5): the
+ * spill (insn 6) has 5 dependents (14, 25, 31 stale from sched1, 33, 51) and priority 14, tying
+ * the s0/s4/s6/s7/f21 saves, and loses on LUID (the prologue sits on the entry edge). It needs a
+ * sixth dependent: a sched1-time reader of the a1 pseudo in block 0. An entry alias
+ * `float *out = a1;` supplies it (the store goes to +0x4) but cprop returns the call and store
+ * uses to a1 while the asm keeps out, so both live: 652 bytes. Retail's block 0 has no
+ * instruction that could read a1, so the source shape is still unknown.
+ * Earlier notes (opus-1, v1496): qcopy_nc for the a1 copy gives retail's `daddu $a0,$a3` call
+ * argument; const parameters, -g and -fno-schedule-insns do not fix the spill.
+ * Declarations: L03_002AB5C8.c already has D_L03_001B2A1C, D_L03_001B2A38, D_L03_001FB5A0,
+ * func_L03_00419BD8 and func_00282E80; func_00277258, func_002A89A8, func_00282E48 and
+ * L03SeekState must be added with the function.
  */
 #include "common.h"
 
@@ -50,7 +54,7 @@ void func_L03_003C5668(unsigned char *a0, float *a1, float *a2) {
     float bestd;
     float d;
     float vec[4] __attribute__((aligned(16)));
-    int r;
+    int r = 0;
     int i;
 
     bestd = func_00282E48(a0 + 0x10, o->target + 0x10);
