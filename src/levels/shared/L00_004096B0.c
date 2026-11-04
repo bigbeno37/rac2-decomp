@@ -120,7 +120,7 @@ typedef struct {
 } Vec16_Fc936841d;
 #endif
 
-INCLUDE_ASM("asm/levels", func_L00_004096B0);
+/* func_L00_004096B0 is defined in L00_004096B0-sweep-g8.c. */
 
 /* func_L00_00409E48 is defined in L00_004096B0-g8.c. */
 

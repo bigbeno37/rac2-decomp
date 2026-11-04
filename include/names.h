@@ -953,5 +953,6 @@
 #define UpdateHomingMissile              func_L00_003E2510
 #define RecordHeroTrailNode              func_L00_003B0DA0
 #define DrawPositionRingTrail            func_L00_0041B1B8
+#define UpdateBouncingBlastProjectile    func_L00_004096B0
 
 #endif /* NAMES_H */
