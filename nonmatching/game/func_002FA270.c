@@ -1,32 +1,21 @@
-/* 4 November 2026 actual-contract review; retained near miss, not linked.
- * USA v1.01 check.py: 1552/1552 bytes, 0/28 placements; first difference 0x2b4.
- * Profile: -O2 -G8 -ffunction-sections.
- * The text lookup keeps its signed32 stored-address return with a use-site pointer cast.
- * func_0028EA58 returns void in its matched definition; that correction fixes the two color-store
- * ordering rows at +0x4A8/+0x4B4. The earlier table/alpha/coordinate residual remains.
- * Earlier measurements below are historical where superseded by this note.
- */
-/* opus xhigh, task v2072: retained C attempt, USA v1.01.
- * Profile: -O2 -G8 -ffunction-sections (unit src/game/002F9BC0-ammo-g8.c).
- * Best: 1552 bytes, the same as retail; 0 of 28 places; about 21 real
- * (non-relocation) instruction differences.
- * Fixed since v1165:
- *   - "int left = 233" plus a variable border "b" (4, then 2) keeps 233 in s0.
- *     With a literal 4/2, fold() split_tree turns 233-(A0+4) into 229-A0.
- *   - y+(D_001AD3C4+b) gives retail's x in s6, icon in s7, overlay in fp, with
- *     no spill.
- *   - Icon height is the global D_001AD3D0.
- * Remaining differences:
- *   - 0x2FA524: addu v0,s2,v0 vs retail v0,v0,s2 (first D_00239BA0[] lookup).
- *   - Block before the first func_0028EA58: retail clamps alpha1, then alpha0,
- *     and only then loads C4/D8. Retail stores colors at 0xC, 0x4, then 0x8,
- *     0x0. The first call's x is (y+(C4+2))+D8 in retail. Here Cygnus
- *     reduce_expression_tree_depth flattens it to (y+D8)+(C4+2).
- *   - A temp, comma or inline row_x(pos,margin) helper gives retail's grouping
- *     but worse scheduling (24 diffs). Swapping the clamps or the colors
- *     a=b=v nesting also made it worse (24-27).
- * Next idea: the original UI helper or macro shape for the row x and alpha.
- * All required declarations follow; switch IDs are from retail's jump table.
+/* opus xhigh, task v2499: retained C attempt, USA v1.01; not linked.
+ * Profile: -O2 -G8 -ffunction-sections (put it in its own unit, e.g. src/game/002F9BC0-ammo-g8.c,
+ * and take the INCLUDE_ASM out of 002F9BC0.c).
+ * Best: 1552/1552 bytes, 0 of 28 places; 16 real (non-relocation) rows differ, all in the block
+ * before the first func_0028EA58 call (was 21 in v2072's draft).
+ * Fixed in v2499:
+ *   - First call's x: Cygnus reduce_expression_tree_depth (fold-const.c) flattens
+ *     (y+(C4+b))+D8 into (y+D8)+(C4+b) when all four operands share one type. Declaring
+ *     D_001AD3D8 unsigned stops the flattening (n_ops 3) and gives retail's grouping. An inline
+ *     row_x(y,b) helper with D8 signed gives the same 16 rows.
+ *   - 0x2FA524 addu operand order: read the icon through IconInfo *info = &D_00239BA0[...];
+ *     the direct form splits base+0x3C off before combine.
+ *   - Retail shifts alpha0 in place (sll s1,s1,24; or t2,s1,s5): "alpha1 <<= 24; alpha0 <<= 24;"
+ *     before the colors gives retail's registers (t1 = D_001A7B90, t2 = alpha0|color, v1 = y int).
+ * Still differs (sched2 order only): retail loads D_001AD3D0 before D_001B2280 (we pick the scale
+ * first: equal priority 56, more dependents), and retail issues C4, D8, D_001A7B90 and the x chain
+ * later (after both movz). Not tried: other argument shapes for the first call's h/w.
+ * Earlier: clamp order swapped, color store orders (4 forms), inline scale_h(): no gain.
  */
 #include "common.h"
 typedef struct { int id, kind, spare[3], locked; } ItemRow;
@@ -71,7 +60,7 @@ extern int D_001AD3C0 __attribute__((sda));
 extern int D_001AD3C4 __attribute__((sda));
 extern int D_001AD3C8 __attribute__((sda));
 extern int D_001AD3D0 __attribute__((sda));
-extern int D_001AD3D8 __attribute__((sda));
+extern unsigned int D_001AD3D8 __attribute__((sda));
 extern int D_001AD3BC __attribute__((sda));
 void func_002FA270(void)
 {
@@ -81,6 +70,7 @@ void func_002FA270(void)
     unsigned int color, colors[4];
     char *text;
     double distance;
+    IconInfo *info;
     func_002FC620(D_001AD390,D_001AD394,(int)((float)D_001AD398 * D_001B2280[0]+0.5f),screen_y(D_001AD39C));
     if (D_0021F240.scroll < 0) D_0021F240.scroll += 4;
     else if (D_0021F240.scroll > 0) D_0021F240.scroll -= 4;
@@ -96,7 +86,8 @@ void func_002FA270(void)
     do {
         index = i + D_0021F240.selected;
         if (index >= 0 && index < *(int *)((char *)&D_0021F240+0x740)) {
-            icon = func_0028E588(D_00239BA0[D_00139568[D_0021F240.rows.ammo[index].id]].icon,0);
+            info = &D_00239BA0[D_00139568[D_0021F240.rows.ammo[index].id]];
+            icon = func_0028E588(info->icon,0);
             overlay = func_0028E588(0xeaa3,D_0021F240.rows.ammo[index].frame);
             special = 0;
             kind = D_00239BA0[D_00139568[D_0021F240.rows.ammo[index].id]].color;
@@ -112,8 +103,10 @@ void func_002FA270(void)
             alpha1 = 128 - (int)(distance * 0.75);
             if (alpha0 < 0) alpha0 = 0;
             if (alpha1 < 0) alpha1 = 0;
-            colors[3] = colors[1] = (alpha1<<24)|color;
-            colors[2] = colors[0] = (alpha0<<24)|color;
+            alpha0 <<= 24;
+            alpha1 <<= 24;
+            colors[3] = colors[1] = alpha1|color;
+            colors[2] = colors[0] = alpha0|color;
             func_0028EA58(icon,y+(D_001AD3C4+b)+D_001AD3D8,screen_y(D_001AD3C0+D_001AD3CC),D_001AD3D0,(int)((float)D_001AD3D0 * D_001B2280[0]+0.5f),colors);
             func_0028EA58(overlay,y+(D_001AD3C4+b),screen_y(D_001AD3C0-D_001AD3C8),D_001AD3C8,(int)((float)D_001AD3C8 * D_001B2280[0]+0.5f),colors);
             icon = func_0028E588(0xeaa3,3);
