@@ -34,7 +34,7 @@ void func_L23_004180F0(char *arg0) {
 
 /* func_L23_00418650 is matched in L23_00418650.c (built with -frac2-qcopy -frac2-qcopy-barrier). */
 
-INCLUDE_ASM("asm/levels", func_L23_004186D0);
+/* func_L23_004186D0 is matched in L23_004186D0-g8.c. */
 
 /* func_L23_00418BC8 is matched in L23_00418BC8-g8.c (built with -frac2-qcopy -frac2-qcopy-barrier). */
 
