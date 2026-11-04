@@ -1,3 +1,28 @@
+/* Claude Opus 5.5 xhigh, v2476, 2026-11-05: 1756/1740 bytes, 0/1 USA places.
+ * Profile: -O2 -G8 -ffunction-sections, separate unit L15_00437B68-g8.c (the
+ * sibling L15_004328E8-g8.c declares this function as (int,int)). All
+ * declarations follow.
+ * Change from the v2027 draft below: the four layer loops no longer share one
+ * cursor form. L1 (preview) and L4 (alpha) write all four corner streams
+ * naturally (&packet.vertex[corner], packet.uv[corner][n], packet.color[corner]);
+ * their pass-1 loop.c counts only need to stay above 58 (now 65/71).
+ * L2/L3 use four cursors declared in the order colors, v, u, vertex (pass-1
+ * count 55, still <= 58, so they still reverse). Result: s4..s7/fp for
+ * vertex/u/v/colors now come out as retail in L1, L2 and L4 (L1/L4: s4 vertex,
+ * s5 u, s6 v, s7 colors; L2: s5 vertex, s6 u, s7 v, fp colors). Retail's
+ * preheader order colors,v,u,vertex = shortest live range for vertex.
+ * Still different:
+ * 1. corner is t1, retail t0 (L4 rerun count 53; -1 needs threshold 52 >= count
+ *    and the mask must then fail at 49, so retail's L4 rerun count is 50-52, or
+ *    one of the rerun moves 6 / D+2 / D_6D50 must not happen in L4).
+ * 2. First mask store at L1's 0xD4 slot not deleted: our ior input reload is not
+ *    inherited (a load is emitted, later removed by reload_cse), retail's is,
+ *    and retail's reload reg is a0, not v0. Probably follows from 1.
+ * 3. Reload registers/order after each call (retail: lui %hi(D_7E40) first, lq of
+ *    corner late); pointer-copy spill store order 0xDC/0xE0/0xD8 in the L2 header;
+ *    L2's i*24 giv reloads into v1 (retail v0) and two extra nops in the L2 header.
+ * No linked build was run: no C match.
+ */
 /* 4 November 2026 actual-contract review; retained near miss, not linked.
  * USA v1.01 check.py: 1756/1740 bytes, 0/1 placements; first difference size mismatch.
  * Profile: -O2 -G8 -ffunction-sections.
@@ -80,61 +105,57 @@ void func_L15_00437B68(char *object,int preview)
     *(float *)(state+4)-=0.00045f;
     if (*(float *)(state+4)<=-8.0f) *(float *)(state+4)+=8.0f;
     if (preview) {
-for(i=0;i<121;i++) D_L15_002B6D50[i].z=300.0f;
+    for(i=0;i<121;i++) D_L15_002B6D50[i].z=300.0f;
     for(i=0;i<100;i++) {
-        unsigned int *colors=packet.color;GornVec *vertex=packet.vertex;
         for(corner=0;corner<4;corner++) {
             position_index=D_L15_002B74E0[i][corner].position; uv_index=D_L15_002B74E0[i][corner].uv; color_index=D_L15_002B74E0[i][corner].color;
-            func_00282D30(vertex,&D_L15_002B6D50[position_index],1.0f);
+            func_00282D30(&packet.vertex[corner],&D_L15_002B6D50[position_index],1.0f);
             packet.uv[corner][0]=D_L15_002B7E40[uv_index][0]+*(float *)(state+4);
             packet.uv[corner][1]=D_L15_002B7E40[uv_index][1];
-            *colors=(D_L15_002B8688[color_index]&0xFFFFFF)|0x7F000000;
-            vertex++;colors++;
+            packet.color[corner]=(D_L15_002B8688[color_index]&0xFFFFFF)|0x7F000000;
         }
         func_00280B90(&packet,0,0);
     }
         return;
     }
-for(i=0;i<121;i++) D_L15_002B6D50[i].z=800.0f;
+    for(i=0;i<121;i++) D_L15_002B6D50[i].z=800.0f;
     for(i=0;i<100;i++) {
-        unsigned int *colors=packet.color;GornVec *vertex=packet.vertex;
+        unsigned int *colors=packet.color; float *v=&packet.uv[0][1]; float *u=&packet.uv[0][0]; GornVec *vertex=packet.vertex;
         for(corner=0;corner<4;corner++) {
             position_index=D_L15_002B74E0[i][corner].position; uv_index=D_L15_002B74E0[i][corner].uv; color_index=D_L15_002B74E0[i][corner].color;
             func_00282D30(vertex,&D_L15_002B6D50[position_index],1.0f);
-            packet.uv[corner][0]=D_L15_002B7E40[uv_index][0]+*(float *)(state+4);
-            packet.uv[corner][1]=D_L15_002B7E40[uv_index][1];
+            *u=D_L15_002B7E40[uv_index][0]+*(float *)(state+4);
+            *v=D_L15_002B7E40[uv_index][1];
             *colors=D_L15_002B8688[color_index];
-            vertex++;colors++;
+            vertex++;u+=2;v+=2;colors++;
         }
         func_00280B90(&packet,0,0);
     }
-for(i=0;i<121;i++) D_L15_002B6D50[i].z=1200.0f;
+    for(i=0;i<121;i++) D_L15_002B6D50[i].z=1200.0f;
     for(i=0;i<100;i++) {
-        unsigned int *colors=packet.color;GornVec *vertex=packet.vertex;
+        unsigned int *colors=packet.color; float *v=&packet.uv[0][1]; float *u=&packet.uv[0][0]; GornVec *vertex=packet.vertex;
         for(corner=0;corner<4;corner++) {
             position_index=D_L15_002B74E0[i][corner].position; uv_index=D_L15_002B74E0[i][corner].uv; color_index=D_L15_002B74E0[i][corner].color;
             func_00282D30(vertex,&D_L15_002B6D50[position_index],1.0f);
-            packet.uv[corner][0]=D_L15_002B7E40[uv_index][0]+*(float *)(state+4);
-            packet.uv[corner][1]=D_L15_002B7E40[uv_index][1];
+            *u=D_L15_002B7E40[uv_index][0]+*(float *)(state+4);
+            *v=D_L15_002B7E40[uv_index][1];
             *colors=D_L15_002B8688[color_index];
-            vertex++;colors++;
+            vertex++;u+=2;v+=2;colors++;
         }
         func_00280B90(&packet,0,0);
     }
     if (D_L15_001B1870) {
-for(i=0;i<121;i++) D_L15_002B6D50[i].z=405.0f;
+    for(i=0;i<121;i++) D_L15_002B6D50[i].z=405.0f;
     for(i=0;i<100;i++) {
-        unsigned int *colors=packet.color;GornVec *vertex=packet.vertex;
         for(corner=0;corner<4;corner++) {
             position_index=D_L15_002B74E0[i][corner].position; uv_index=D_L15_002B74E0[i][corner].uv; color_index=D_L15_002B74E0[i][corner].color;
-            func_00282D30(vertex,&D_L15_002B6D50[position_index],1.0f);
+            func_00282D30(&packet.vertex[corner],&D_L15_002B6D50[position_index],1.0f);
             packet.uv[corner][0]=D_L15_002B7E40[uv_index][0]+*(float *)(state+4);
             packet.uv[corner][1]=D_L15_002B7E40[uv_index][1];
             color=D_L15_002B8688[color_index];
-    alpha=((int)color>>24)-D_L15_001B1878;
-    if (alpha<0) alpha=0;
-    *colors=(color&0xFFFFFF)|((unsigned int)alpha<<24);
-            vertex++;colors++;
+            alpha=((int)color>>24)-D_L15_001B1878;
+            if (alpha<0) alpha=0;
+            packet.color[corner]=(color&0xFFFFFF)|((unsigned int)alpha<<24);
         }
         func_00280B90(&packet,0,0);
     }
