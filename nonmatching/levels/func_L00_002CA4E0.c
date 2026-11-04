@@ -1,35 +1,36 @@
-/* 3 November 2026; retained C, no linked match.
- * Real operand captures and a choice write cursor, following current RAC1
- * pick_idle_fidget, remain 944/948 bytes and 0/27 US places (frame 0xD0).
- * Both stack vectors are complete 16-byte objects, and the second qcopy
- * still reads the first stack copy. RAC1 independently uses choices[20].
- * The actual hero-origin operand is captured before the candidate loop.
- * This does not resolve the origin/-1 hoist threshold or the sampling
- * numerator copy. No scalar/flag sweep or dummy references were added.
- */
-/* opus-1 (Claude Opus 5.5 xhigh), v1781: 944/948 bytes, 0/27 USA v1.01 places, 0/27 v2.00.
- * Profile: -O2 -G0 -ffunction-sections -frac2-hazard-labels. All declarations are below.
+/* func_L00_002CA4E0: no linked match. Claude Opus 5.5 (opus-2, xhigh), v2408, 4 November 2026.
+ * Best: 940/948 bytes, 0/27 places (USA v1.01 and v2.00; absent from PAL), 100 of 237 rows
+ * differ, first difference +0xC4. Profile: its own unit, -O2 -G0 -ffunction-sections
+ * -frac2-hazard-labels (for example src/levels/shared/L00_002C2DE8-choice.c plus a cflags line);
+ * D_00189E20 is declared as a struct here, unlike the char array in L00_002C2DE8.c.
  *
- * Solved here: the sampling loop. A plain `for` duplicates its whole first iteration in front of
- * the loop (jump.c duplicate_loop_exit_test); the post-reload cross-jump pass then merges that
- * copy into the loop body, leaving retail's `blez; b body; lw v0,0(sp)`. The merge needs both
- * copies in the same registers, so `table`, `size`, `rate` and `cursor` are set before the loop.
- * `entry = &records[index]` reduces to retail's `addiu s1,s1,0x70` and gives `lwc1 0x58(base)`.
+ * Solved here, relative to the 944-byte opus-1 draft:
+ * - Candidate loop in RAC1 pick_idle_fidget's shape (records = table inside the loop, separate
+ *   inactive and `weight == 0.0f` tests, scale_ticks-style `50 < count`, `state >= 2`), and
+ *   the byte_22bb test read into an int local first (one RTL insn instead of a QImode load plus
+ *   extend). The rerun loop pass then sees 58 insns: 0x70 moves at threshold 61, 0.0f at 58,
+ *   -1 stays (55): retail's $f20 = 0.0f, $fp = origin, -1 set in the loop and `move a0,v0`.
+ * - ChoiceRecord starts with Vector pad0[5] (16-byte alignment), so the sum loop keeps
+ *   `lwc1 0x58(base)` instead of folding +0x58 into the base; the class-table byte is
+ *   ClassRecord (0xE0 bytes, byte04) indexed by D_00139568[30], giving retail's `lbu 0x4(v1)`.
  *
- * Two differences remain, both named by the x.i.loop and greg dumps of tools/regalloc.py:
- * 1. Retail keeps origin in $fp, used once by the first qcopy, and sets -1 inside the first loop.
- *    Here the loop pass hoists -1 and it takes $fp, so origin is rebuilt as lui/addiu in the loop.
- *    threshold is 61 here (inferred from the moved and not-desirable lines of the dump), less 3 per
- *    insn moved (loop.c move_movables). Retail needs
- *    0.0f moved and -1 not, so the rerun pass must see 59 or 60 real insns with 0.0f the first
- *    movable. This wording has 58, with the mult's 0x70 first. Literal 0.0f gives 59 but 0x70
- *    still comes first and 0.0f stays in the loop. A separate non-sda D_001A79F0 gives +1 but a
- *    different load. Shift-spelled stride: not reduced. Entry set in the increment: two sets, no giv.
- * 2. Retail has `mov.s $f13,$f21` before the blez and divides by $f13. Here both copies divide by
- *    $f21: `one` is gone, presumably by gcse copy propagation (not confirmed in a gcse dump), and
- *    -fno-gcse breaks the prologue. A copy that survives, or a numerator reaching both copies
- *    from the loop pass, should close it.
- * The second qcopy reads the stack copy as retail does; typed TI copies fold it back to origin.
+ * Still differs (both named by tools/regalloc.py dumps):
+ * 1. First-loop preheader order: retail sets $s1 (records base) right after $fp; here it is
+ *    last. sched1 ties at priority 1; the records lo_sum (giv init from strength reduction)
+ *    has register weight 1 because gcse's PRE register for %hi(D_L00_0025BC00) stays live into
+ *    the sampling block (`table = D_L00_0025BC00` there is a fully redundant HIGH). With
+ *    -fno-gcse (diagnostic only) the order matches retail, but the prologue's D_00189E20 base
+ *    copy moves. The sum loop's copy is harmless: loop.c hoists it as a constant move.
+ * 2. Sampling: retail has `mov.s $f13,$f21` before the blez and divides by $f13 in the merged
+ *    loop. Here `one` is a copy of the 1.0f argument pseudo after cse1, and gcse's cprop
+ *    replaces it everywhere. A literal 1.0f in the loop gives the copy via loop.c + cse2, but
+ *    the duplicated first iteration (jump.c, before cse1) then uses $f21 and the cross-jump
+ *    merge fails. A `one` that is still a constant at gcse (cprop cannot put a CONST_DOUBLE
+ *    into div.s) and becomes a copy only in cse2 would give retail's form.
+ * The size gap is the missing mov.s plus the .p2align 3 padding nop, which moves with length.
+ * Tried and worse: records set before the loop (-1 hoisted again); entry = &D_L00_0025BC00[i]
+ * (204 rows); sampling `table = records` (178 rows); RAC1's sampling loop with the address
+ * and 1.0f inside (dup not merged, 1020 bytes).
  */
 #include "common.h"
 typedef int Vector __attribute__((mode(TI)));
@@ -48,9 +49,14 @@ extern HeroChoiceState D_00189E20;
 extern int D_001A79F0 __attribute__((sda));
 extern int D_001A7398 __attribute__((sda));
 extern unsigned char D_00139568[];
-extern unsigned char D_L00_00262570[];
 typedef struct {
-    unsigned char pad0[0x50]; int selector;
+    int word00;
+    unsigned char byte04;
+    unsigned char pad05[0xE0 - 5];
+} ClassRecord;
+extern ClassRecord D_L00_00262570[];
+typedef struct {
+    Vector pad0[5]; int selector;
     unsigned char pad1[4]; float weight;
     unsigned char pad2[4]; int inactive;
     unsigned char pad3[12];
@@ -67,7 +73,6 @@ int func_L00_002CA4E0(int *selected)
     ChoiceRecord *entry, *records;
     ChoiceVector raised, origin;
     ChoiceVector *startp, *endp;
-    float *origin_source;
     int *next;
     float sum, draw;
     if (D_00189E20.gate != 0) return 0;
@@ -77,27 +82,32 @@ int func_L00_002CA4E0(int *selected)
         if ((D_00189E20.flags & 2) == 0) return 0;
         return func_002A7878(0.0f, 1.0f) < 0.33f;
     }
-    records = D_L00_0025BC00;
+    index = 0;
     startp = &origin;
     endp = &raised;
-    origin_source = D_00189E20.origin;
     next = choices;
-    for (index = 0; index < 4; index++) {
-        float zero = 0.0f;
-        int area;
+    for (; index < 4; index++) {
+        int area, carried;
+        records = D_L00_0025BC00;
         entry = &records[index];
-        if (entry->inactive != 0 || entry->weight == zero) continue;
+        if (entry->inactive != 0) continue;
+        if (entry->weight == 0.0f) continue;
         area = func_L00_002ADEA0(0);
         if (entry->selector != -1 && entry->selector != area) continue;
         if (index == 2) {
             if (D_001A79F0 != 7 && D_001A79F0 != 0x13) continue;
-            if (D_00189E20.byte_22bb == 2) continue;
-            qcopy(startp, origin_source);
+            carried = D_00189E20.byte_22bb;
+            if (carried == 2) continue;
+            qcopy(startp, D_00189E20.origin);
             qcopy(endp, startp);
             raised.f[2] += 8.0f;
             if (func_002761F8(startp, endp, 2, D_00189E20.object, 0)) continue;
         }
-        if (index == 3 && (D_00189E20.mode != 1 || D_00189E20.count > 50 || D_00189E20.state > 1)) continue;
+        if (index == 3) {
+            if (D_00189E20.mode != 1) continue;
+            if (50 < D_00189E20.count) continue;
+            if (D_00189E20.state >= 2) continue;
+        }
         *next = index;
         count++;
         next++;
@@ -120,7 +130,7 @@ int func_L00_002CA4E0(int *selected)
             sum -= one / (float)(int)(*(float *)((char *)table + choice * size + 0x58) * rate);
             if (sum < draw) break;
         }
-        if (D_001A7398 == 30 && D_L00_00262570[D_00139568[30] * 0xE0 + 4] == 0) {
+        if (D_001A7398 == 30 && D_L00_00262570[D_00139568[30]].byte04 == 0) {
             if (*selected == 1) *selected = 0x91;
             else if (*selected == 2) *selected = 0x92;
         }
