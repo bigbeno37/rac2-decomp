@@ -8,7 +8,20 @@
    earlier in the generated block. Allocator dumps confirm the rotation already
    exists before reload. Next: independently evidenced initialization grouping
    or a matching RAC1 counterpart, without barriers or selective volatility.
-   All required declarations are included. Not linked or counted. */
+   All required declarations are included. Not linked or counted.
+
+   Opus 5.5 (opus-2), 4 November 2026, same compiler: body unchanged, still 3
+   instructions differ. Write p via a cast of the file's `char D_00189E20[]`.
+   Cause, from -fsched-verbose-5: sched1 ranks by priority, then weight
+   (sets - REG_DEAD). The sb is the flag's death, so it beats speed0/speed1,
+   which do not free their constants. sched2 then ties (7 dependents each) and
+   keeps that order. Test: an extra later use of the flag puts all seven
+   stores in retail's order. So retail's flag stays live past the sb through
+   a use that leaves no code. Matched L00 twin func_L00_002A4D18
+   (src/levels/shared/L00_002A3B80.c) stores 264,250,254,258,25C,flag,73A0,
+   2294,C24. That order here gives retail's FP registers, but the sb still
+   lands after 25C. A guarded `if (flag) field = flag;` is worse and not
+   allowed. Unknown: which L22-only statement keeps the flag live. */
 
 extern int D_001A79F0[] __attribute__((sda));
 extern int D_001A73A0[] __attribute__((sda));
