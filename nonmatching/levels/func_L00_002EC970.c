@@ -19,6 +19,17 @@
  * and count in pseudo 91, but a BLKmode copy is ld/sd, retail is lq/sq); a TImode by-value struct
  * or Quadword (passed in $a0). Callers set only $a0-$a3, $f12 and $f13, so no extra parameter.
  * Next: a source shape that gives count a later pseudo, or S=217 with no code change.
+ * Claude Opus 5.5 xhigh, v2410 (rechecked here: same 12 instructions). New measurements:
+ * - S=183 cannot work for any count pseudo: &second.point[3] (bucket 147) must precede
+ *   &first.point[3] (bucket 3), so the table size itself has to change. With count-1 and count<<4
+ *   both on count's register r: S=181 needs r 90..192 (max_cuid 360..363), S=179 r>=113, S=191 r>=106;
+ *   with r=87 only S=155/217. A copy of count folds back in gcse cprop wherever it is available, and a
+ *   copy made in bb3 (`int m = n` before the loop) leaves the guard on m and the latch on n: no PRE.
+ * - `last = count - 1` before the loop (top-level or block local, with or without c1/c2 locals for
+ *   the loop colours) gives max_cuid 363, S=181 and retail's order for count<<4, &second.point[3],
+ *   &first.point[3], but count-1 becomes a user variable computed early in bb3, count moves to $s3,
+ *   and 288 rows differ.
+ * - -fno-gcse: 348 rows differ.
  */
 #include "common.h"
 
