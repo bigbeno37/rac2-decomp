@@ -352,7 +352,6 @@ the placement rules are in `tools/fcheck.py`'s docstring; its tests are
 
 | [`func_L00_0038FE10`](levels/func_L00_0038FE10.c) | 1600 | Retained C: 1596/1600 compiled/retail bytes. See the source header for current release coverage, tested profiles and reopening conditions. |
 | [`func_L00_00395428`](levels/func_L00_00395428.c) | 1428 | Retained C: 1360/1428 compiled/retail bytes. See the source header for current release coverage, tested profiles and reopening conditions. |
-| [`func_L00_003A8940`](levels/func_L00_003A8940.c) | 1256 | Corrected complete C remains unlinked. 1256/1256 bytes; see source for measured release coverage, residual differences and reopening conditions. |
 | [`func_L02_002EFB60`](levels/func_L02_002EFB60.c) | 540 | 536/540 B, 2 spots off (down-counter decrement placement; one $gp load order); permuter queued (M21). |
 | [`func_L02_0032E508`](levels/func_L02_0032E508.c) | 1164 | Retained C: 1208/1164 compiled/retail bytes. See the source header for current release coverage, tested profiles and reopening conditions. |
 | [`func_L02_003E7B58`](levels/func_L02_003E7B58.c) | 972 | Corrected complete C remains unlinked. 980/972 bytes; see source for measured release coverage, residual differences and reopening conditions. |
