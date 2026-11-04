@@ -1,48 +1,46 @@
-/* 3 November 2026: owning vector/UV storage; still not matching.
- * Default game -O2 -G0 -ffunction-sections. US, PAL and US2 each:
- * 728/740 bytes, 0/6 places. This supersedes the historical 740-byte draft.
- * Corners use complete quadword/float unions, with each input and output
- * vertex addressed within its own array member. The copied matrix row is
- * explicitly 16-byte aligned. The unused rotation array is removed.
- * UVs are four owning pairs: the old second float cursor advanced to uv+9
- * after its last use, beyond the eight-float allocation. The pair cursor
- * instead ends at the array's one-past position. Union vertices and an
- * indexed vertex loop alone preserved the old five store-order differences;
- * the defined paired UV accesses change the body to 728 bytes.
- * Do not recover the historical size by restoring the invalid cursor or
- * crossing a float subarray. Reopen on the actual UV-loop/corner-store
- * dependence and scheduling, with complete storage and truthful interfaces.
- */
-/* func_L04_0040DCA8 (740 bytes, 6 places). Tier opus-1, 28 October 2026.
- * Unit: default flags (-O2 -G0 -ffunction-sections), in L04_00402D90.c or a
- * file of its own. Best check.py: 740/740 bytes, 0/6 places, the corner
- * stores at +0x224..+0x23c in another order (5 words): retail stores
- * c2.z, c0.z, c1.w, c3.z, c1.z, c2.y; this C stores c1.w, c2.z, c0.z, c2.y,
- * c1.z, c3.z. Everything else matches (frame, allocation, the por/sq clears).
- * Retail's tail is exactly this C's statement order: sched2 keeps sched1's
- * order for ready ties, and sched1 puts c1.w (1.0, ready since the clears)
- * in the memory slot at t30 because h = 1-skew*0.3 is ready only at t31
- * (0.3 load t23, mul t25, sub t28). With the R5900 model (one memory unit,
- * two issues, TImode const-0 stores typed alu before reload) the memory unit
- * has one idle slot (t25) between the call and t31; retail's order needs a
- * second one, so no ordering of these stores reproduces it. Probably the
- * original RTL had one more pre-reload insn there (a coalesced copy, or
- * register-source clears that use the memory unit). Tried without gain:
- * chained/pointer/variable forms of the field stores, a TImode zero
- * variable (constant-propagated), an aggregate initializer (stores every
- * element, no TImode clear), -fno-schedule-insns (breaks the earlier blocks).
- * Declarations: below.
+/* func_L04_0040DCA8 (740 bytes, 6 places). Tier opus-2, 4 November 2026.
+ * Unit: default flags (-O2 -G0 -ffunction-sections), in L04_00402D90.c (the
+ * B781AimQuad typedef and the vector helper externs come from that file).
+ * Best check.py: 740/740 bytes, 0/6 places, first mismatch +0x224: 5 words of
+ * corner-store order (retail c2.z c0.z c1.w c3.z c1.z c2.y; here c1.w c2.z
+ * c0.z c2.y c1.z c3.z). Frame, saved registers, allocation, the UV loop and
+ * everything else match.
+ * New against the 3 November draft (728 bytes):
+ *  - UV loop indexed (packet.uv[j].u/.v): loop.c reduces the two DEST_ADDR
+ *    givs separately (v0 = uv+0, v1 = uv+4) like retail, with no pointer past
+ *    the array; the counter is reversed into a0.
+ *  - The UV loop needs its own counter (j). Sharing i with the vertex loop
+ *    makes the counter cross calls, so sched1 floats its init to the top
+ *    (s3 in the first jal slot) and position moves to s7.
+ *  - Corner rotation[3] (48 bytes, unused) gives retail's 0x1D0 frame and
+ *    corners at sp+0x120. Evidence: the boot sibling func_00281EB8
+ *    (src/game/00281EB8.c) has the same arguments minus skew, and its
+ *    DrawFrame keeps Vector rotation[3] right after the offset vector. Here
+ *    the angle rotates the UVs instead, so the matrix is not used. Check this
+ *    unused local is acceptable before landing.
+ * What still differs (sched1 -fsched-verbose-5): h = 1 - skew*0.3f is ready
+ * at t31 (0.3 load t23, mul t25, sub t28). The 0.3 and -1 loads are typed
+ * memory before reload and the four TImode const-0 clears alu, so only one
+ * memory slot is lost (t25). Stores then fill t26..t30, and the fifth (c1.w)
+ * takes t30. sched2 keeps sched1's order for ties. Retail's order equals the
+ * C order below (c3.w first as the dying use of 1.0, c1.y before c0.y as the
+ * dying use of -1), so retail's sched1 lost a second memory slot: one more
+ * prio>=3 alu insn there, or clears that wait for all four sq. Tried without
+ * gain: a w = 1.0f local (cse keeps the older 1.0 pseudo canonical because w
+ * lives only in the block, so the copy is deleted), chained clears
+ * (a = b = c = d = 0: same timing, sq order reversed), a block-scoped
+ * `Corner corners[4] = {{0}}` (memset call), per-corner statement order.
  */
 #include "common.h"
 typedef unsigned int B781AimQuad __attribute__((mode(TI)));
-typedef union { B781AimQuad bits; float f[4]; } Corner;
 extern void func_00282CF0(void *,void *,void *), func_00282F20(void *,void *,float);
 extern void func_00282DD8(void *,void *,void *), func_00282D30(void *,void *,float), func_00282CC0(void *,void *,void *);
+extern float func_00283180(float), func_00283198(float);
+extern void func_002830C0(void *, void *, void *);
+typedef union { B781AimQuad bits; float f[4]; } Corner;
 typedef struct { float u, v; } UVPair;
 typedef struct { float vertices[4][4]; int colors[4]; UVPair uv[4]; long state[4]; } B971Packet;
 extern void func_00281DE8(void *, int, int, int);
-extern float func_00283180(float), func_00283198(float);
-extern void func_002830C0(void *, void *, void *);
 extern void func_002FC560(int, unsigned long long);
 extern void func_00280B90(void *, int, int);
 extern char D_L04_001B9680[], D_0018A0E0[];
@@ -50,13 +48,13 @@ void func_L04_0040DCA8(B781AimQuad *position, int texture, int color, int flags,
 {
     B971Packet packet;
     float tmp[2];
-    float transform[4][4] __attribute__((aligned(16)));
+    float transform[4][4];
     float offset[4];
+    Corner rotation[3];
     Corner corners[4];
     float c, sn;
     float *out;
-    UVPair *uv;
-    int i;
+    int i, j;
     func_00281DE8(&packet, texture, flags, 128);
     packet.state[0] = 5;
     packet.colors[0] = packet.colors[1] = packet.colors[2] = packet.colors[3] = color;
@@ -64,13 +62,13 @@ void func_L04_0040DCA8(B781AimQuad *position, int texture, int color, int flags,
     packet.uv[2].u = 1; packet.uv[2].v = 0; packet.uv[3].u = 1; packet.uv[3].v = 1;
     c = func_00283180(angle);
     sn = func_00283198(angle);
-    for (i = 3, uv = packet.uv; i >= 0; i--, uv++) {
-        tmp[0] = uv->u - 0.5f;
-        tmp[1] = uv->v - 0.5f;
-        uv->u = tmp[0] * c - tmp[1] * sn;
-        uv->v = tmp[0] * sn + tmp[1] * c;
-        uv->u += 0.5f;
-        uv->v += 0.5f;
+    for (j = 0; j < 4; j++) {
+        tmp[0] = packet.uv[j].u - 0.5f;
+        tmp[1] = packet.uv[j].v - 0.5f;
+        packet.uv[j].u = tmp[0] * c - tmp[1] * sn;
+        packet.uv[j].v = tmp[0] * sn + tmp[1] * c;
+        packet.uv[j].u += 0.5f;
+        packet.uv[j].v += 0.5f;
     }
     qcopy(transform[3], position);
     func_00282CF0(transform[0], D_L04_001B9680, transform[3]);

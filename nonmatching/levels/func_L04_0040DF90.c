@@ -1,26 +1,30 @@
-/* 3 November 2026: bounded sound-phase recheck; still not matching.
- * Profile: -O2 -G0 -ffunction-sections -g -fno-gcse. US and US2:
- * 696/696 bytes, 0/2 places each; first difference +0x1D4.
- * Moving the quotient snapshot before the branch gives 692 bytes; assigning
- * the quotient in the condition gives 688. Split arithmetic changes FP
- * destinations without closing the division region. Independent first-phase
- * locals and a shared threshold both reproduce the baseline object text.
- * Keep the accurate helper return contracts and retained original source.
- * Reopen with evidence explaining the denominator/threshold FPR reuse and
- * branch-local quotient lifetime, not another unchanged phase spelling.
- */
-/* 2026-11-03 w02 source-contract review (USA v1.01 only).
- * Profile: -O2 -G0 -ffunction-sections -g -fno-gcse.
- * Current check.py: 696/696 bytes, 0/2 places, first mismatch +0x1D4.
- * Corrected func_L01_00355BA0 and func_002E5F40 to their actual integer returns, verified in matched definitions. Division scheduling and the amount/original FP copies still differ.
- * Reopen: Independent division expression and FP-lifetime evidence.
- * No linked match or cross-release qualification is claimed. Earlier notes follow.
- */
-/* Retained readable C; not matching and no exact-C credit.
- * 2026-10-28 profile: -O2 -G0 -ffunction-sections -g -fno-gcse.
- * 696/696 bytes; local check fails at +0x1d4. Branch-shaped effect selection fixed the original conditional moves. Remaining division scheduling and value-copy choices differ. -g and -fno-gcse do not close the remaining gap.
- * US object comparison only in this retry; no linked strict-build claim.
- * Reopen with a measured allocation, scheduling or source-interface witness.
+/* func_L04_0040DF90 (696 bytes, levels 04 and 11). Tier opus-2, 4 November 2026.
+ * Unit: a file of its own with -O2 -G0 -ffunction-sections -g (-fno-gcse
+ * gives the same bytes).
+ * Best check.py: 696/696 bytes, 0/2 places, first mismatch +0x1d4, 17 words
+ * differ (cdiff, call targets masked), all in the second envelope.
+ * New against the 3 November draft: the then-arm computes its value before
+ * the copy (`value = amount*k + 0.2f; original = amount; amount = value;`),
+ * so its mul reads amount (f20) as retail does.
+ * What still differs:
+ *  - sched1 issues the 0.85 load at t2, ahead of div.s (t3, after the 0.45
+ *    load's two cycles). Nothing in the block depends on it, so it goes as
+ *    soon as the memory unit is free. Global alloc then gives it f1 (retail:
+ *    f0, reused after the div, so retail's 0.85 load came after the div in
+ *    sched1: a dependence on the div, or one pseudo for 0.45 and 0.85).
+ *  - else arm: `original = amount; amount -= 0.85f;` subtracts from the copy
+ *    (sub.s f20,f21,f1; retail sub.s f20,f20,f0). cse.c make_regs_eqv
+ *    (lines 866-885) makes the copy canonical when it outlives the block and
+ *    its LAST_UID is later than amount's. original is read last, at
+ *    (1 - original)*-2816. Retail's arm reads amount, so either amount is
+ *    used after original in the original source, or the copy was made after
+ *    cse.
+ * Tried without gain: value-first else arm (`value = (1-(amount-0.85f))*0.8f
+ * + 0.2f; original = amount; amount = value;`, 692 bytes, sub into f3), the
+ * final argument as (1 - elapsed/0.45f) so PRE would make the copy (no
+ * effect: div.s may trap, so gcse leaves it and a second div appears),
+ * -fno-schedule-insns on the unit (fixes the 0.85 order but the first
+ * phase's schedule breaks: 138 rows differ).
  */
 #include "common.h"
 extern float func_00283CE0(int);
@@ -73,8 +77,9 @@ void func_L04_0040DF90(unsigned char *m, unsigned char *p)
     if (func_002E59B0(m, *(int *)(p + 0x334))) {
         amount = elapsed / 0.45f;
         if (amount < 0.85f) {
+            float value = amount * 0.9411764f + 0.2f;
             original = amount;
-            amount = amount * 0.9411764f + 0.2f;
+            amount = value;
         } else {
             original = amount;
             amount -= 0.85f;

@@ -935,5 +935,7 @@
 #define MeshDrawFourSigns                func_L00_003B4560
 #define UpdateLockOnWeapon               func_L00_003C8A90
 #define DrawCameraFacingRibbon           func_L04_0030C948
+#define UpdateRaceSelectionMenu          func_L04_0040BA68
+#define DrawFacingSkewedQuad             func_L04_0040DCA8
 
 #endif /* NAMES_H */
