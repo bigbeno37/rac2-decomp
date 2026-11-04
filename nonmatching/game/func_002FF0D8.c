@@ -1,19 +1,7 @@
-/* 4 November 2026 (opus-2, task v2379): nothing closer than the source below, still 428/428 bytes, 0/28 places,
- * 3 rows differ. sched1 has to give DB7, selection | key, 1 | E4, E8. It does when the selection and key stores
- * conflict with the E4 and E8 stores, which needs a base pointer with no known base value (a pseudo set twice).
- * Block A (lui a1 before the sh) and the else arm still behave as known base, so only the voice stores differ.
- * Tried, all 0/28:
- * - inline helper returning &D_001A63A8 or 0, then if (voice != 0): right store order and block A, but the null
- *   test stays as nor/movn/beqz, because jump1 turns it into a conditional move before cse1.
- * - inline helper returning 1 or 0, stores inside it: the test stays as beqz.
- * - voice reused for the table in the else arm: right stores, but voice goes global and lands in $t0 (local-alloc
- *   has taken a0-a3), the lw 0x68 depends on the sh, and the QImode owned store conflicts with lw 0xC(record).
- * - one int local shared by voice and the second call argument, shared call tail: right stores, but 420 bytes, the
- *   local takes $a2 and 0xE0 takes $a1. Retail's arms set $a1 directly, so its second argument is no pseudo.
- * - a local set from &D_001A63A8 inside the block: stays as a move and puts key before selection.
- * - (VoiceRequest *)(long)&D_001A63A8: folds away, same as this source.
- * - do { selection; key; } while (0), diagnostic only: exact stores, but a nop after the E8 store, 432 bytes.
- * Reopen on evidence of what separates the stores in the original source.
+/* 4 November 2026 current-RAC1 source-method trial; retained, not linked.
+ * Grouping the two actual voice-request stores fixes their order but produces 432/428 bytes, 0/28
+ * USA placements: the join gains an alignment nop. Both O2/g and Os/g retain it; this compiler
+ * rejects -fno-align-loops. The older 428-byte source below remains the best draft.
  */
 /* 3 November 2026: owning resident-view repair, original G0/g profile.
  * The resident byte object remains incomplete; only its actual preview-vector

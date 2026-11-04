@@ -1,3 +1,20 @@
+/* 4 November 2026, real source-group review; retained, not linked.
+ * Default G0 profile in L01_002A7248.c: a group containing the actual height read restores the
+ * full retail register map. It is 276/272 bytes, 0/5 USA places: only the alignment nop at +0x74
+ * remains (then shifts the following instructions). Including normal preparation or the whole
+ * response with its real return keeps 276 bytes and loses that register map. The retained best
+ * group is below with complete declarations and the existing four-word pointer interface; no
+ * dummy owner reference was used. Reopen with a real height-lifetime/label-alignment witness, not
+ * padding removal or invented volatility. Older measurements follow as history.
+ */
+#include "common.h"
+typedef struct { char pad[0x18]; void *moby; int count; char gap[0x20]; float normal[4]; } ProbeResult;
+extern ProbeResult D_L01_001BF900;
+extern int func_002761F8(void *, void *, int, void *, int);
+extern void func_00282F20(void *, void *, float);
+extern void func_00282CF0(void *, void *, void *);
+extern float func_00282DB0(void *, void *);
+extern void func_00282CC0(void *, void *, void *);
 /*
  func_L01_0031B300 (272 bytes, 5 places) - default flags (-O2 -G0), in L01_002A7248.c; right size.
  opus-1 (v2139, 2026-11-03), recompiled on v2/c04: 272/272 bytes, 0/5 places, 12 instruction rows differ
@@ -15,11 +32,6 @@
  `p != 0 && (...)` test (same priorities), `w = *(Vector *)(g + 0x40)` instead of qcopy (g gets 6 refs).
  Earlier: the permuter reaches 5/5 only with an identical-arm `if (a0)` around the 0xAA load (not allowed);
  that is exactly the missing sixth a0 reference.
- opus-2 (v2434, 2026-11-04, v2/c05): same 20 rows. sched1 (-fsched-verbose-5) ties 105/107/109 (VecSub args) on priority 14;
- 109 (a2 = g+0x20, kills g) beats 107 (a1 = a3) on INSN_DEPEND count (6 vs 3, a2 clobbered by the next calls), so g dies first.
- Counting both ranges: 3 more RTL insns inside g's range at sched1 that vanish later would flip it (8/38 < 10/47).
- Tied: direct `*(short *)(p + 0xAA)` tests, `(float *)a0 + 4` as the second VecAdd operand, one shared `return 0` layout;
- worse: switch on the class (56 rows), inline ignored-moby helper (57), early `pos = a0 + 0x10` pointer (67).
  Reopen with a real construct that references a0 once more (and vanishes) or lengthens g's range.
  */
 typedef int TI128 __attribute__((mode(TI)));
@@ -45,15 +57,17 @@ int func_L01_0031B300(void *a0, void *a1, void *a2, void *a3) {
         if (v1 == 0x881 || v1 == 0)
             return 0;
     }
-    f20 = *(float *)((char *)a0 + 0x18);
+    do {
+        f20 = *(float *)(a0 + 0x18);
+    } while (0);
     qcopy(&w, g + 0x40);
     h = g + 0x40;
     func_00282F20(w.f, w.f, 1.0f);
     func_00282CF0(&v, a3, g + 0x20);
     f2 = func_00282C48(func_00282DB0(v.f, w.f));
     func_00282F20(w.f, (float *)h, f2);
-    func_00282CC0((char *)a0 + 0x10, (char *)a0 + 0x10, &w);
-    *(float *)((char *)a0 + 0x18) = f20;
+    func_00282CC0(a0 + 0x10, a0 + 0x10, &w);
+    *(float *)(a0 + 0x18) = f20;
     return 1;
 fail:
     return 0;

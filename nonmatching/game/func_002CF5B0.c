@@ -1,11 +1,8 @@
-/* v2370 (Claude Opus 5.5, 2026-11-04): same 576/576, 10 words; mechanisms traced in the dumps.
- * - Early status $a0: block 3's fallback load r99 (local $v0) inherits $v1 from the D_001F2840 base r92
- *   (r92 = lo_sum of the $v1 lui; expand_preferences merges at r99's REG_DEAD r92). r99 conflicts with
- *   status (the jump1 `status = -1` sits before its test) and ranks lower (6666 < 7777), so
- *   regs_someone_prefers drops $v1 for status. A status with priority < 6666 (separate from cost) frees it.
- * - Base $v1: block 19's only locals are the index chain ($v0) and the base, so the base takes $v1.
- *   Retail's $a0 needs a local in $v1 born at the lbu (a cost temporary with a deleted no-op copy, or a
- *   vanished value); combine merges every cost temporary tried. A block-local table pointer ties.
+/* 4 November 2026 source-contract/lifetime trials; retained, not linked.
+ * Real cost-read and table-base groups both give 576/576 bytes, 0/28 USA placements, first +0x60.
+ * The borrowed short table is incomplete rather than incorrectly bounded to four elements while
+ * reading index four; the cleanup call has its physical pointer argument. The measured table-base
+ * group is retained below; base/status allocation still differs.
  */
 /* Closer B, 2026-11-01: 576/576, 10 words: declare status at function scope and use it for cost. That
  * gives retail's slot copy and 0x5A in a1. Left: base and status swapped (v1/a0, including the two early
@@ -50,10 +47,10 @@ extern int D_001AB9EC __attribute__((sda));
 extern ShopEntry D_001ABCD0[] MACRO_ADDR;
 extern unsigned char D_001A7A60[] MACRO_ADDR;
 extern unsigned char D_001A7A40[] MACRO_ADDR;
-extern short D_001A7A10[4];
+extern short D_001A7A10[];
 extern int func_002B0E90(void);
 extern int func_002E5E58(int, unsigned int, void *);
-extern void func_002923C0(int);
+extern void func_002923C0(void *);
 
 static __inline__ ShopEntry *shop_entry(int index)
 {
@@ -74,6 +71,7 @@ int func_002CF5B0(void)
 {
     int result = 0;
     int status;
+    ShopEntry *table_base;
     int limit = func_002B0E90();
     int flags = D_00138180.flags;
 
@@ -118,7 +116,10 @@ finish:
             D_001AB9EC = cur;
         }
         if (D_00138180.flags & 0x40) {
-            status = shop_cost(D_001AB9EC);
+            do {
+                table_base = D_001ABCD0;
+            } while (0);
+            status = table_base[D_001AB9EC].cost;
             if ((status != 0x5A && status <= limit)
                 || (shop_cost(D_001AB9EC) == 0x5A && D_001A7A60[0] != 0)) {
                 unsigned char *slot;
@@ -131,7 +132,7 @@ finish:
                 {
                     int item = shop_item(D_001AB9EC);
                     if (item == 9 || item == 10 || (unsigned char)item == 2 || (unsigned char)item == 11)
-                        func_002923C0(D_001A7A10[4]);
+                        func_002923C0((void *)(s32)D_001A7A10[4]);
                 }
             } else
                 func_002E5E58(5, 0, 0);
