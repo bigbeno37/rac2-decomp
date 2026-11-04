@@ -34,6 +34,22 @@
  * be a hidden one (an uncombined call-result copy, a flow (use (const_int 0))
  * after a block-ending call, or a load post-reload CSE removes).
  * Next: find the source construct for that one hidden insn.
+ *
+ * opus-2 (v2433), same C, same result (908/908, 0/27, +0x48). In this cc1,
+ * recompute_reg_usage runs just before local-alloc and sched1's
+ * update_reg_usage rewrites live lengths, so both refs and live lengths
+ * count the post-combine, post-sched1 RTL: only an insn removed after sched1
+ * (a no-op copy, a flow (use (const_int 0)) after a call followed by a
+ * label, a jump2 cross-jumped tail, a flow2 dead store) can be the hidden
+ * one, and it must not reference p. Measured: declaring D_001A79F0 as a
+ * plain extern (split HIGH/LO_SUM, one more insn) gives p 39/152 and
+ * retail's s2/s1 allocation everywhere, but sched1 separates the lui from
+ * the lw (lw a1 instead of lui/lw a0 adjacent; 51 rows differ from +0x1f4),
+ * so retail's D_001A79F0 load is the unsplit macro. Writing the clear tail
+ * out twice adds p stores (15/154 -> 2922, worse). No effect on 151/31:
+ * ++p->count in the test, nested hit test, separate asin temporaries,
+ * RAC1's g = &P pointer (at the top it also reschedules +0x8), p computed
+ * after the skip test (146 live, reschedules +0x8).
  */
 #include "common.h"
 extern float func_00282DB0(char *, char *);
