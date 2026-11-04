@@ -1,3 +1,20 @@
+/* Claude Opus 5.5 (opus-2, task v2415), 4 November 2026: no improvement; this draft
+ * (2 instructions, +0x1EC) is still the closest. Measured with the loop dump (-dL):
+ * RAC1's counterpart is spawn_decoy (trespasser_and_throwing_gloves.c): `while
+ * (list[0] >= 6) { candidate = 0; best = 0; for (i = 1; i <= list[0]; i++) ... }`.
+ * Here `while (D[0] > 5)` (or >= 6) with the 1-based `for (i = 1; i <= D[0]; i++)`
+ * over `extern short D_L00_001B1FF0[] MACRO_ADDR` and `D_1E9C + (D[i] << 8)` makes the
+ * zero inits exact (no zero register in the first test) and leaves 5 rows: s3/s4 swap.
+ * Cause: loop.c threshold for this outer loop is 61 (has calls); the while form has
+ * 62 real insns at pass 1 and no earlier movable, so the constant 5 misses by ONE
+ * insn (61*1*1 < 62) and pass 2 hoists [&D, 5, 1]. One real insn fewer (59-61) in
+ * the outer loop would give retail's [5, &D, 1]. The extra insns versus the 0-based
+ * form (59) are &D copies: D[i]'s base &D in a register lets cse/gcse rewrite the
+ * D[0] loads of both exit tests through it. Tried without change: `*D` in the test,
+ * `short D[32]`, `>= 6`, int-typed moby base (RAC1 spelling). A local `count = D[0]`
+ * bound gives 55 insns plus an earlier PRE &D move (threshold 58): both 5 and 1 move,
+ * [5, 1, &D]; that form needs 56-58.
+ */
 /* Claude Opus 5.5 (opus-1), 29 October 2026: retained near miss, not linked.
  * Profile: -O2 -G0 -ffunction-sections (default; a unit of its own works the same).
  * USA v1.01: 732/732 bytes, 0/27 places, first difference +0x1EC; exactly two

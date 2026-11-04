@@ -224,6 +224,7 @@
 #define EnsureMenuCacheEntry             func_L00_00308700
 #define RevealMapAroundPosition          func_L00_003080D0
 #define DecodeMapRleRow                  func_00297550
+#define SpawnDecoy                       func_L00_00398810
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
