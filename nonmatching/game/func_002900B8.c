@@ -1,3 +1,12 @@
+/* opus-2 (Claude Opus 5.5, task v2488, 5 November 2026): no closer wording; code below unchanged (1380/1388, 0/28).
+ * With sched1 on (C3 profile) this body scores 118 identical rows of 347 (LCS), with sched1 off 177.
+ * Evidence for a hidden block boundary after EACH y conversion (before the text call's argument setup):
+ * retail keeps both y chains contiguous (lwc1..cvt.s.w $f13) and sets up the call's arguments after them; ours
+ * interleaves them. 206.0f shares $f23 with case-0/1-2 `step`, so it is a global (multi-block) pseudo, not
+ * local-alloc'd to $f20 as here. A placeholder probe (inline test on `first`/`second` after computing
+ * scale*206+0.5) gives retail's 6 saved FPRs ($f20..$f25) but still 5 GPRs, and the test survives (1416 bytes).
+ * The construct is still unknown: it must also keep %hi(D_001B9040) in $s5 and 0x8710 in $s3 (an $s2 occupant).
+ */
 /* Closer C3, 1 November 2026: the profile below is wrong. Retail has sched1 on: -O2 -G8 -fno-expensive-optimizations
  * -ffunction-sections. 206.0f, 0x8710, 0.5f are call-crossing pseudos and float up over the calls as in retail; literal args go
  * straight to hard regs; with that the first 0x128 bytes agree but for the save count. Left: one more saved GPR
