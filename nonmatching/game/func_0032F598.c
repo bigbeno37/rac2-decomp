@@ -1,28 +1,36 @@
-/* 4 November 2026: faithful retained C; no linked match.
- * Remove the unused leading two-vector padding; the remaining complete vectors and call arguments are unchanged.
- * us: 2072/2084 bytes, 0/28 places; us2: absent; pal: absent.
- * Profile: -O2 -G8 -ffunction-sections -ffast-math.
- * Reopen: Find a genuine owner/callee use explaining retail's leading stack space and the effect-store lifetime; no dummy local may recreate the frame.
- * Earlier measurements below are historical, including any diagnostic-only
- * constructs they describe; those constructs are no longer active C.
- */
 /*
- * func_0032F598 -- NONMATCHING (tier: Claude Opus 5.5, task v2070).
- * Best: 2084/2084 bytes, 0/28 places; 6 rows differ, but ONLY with the
- * forbidden unused leading local `V598 pad[2]` (retail frame 0x1A0 has 32
- * unreferenced bytes at sp+0x00..0x1F; without it the frame is 0x180 and
- * every local sits 0x20 lower). No legitimate source of those bytes found
- * (first-declared object; slots: hit 0x20, origin 0x30, params 0x40,
- * angles 0x50, matrix 0x60, work[8] 0x90 with work[6..7] unused, count 0x110
- * via ADDRESSOF at the end).
- * Remaining diff: the effect's `sw zero,0x2C` is scheduled before the
- * f24 stores (retail: last); int and float 0 forms behave the same.
- * Found here: each barrel written out with plain &work[] (gcse PRE copies
+ * func_0032F598 -- NONMATCHING (tier: Claude Opus 5.5, task v2504, 5 November 2026).
+ * us: active C below = 2072/2084 bytes, 0/28 places (frame 0x180, every local
+ * 0x20 lower than retail). us2 and pal: in neither catalogue.
+ *
+ * Exact bytes (28 of 28 places, check.py) only with a forbidden construct, so
+ * not landed; built in src/game/0032EB28-math-g8.c (-O2 -G8 -ffast-math):
+ *   extern void dbg598(int,int,int,int,int,int,int,int,int,int,int,int);
+ *   ... after func_0029FCC0(obj,0,&origin);
+ *   if (0) dbg598(0,0,0,0,0,0,0,0,0,0,0,0);
+ * (an unused leading `V598 pad[2];` gives the same bytes, also forbidden).
+ *
+ * Why: retail's 32 unreferenced bytes at sp+0x00..0x1F are not a local. They
+ * are the outgoing-argument area: mips.h STARTING_FRAME_OFFSET =
+ * current_function_outgoing_args_size, and calls.c sets that size while
+ * expanding any call with stack arguments, even one jump.c deletes later as
+ * unreachable (integrate.c also carries an inlined function's size over).
+ * 32 bytes = 3-4 stack slots: a call with 11-12 GPR-class arguments (or FP
+ * arguments past f19) that the original compiled out. Find that real call (a
+ * debug or constant-false path, or an inline helper whose big call folds
+ * away); nothing else raises outgoing_args_size, and const calls with stack
+ * arguments are never deleted (calls.c clears is_const).
+ *
+ * Store order (solved, kept below): the effect's byte store `B598(effect,3)=1`
+ * must be the last statement of the store group. sched1 gives the store that
+ * carries the effect pointer's REG_DEAD a register weight of -1, so with the
+ * 0x2C zero store last it was scheduled before the f24 stores; the byte store
+ * issues first anyway, so the dying use there leaves retail's order.
+ *
+ * Found earlier: each barrel written out with plain &work[] (gcse PRE copies
  * give retail's s2/s1, tails cross-jump); velocity set before its call;
- * block-scoped `slot` for D_00188660+i*0x70 (addu order, bne); MACRO_ADDR
- * on D_001A8BD0 (charge argument order).
- * Built in src/game/0032EB28-math-g8.c (-O2 -G8 -ffast-math); needs the
- * declarations below.
+ * block-scoped `slot` for D_00188660+i*0x70 (addu order, bne); MACRO_ADDR on
+ * D_001A8BD0 (charge argument order). Needs the declarations below.
  */
 #include "common.h"
 typedef union { int q __attribute__((mode(TI))); float f[4]; } V598;
@@ -48,6 +56,7 @@ extern void func_002FDF40(void *,void *,void *,float,float,float,float,void *);
 #define B598(p,o) (*(unsigned char *)((p)+(o)))
 void func_0032F598(char *obj)
 {
+
     V598 hit, origin;
     P598 params;
     V598 angles, matrix[3], work[8];
@@ -96,12 +105,12 @@ void func_0032F598(char *obj)
     func_00282DD8(&matrix[2],&matrix[1],matrix);
     effect=func_002FEC50(I598(rec,0x6C));
     func_002AB600(effect+0x10,matrix);
-    B598(effect,3)=1;
     F598(effect,0x30)=-7.83249f;
     F598(effect,0x34)=1.9025599238414737e-12f;
     F598(effect,0x38)=10014.4f;
     F598(effect,0x3C)=1.0f; F598(effect,0xC)=1.0f;
     F598(effect,0x20)=1.0f; F598(effect,0x24)=1.0f; F598(effect,0x28)=1.0f; I598(effect,0x2C)=0;
+    B598(effect,3)=1;
     if (D_00138180.buttons.flags[0]&0x80) {
         a=1.0f-func_002A7790((func_00283180(D_001B0994)+1.0f)*0.5f)*0.5f;
         b=1.0f-func_002A7790((func_00283180(D_001B0998)+1.0f)*0.5f)*0.5f;
