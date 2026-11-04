@@ -1,20 +1,22 @@
 #include "common.h"
-/* Claude Opus 5.5 (opus-1), 3 November 2026; USA v1.01, -O2 -G0 -ffunction-sections (default profile).
- * Best check: 1212/1216 bytes, 0 of 27 places match (built as its own unit, src/levels/shared/L00_003769C0.c).
- * Closer than the 1 November draft: D_L00_0022F900 and D_L00_0028E9F0 are plain externs (not sda), so the row
- * address is retail's split lui/addiu + mtlo/madd (no shared idx*28 mult/addu), the row/movz block matches, and
- * the table base is split like retail (lui hoisted, addiu in the goto loop).
- * Left: (1) retail recomputes the colour entry address base-first after the search (addu v0,a1,a0; lw s3,4(v0),
- * the 4 missing bytes); cse1 merges it with the key address (off+base) because the found block shares the
- * loop's extended basic block. A pointer variable set before the loop gives the base-first addu but adds a
- * register (1224 B), so retail's found block was probably a separate EBB (a label with uses) and gcse made the
- * base a1. (2) idx/colour take s2/s3 the other way: global priorities 30/70 (idx) vs 76/173 (colour) are nearly
- * tied. (3) i+1 in fp and y+56 on the stack in retail, swapped here; the increment order makes no difference.
- * (4) The text colours compute b|color before a|color.
- * Declarations: the externs below. L00_00358D98.c already declares D_L00_001B25E0 (scalar float) and
- * D_L00_0022F7C0 (ShopModel) with other types, so a merged version needs _1 aliases or its own unit (same flags).
+/* Claude Opus 5.5 (opus-2, task v2514), 5 November 2026; USA v1.01, -O2 -G0 -ffunction-sections (default profile),
+ * built as its own unit (src/levels/shared/L00_003769C0.c; L00_00358D98.c declares D_L00_001B25E0 and
+ * D_L00_0022F7C0 with other types).
+ * Best check: 1216/1216 bytes, 0 of 27 places; 22 rows differ, all register choices (relocations aside).
+ * New since opus-1: natural D_L00_0028E9F0[j].key / [j].color accesses with j++ on the back path
+ * ({ j++; goto top; }) give retail's separate base-first colour address (addu v0,a1,a0; lw 4(v0)) and the
+ * 1216-byte layout (sched1 interblock moves j++ into the beqz delay slot); the text block writing
+ * colors[3]/[1] (b|color) before colors[2]/[0] fixes its or/store order.
+ * Left: (1) idx s3 / colour s2, retail s2/s3: global priorities colour 4*19/176 = 0.432 > idx 3*10/71 = 0.423.
+ * (2) inner loop j a1 / base a3, retail a3/a1 (j 3*8/24 = 1.0 ties rowkey 1.0, base 2*6/16 = 0.75).
+ * (3) y's load temp v1, retail v0: loop.c hoists D_L00_0022F900 HIGH/LO_SUM (later rematerialized) into the
+ * outer preheader, and its 2-insn temp takes v0 inside the temp's span.
+ * (1) and (2) both follow if the search is a natural loop (flow weights refs by loop depth: idx 11 refs beats
+ * colour, base/rowkey 1.5 beat j 1.375); a for loop with a top test gives exactly retail's a0/a1/a2/a3 and
+ * colour-address forms but is rotated and its test duplicated (1268 B, loop.c ignores it: multiple entry
+ * points). for(;;)/do-while with goto exits are valid loops, so loop.c hoists the rowkey address and walks a
+ * pointer (103 rows). Next: a natural loop that loop.c rejects without a peeled test.
  */
-
 extern float D_L00_001B25E0[] __attribute__((sda));
 extern int D_001A7B90[] __attribute__((sda));
 extern int D_001A7340[] __attribute__((sda));
@@ -73,14 +75,11 @@ void func_L00_003769C0(void)
             int j=0;
             char *label;
             int key;
-            int off;
         top:
-            off=j*8;
-            key=((MenuColor *)((char *)D_L00_0028E9F0+off))->key;
+            key=D_L00_0028E9F0[j].key;
             if(key) {
-                j++;
-                if(*(int *)((char *)D_L00_0022F7C0+0x158+idx*28)!=key) goto top;
-                color=((MenuColor *)((char *)D_L00_0028E9F0+off))->color;
+                if(D_L00_0022F900[idx].words[6]!=key) { j++; goto top; }
+                color=D_L00_0028E9F0[j].color;
             }
             label=func_0028E588(0xea97,1);
             colors[2]=colors[0]=a|color;
@@ -88,8 +87,8 @@ void func_L00_003769C0(void)
             func_0028EA58(label,y+2,MY(332.0f),40,(int)(D_L00_001B25E0[0]*40.0f+0.5f),colors);
             color=0xf0f0b0;
         }
-        colors[2]=colors[0]=a|color;
         colors[3]=colors[1]=b|color;
+        colors[2]=colors[0]=a|color;
         func_0028EA58(text,y+2,MY(332.0f),40,(int)(D_L00_001B25E0[0]*40.0f+0.5f),colors);
     }
     }

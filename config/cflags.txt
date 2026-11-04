@@ -3157,3 +3157,4 @@ src/game/0030F7B0-death-g8.c	-O2 -G8 -ffunction-sections -frac2-keep-block-order
 src/levels/shared/L10_0037D200-ribbon.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
 src/game/00345358-list-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels -frac2-gcse-unsplit-edges -fmove-all-movables
 src/levels/shared/L00_00384678-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por -frac2-qcopy -frac2-qcopy-barrier -g -frac2-gcse-unsplit-edges
+src/levels/shared/L00_00373F48-g64.c	-O2 -G64 -Wa,-G64 -ffunction-sections
