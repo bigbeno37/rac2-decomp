@@ -1,3 +1,20 @@
+/* Claude Opus 5.5 (xhigh effort), task v2508, USA v1.01. FAILED; body below unchanged.
+ * Recompiled here: 3328/3316 bytes, 0/28 places, frame 0x110 vs 0x100 (isolated unit,
+ * -O2 -G8 -ffunction-sections -ffast-math, as recorded below).
+ * Colour loop (i*0x1C strength reduction), measured with tools/regalloc.py x.i.loop:
+ * - The giv appears only because loop pass 2 hoists (set r 28). loop.c threshold for this
+ *   loop is exactly T=61 (1 + n_non_fixed_regs, loop has a call), minus 3 per move.
+ *   Pass 2 sees 58 real insns: it hoists the cmove's -1 (61 >= 58), then 28 (58 >= 58).
+ * - Retail keeps 28 in the loop, so its pass 2 must see 59-61 insns. Only the first
+ *   life-1 movable is then hoisted. The cmove's 7 has life 3, so pass 1 always hoists it.
+ * - Reading the alpha as ->bytes[3] (plain shift in the loop) gives 59 insns: no giv,
+ *   frame 0x100, 3324 bytes. But the shift then stays in the loop and PRE puts the
+ *   post-loop shift at the latch, the reverse of retail. The word form below reproduces
+ *   retail's alpha shape (srl PRE'd and spilled, post-loop sll recomputed). Retail
+ *   therefore looks like this body plus one more surviving RTL insn in the colour loop.
+ * - No change: ternary previous, D_001B18D4 without sda (its %hi is PRE'd),
+ *   an inline accessor for D_001B18D4[0] (cse removes the copies).
+ */
 /* 2026-11-03 w02 faithful-contract review, US object checks only.
  * Profile: -O2 -G8 -ffunction-sections -ffast-math.
  * Current check.py: 3328/3316 bytes,0/28 places.
