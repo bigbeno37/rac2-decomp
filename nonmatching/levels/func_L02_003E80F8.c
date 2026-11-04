@@ -1,57 +1,41 @@
-/* Faithful-source review, 4 November 2026; retained, not linked.
- * 1748/1756 bytes, 0/1 USA placement.
- * Remove seven overwritten declaration initializers; keep count=0 because its value is consumed by the entity walk. The earlier 1756-byte five-row diagnostic depended on the removed values. Frame/PRE spills and geometry-loop scheduling remain open.
- * Measured in the assigned production unit with the profile recorded below.
- * Other-release checks were not rerun for this nonmatching source.
- * Earlier diagnostic measurements below are historical where superseded.
- */
-/* Nonmatching, Claude Opus 5.5 xhigh, task v2023 (1 November 2026).
- * Best check: 1756/1756 bytes, 0/1 USA v1.01 places; frame 0xB70. check.py's first
- * difference is at +0x494. cdiff shows 83 of 439 rows differing: 78 are relocation
- * display only and 5 are real, and those 5 are one displaced instruction.
- * Profile: -O2 -G8 -ffunction-sections, in a dedicated L02_003E80F8-g8.c unit, with
- * the INCLUDE_ASM line in L02_003DB310.c replaced. Not checked in PAL or USA v2.00.
- * Required declarations are included below; some are unused, kept so that this is
- * exactly the measured form.
+/* Nonmatching, Claude Opus 5.5 xhigh, task v2453 (5 November 2026).
+ * Best check: 1756/1756 bytes, 0/1 USA v1.01 places, first difference at +0x494.
+ * 5 of 439 rows really differ (one displaced instruction); every other differing row is
+ * relocation display only. All seven PRE spill slots (0xADC-0xAF4) now match retail.
+ * Profile: -O2 -G8 -ffunction-sections (default for a -g8 name), dedicated unit
+ * src/levels/02_maktar_nebula/L02_003E80F8-g8.c, INCLUDE_ASM line in L02_003DB310.c
+ * replaced by a comment. Not checked in PAL or USA v2.00. Declarations are below.
  *
- * Remaining, at +0x484 to +0x494: retail orders `daddu s3,s4` before the two bound
- * loads, here it comes after them. In this form the loads are PRE inserts at the end
- * of the block and the copy is a loop.c hoist emitted after them. sched1 boosts all
- * of them equally, so the tie goes by LUID and the copy always sorts last. Retail
- * fits biv-elimination temps, which loop.c emits after its hoists.
+ * Changes from the v2023/faithful-review draft: the draw loop is the natural
+ * `for (draw = 0; draw < count; draw++) if (visible[draw]) ...` (loop.c's dbra gives
+ * retail's count-down form unchanged), and four declaration initializers (i, layer,
+ * pass, uvIndex; within the five-initializer rule, all on used locals) raise the insns
+ * entering gcse from 396 to 400. PRE then hashes into 201 buckets, which is retail's
+ * slot order: bucket = (14030 + sp offset) % 201 for the sp+C reaching registers and
+ * (14030 + n) % 201 for objectIndex+1 (objectIndex is pseudo 316, needs 304-357).
+ * Measured counts (cc1 -ds, insns in the cse dump): pass++/layer++ with the natural draw
+ * loop = 394; nextPass/nextLayer as below = 396. N=203 (404-407 insns) also fits
+ * if objectIndex stays in 286-337.
  *
- * The natural first loop gives retail's order, but it is 2 instructions short because
- * `la sym__gp+off` assembles gp-relative here, while retail shows every `la sym+off`
- * absolute and every plain `la sym` gp-relative. The bound views and the do-while
- * below are a workaround for that. The natural form, with a top-level
- * `float *geometry`, was:
- *     geometry = (float *)D_L02_001B0AB0_gp;
- *     for (vertex = 0; vertex < 4; vertex++) {
- *     float extent = geometry[vertex * 4 + 2];
- *     if (vertex < 2) extent += D_L02_001B0B40;
- *     else extent -= D_L02_001B0B40;
- *     func_00282F20(packet[0].vertex[vertex], normal, extent);
- *     func_00282F20(offset, matrices[objectIndex], geometry[vertex * 4]);
- *     func_00282CC0(packet[0].vertex[vertex], packet[0].vertex[vertex], offset);
- *     }
- *
- * REVIEW: this form is over the limit and cannot land as it stands. The seven dead
- * initial values (i, layer, pass, nextLayer, nextPass, uvIndex, color) and the
- * block-scoped objectIndex only set the PRE spill-slot order. All seven slots match
- * retail with them. Slot order is bucket order, bucket = raw % ((max_cuid/2)|1), raw
- * of (plus fp C) = 14030+C and of (plus (reg n) 1) = 14030+n. Retail's order needs
- * 187, 201 or 203 buckets. This body has max_cuid 393 (197 buckets) and needs 400
- * for 201, with objectIndex at pseudo 103-157 or 304-358 (scoped, it is 309). With
- * 187 or 203 a top-level objectIndex (pseudo 95) fits, so the original probably has
- * about 11 more or 20 fewer instructions before gcse (inferred).
- *
- * Tried for the displaced row, all no better: explicit bound locals; bounds in reused
- * locals to avoid the boost (color gives s0/s3 swapped, remaining, nextPass and a
- * probe address are worse); plain Quad copy (173 rows); qcopy_nc (same output); an
- * explicit offset local (s0/s3/s5/s6 change). Tried for instruction count with five
- * initial values: `?:` on extent adds nothing; reusing id for the re-read loses the
- * lh; `* -2.0f` written out in both arms reaches 201 buckets but moves registers
- * (175 rows).
+ * Remaining, at +0x484 to +0x494: retail issues `daddu s3,s4` (the loop.c-hoisted copy
+ * of PRE's &offset register for the first vertex loop) before the two bound `la`s; here
+ * it comes after them. sched1 (and sched2 after it) rank all three alike: each births
+ * a live-out set-once pseudo, so adjust_priority gives them the same max_priority;
+ * reg weight 1 each, no in-block dependents, so LUID decides. The `la`s are PRE inserts
+ * at the end of the preheader block, and loop.c emits its hoisted copy after them.
+ * In retail the bounds must be biv-elimination temps (emitted after the hoists), i.e.
+ * the natural `for (vertex = 0; vertex < 4; vertex++)` with `if (vertex < 2)`: that form
+ * gives retail's order here, but the bounds become `la D_L02_001B0AB0__gp+32/+64`.
+ * This assembler decides gp-relative per symbol, whatever the offset (measured:
+ * `.extern foo__gp,1` gives `la foo__gp+32` = addiu $gp; incomplete `big` gives lui/addiu),
+ * while retail has absolute lui/addiu for sym+off and $gp for the plain base. So the
+ * natural form is 2 instructions short. Needs either a tool ruling on `la sym+off`
+ * or a source construct that keeps the bound loads out of PRE and emitted after the
+ * loop.c hoist; none found. Tried for the displaced row (v2023 and v2453), none better:
+ * explicit bound locals; bounds in reused locals to skip the birthing boost (s0/s3 swap
+ * or worse); plain Quad copy; qcopy_nc; an explicit offset local; -frac2-gcse-unsplit-edges
+ * (byte-identical). The do-while with the bound views below is the workaround for the
+ * assembler rule; D_L02_001B0AF0 is also packet 1's own geometry block.
  */
 #include "include_asm.h"
 #include "common.h"
@@ -104,8 +88,9 @@ void func_L02_003E80F8(char *actor) {
     unsigned short *entry;
     unsigned short id;
     float frame;
-    int count = 0, i, layer, pass, nextLayer, nextPass;
-    int uvIndex;
+    int count = 0, i = 0, layer = 0, pass = 0, nextLayer, nextPass;
+    int uvIndex = 0;
+    int draw;
     unsigned int color;
     *(Quad *)probe = 0;
     probe[0] = 30.0f;
@@ -149,15 +134,8 @@ void func_L02_003E80F8(char *actor) {
             nextLayer = layer + 1;
             func_00283098(packet[layer].vertex[pair], packet[layer].vertex[pair], doubled);
             func_00283098(packet[layer].vertex[pair + 1], packet[layer].vertex[pair + 1], doubled);
-            if (count > 0) {
-                float (*drawMatrix)[16] = matrices;
-                unsigned int *drawVisible = visible;
-                int remaining = count;
-                do {
-                    if (*drawVisible) func_00280B90(packet + layer, drawMatrix, 1);
-                    drawMatrix++;
-                    drawVisible++;
-                } while (--remaining);
+            for (draw = 0; draw < count; draw++) {
+                if (visible[draw]) func_00280B90(packet + layer, matrices[draw], 1);
             }
         }
     }
