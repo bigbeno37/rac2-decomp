@@ -1,14 +1,29 @@
-/* func_L00_003C8A90, 2628 bytes, 27 places. USA v1.01, -O2 -G8 -ffunction-sections -g
- * -frac2-zero-ti-por: 2624/2628 bytes, frame 0x190, about 70 rows off, mostly register names.
- * Nested blocks around the two sets of vectors give retail's shared slots. Left:
- * - the hero base wants $s2 and the loop counters $s3, here the reverse: the counter's priority
- *   (7 refs, length 83) beats the base's (4 refs, length 88).
- * - the second offset register: retail keeps $s0 for the first use after the join and $s2, a copy
- *   set in both arms, for the last two. A per-arm copy after the call lets jump2 merge the call, as
- *   retail does, but cprop folds it; one using `offset` at the join gets $s2 but loses the merge.
- *   A trailing call in an arm gets flow's (use 0), so something non-call must end the arm at flow.
- * - the first read of 0x2294 needs $v0 (lui $v1): with $v1 reorg finds the reload redundant.
- * - the weapon table add is index + base in retail; D_L00_001A8F20 is a tied lui/addiu (sda incomplete array; it took 20 rows off, but a delay slot now takes the one-insn form, hence the missing word).
+/* func_L00_003C8A90, 2628 bytes, 27 places, USA v1.01. Tier: opus-1.
+ * Best check.py: 0 of 27 places, 2632 bytes against 2628 (one word too many), frame 0x190.
+ * Aligned with relocations masked, 19 of 657 rows differ.
+ *
+ * Build it as its own unit, src/levels/shared/L00_003C6298-charge-g8.c, with
+ * -O2 -G8 -ffunction-sections -g -frac2-zero-ti-por -frac2-hazard-labels.
+ * All declarations it needs are below. func_002829D8 returns int (other callers test the result);
+ * the ignored value keeps $v0 busy after the call, which fixes the first read of 0x2294.
+ * Holding the WeaponEntry pointer in a local puts the line label before the lwc1: one nop before
+ * div.s, as retail. Nested blocks around the two sets of vectors give retail's shared slots.
+ *
+ * Left, about 11 rows: the hero base and the high part of D_L00_001B8DC0 want $s2 and the first
+ * loop counter $s3; here the reverse, and the lui sits at 3C8CA4 instead of 3C8C90.
+ * - Priority: counter 14/85 = .165, base 8/92 = .087. update_equiv_regs doubles the base's live
+ *   length (a single set with a constant REG_EQUAL); undoubled it is .174 and would win.
+ * - The doubling happens at the first set in insn order, so a second set with another value does
+ *   not undo it (a local shared with `step` gave 14/106 and moved moby and vars).
+ * - No global pseudo prefers $s2, so regs_someone_prefers gives no way out either.
+ *
+ * Left, about 7 rows: the call at the join and $a2 before $a0.
+ * - flow adds (use 0) after a call that ends a block before a label, so find_cross_jump stops and
+ *   the jal stays in both arms. Arm 2 needs a non-call insn after the call at flow2: a no-op copy
+ *   that jump2 deletes before cross-jumping.
+ * - A tail `again = X` works only if it is a no-op in $s0, with `493 = X` before the call. cse2's
+ *   copy swap gives `493 = X; again = 493` unless X stays canonical, which takes a later use of
+ *   each per-arm source or a cse block boundary. No natural wording found.
  */
 #include "common.h"
 
@@ -75,7 +90,7 @@ extern Light D_L00_001C6F40[];
 extern u8 D_L00_002960A0[];
 extern u8 D_L00_001A8F20[] __attribute__((sda));
 
-extern void func_002829D8(void *);
+extern int func_002829D8(void *);
 extern void func_L00_002C42E0(int, int);
 extern int func_00282948(void *);
 extern void func_00282D30(void *, void *, float);
@@ -252,7 +267,11 @@ void func_L00_003C8A90(Moby *moby)
                 func_L00_002AF7D0();
             }
         }
-        vars->cooldown = 1.0f / ((WeaponEntry *)(D_00139568[0x2C] * 0xE0 + (char *)D_L00_00262570))->rate;
+        {
+            WeaponEntry *weapon = (WeaponEntry *)(D_00139568[0x2C] * 0xE0 + (char *)D_L00_00262570);
+
+            vars->cooldown = 1.0f / weapon->rate;
+        }
     }
     animation = moby->animation;
     if (animation == 2) {
@@ -262,23 +281,21 @@ void func_L00_003C8A90(Moby *moby)
             goto done;
     }
     if (vars->timer > 0) {
-        float scale, red, green, blue, t;
-        float *again, *pf, *po;
+        float red, green, blue, t;
+        float *po, *pf;
         Vec spot, flash, offset;
 
         if (vars->timer >= 0xD) {
-            t = func_00283CE0(3);
-            scale = 1.0f;
-            scale /= t;
+            float scale = 1.0f / func_00283CE0(3);
+
             red = func_00283CE0(0xF - vars->timer) * scale;
             green = func_00283CE0(0xF - vars->timer) * (scale * 0.8f);
             t = func_00283CE0(0xF - vars->timer);
             scale *= 0.5f;
             blue = t * scale;
         } else {
-            t = func_00283CE0(0xC);
-            scale = 1.0f;
-            scale /= t;
+            float scale = 1.0f / func_00283CE0(0xC);
+
             red = func_00283CE0(vars->timer) * scale;
             green = func_00283CE0(vars->timer) * (scale * 0.8f);
             t = func_00283CE0(vars->timer);
@@ -295,7 +312,6 @@ void func_L00_003C8A90(Moby *moby)
             offset[2] = 0.182999998f;
             offset[3] = 1.0f;
             func_00283098(po, po, &moby->right);
-            again = po;
         } else {
             pf = flash;
             qcopy(pf, &HERO->q[0x760 / 16]);
@@ -306,22 +322,21 @@ void func_L00_003C8A90(Moby *moby)
             offset[2] = 0.182999998f;
             offset[3] = 1.0f;
             func_00283098(po, po, &moby->right);
-            again = po;
         }
         func_00282CC0(spot, &moby->position, po);
         func_00282CC0(spot, spot, pf);
-        func_00282D30(again, HERO->ptr[0x2290 / 4] + 0xE0, 0.3f);
-        func_00282CC0(spot, spot, again);
+        func_00282D30(offset, HERO->ptr[0x2290 / 4] + 0xE0, 0.3f);
+        func_00282CC0(spot, spot, offset);
         if (vars->light == -1) {
             vars->light = func_L00_002FCF18(spot, 8.0f, 0.0f, red, green, blue);
         } else {
             Light *light = &D_L00_001C6F40[vars->light];
 
             qcopy(&light->pos, spot);
-            light->blue = blue;
             light->pos.f[3] = 8.0f;
             light->red = red;
             light->green = green;
+            light->blue = blue;
         }
         func_00282978(&vars->timer);
         return;

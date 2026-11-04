@@ -928,5 +928,6 @@
 #define UpdateBouncingExplosive          func_L00_003F4210
 #define UpdateShipWeapons                func_L05_00443D08
 #define MeshDrawFourSigns                func_L00_003B4560
+#define UpdateLockOnWeapon               func_L00_003C8A90
 
 #endif /* NAMES_H */
