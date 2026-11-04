@@ -17,6 +17,21 @@
  *    A do { y = ...; } while (0) around each rounding, as a diagnostic only, gives that
  *    order and $v1 for the fix result (756 bytes); an inline rounding helper ties this
  *    source. -fno-schedule-insns does not help (sched2 still fills the stalls).
+ * opus-2 (v2437), body unchanged (still the closest), measured:
+ *  - Overseer's vanished-mode-test lead (func_002D3D88 helper, if/else arms alike, mode in a
+ *    local from D_L02_001B3E00): gives retail's $v1 and chain-then-constants order, but 800
+ *    bytes: the mode load stays (jump2 deletes only the jump after sched2), and the join label
+ *    ends cse1's path, so 203/0.5/0x8710 are reloaded per draw. Retail's sprite section is
+ *    one cse1 path (0.5 reaches both state arms, fresh only in the last text draw), and no
+ *    retail register holds a mode value, so this lead does not fit here.
+ *  - `if (mode == 1) x = 262.0f; x = 258.0f;` per draw (flow1-dead arm, probe only) gives
+ *    retail's GPR frame (s0, unused s1 = shared constant-1 pseudo, obj in s2, ra at 0x18),
+ *    740 bytes, but flow2's find_basic_blocks merges the empty arm (jump and label gone), so
+ *    sched2 still interleaves. A label survives into sched2 only if the arm is non-empty at
+ *    flow2's block scan (e.g. dead only at flow2's life analysis); jump2 then drops the jump.
+ *  - A static inline sprite wrapper (x = 258 as a parameter, literals in the body) ties at
+ *    732 with either profile: integration materializes the body's 1.0/0.0 per call too.
+ *    Retail sets 1.0/0.0 only after chain 1, so they are shared pseudos first set at call 1.
  * Callees and data are named by their catalogue/USA v1.01 level 02 addresses; the
  * registry lookup is the boot's func_00336D50 copy, the draws func_00300A00 and
  * func_0027FBD8.
