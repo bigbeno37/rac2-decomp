@@ -1,35 +1,50 @@
 /*
- * Opus 5.5 xhigh worker (v2069), USA v1.01, -O2 -G8 -ffunction-sections.
- * Best check.py result: 2100/2100 bytes, 0/28 places match; 58 of 525
- * aligned instructions differ.
- * Improvement over the Sol-high draft: declaring the callback D_00210AD0
- * nosda gives retail's split lui v0 / lw v1 load and its jalr register.
- * Remaining differences:
- * - panels: retail zeroes it at entry (daddu s7) and selects with movn. Here
- *   the jump pass after cse1 turns "if (page) panels = page->panels" into a
- *   conditional move, and gcse cprop then replaces its panels input with the
- *   constant 0, giving movz at the selection. Writing "panels = 0" in the
- *   empty D_0025A058 arm blocks the cprop and reproduces the prologue, the
- *   movn and the 8-byte loop-alignment nop at 0x2CBEA4. However, that arm
- *   then loses its volatile load (2108 bytes), so it is not a solution.
- * - The saved registers s5/s6/s7 are renamed throughout as a result.
- * - Bounds loop: retail loads page in the delay slot of the panels null
- *   branch. sched1 never moves loads speculatively, so the source must read
- *   page before it tests panels; no natural form was found.
- * - Crop clamp: the order of the slt and movn instructions differs. The order
- *   of the clamp statements makes no difference.
- * Also tried: an int-returning callback (no effect) and
- * "panels = page ? page->panels : 0" (64 rows differ instead of 58).
- * Sol-high notes still apply: a local page variable and a self-default
- * ternary give the same output as the if form. Splitting the panel
- * assignment keeps the entry zero but adds a branch. -fno-gcse gives movn
- * but spills panels (2072 bytes). A nested bounds null check makes
- * allocation worse.
- * All declarations it needs follow. Compile it in a separate -g8.c unit: the
- * 14-entry enabled array needs its SDATA declaration.
- * The crop arithmetic follows the renderer in RAC1's src/game/pause.c.
- * RAC2's screen layout, callbacks, capture gating and fade are derived from
- * retail.
+ * Opus 5.5 xhigh worker (v2493), USA v1.01, -O2 -G8 -ffunction-sections
+ * (separate unit src/game/002CBC58-g8.c; the 14-entry enabled array needs
+ * its SDATA declaration and the struct types clash with 002C7748-g8.c).
+ * Best check.py result: 2108/2100 bytes, 0/28 places; 21 aligned rows
+ * differ (the v2069 draft had 58). This draft is a PROBE, not landable:
+ * it keeps a dead "panels = 0" in the empty D_0025A058 arm.
+ *
+ * Why the panels zero sinks (measured with -dj -ds -dG -dL -dt dumps):
+ * jump after cse1 if-converts "if (page) panels = page->panels" into
+ * panels = page ? page+0xEC : panels, then gcse cprop pass 1 replaces the
+ * else operand with the entry constant 0 ("CONST-PROP: Replacing reg ...
+ * with constant (const_int 0)"), giving movz and dropping the entry zero.
+ * Retail kept the entry zero and movn, so in retail either cprop saw a
+ * second reaching set of panels, or the if-conversion happened only in
+ * the jump pass before cse2 (after gcse). Any real set of panels on one
+ * path blocks cprop: with the arm's dead store here the prologue, the
+ * movn, s5/s6/s7, the callback compare registers and the loop-alignment
+ * nop at 0x2CBEA4 all match retail. But that arm then emits
+ * "daddu s7,zero,zero" in the beql slot where retail has the volatile
+ * D_001AB910 load (cprop turns its cmove into a plain zero store).
+ *
+ * Late if-conversion via ADDRESSOF also works for the selection:
+ *   static inline void getPagePanels(PanelCBC58 ***out, PanelCBC58 **list)
+ *   { if (D_001F2840.page) *out = list; }
+ *   getPagePanels(&panels, D_001F2840.page->panels);
+ * (the THEN arm must be one insn after purge_addressof; storing
+ * "page->panels" inside the helper leaves t = page+0xEC; panels = t, which
+ * no later jump pass converts). With &panels, cse1 reloads panels as a
+ * MEM in every bounds-loop statement, so loop.c makes three panels givs
+ * and tests a copy instead of s7 (50 rows differ, 529 insns). Needed: a
+ * selection that converts late without making panels address-taken.
+ *
+ * Still different here besides that arm:
+ * - Bounds loop: retail loads D_001F2840.page in the delay slot of the
+ *   non-likely "beqz s7" (panels null test). The address is reg+0x14, so
+ *   may_trap_p forbids filling it from the fall-through thread; the RTL
+ *   must hold the load in the null-test block, i.e. the source reads page
+ *   after the enabled test and before testing panels, while all four
+ *   statements still reload page after each store. Not found.
+ * - Crop clamp: the four slt and three movn/movz issue in another order.
+ * The arm keeps retail's word count; the two extra words are the bounds
+ * loop's separate page load (retail fills the beqz slot with it) and the
+ * pass-loop alignment nop that this shift adds at 0x2CBFA0.
+ * Declarations it needs follow. The crop arithmetic follows the renderer
+ * in RAC1's src/game/pause.c; RAC2's layout, callbacks, capture gating
+ * and fade are derived from retail.
  */
 #include "common.h"
 
@@ -113,7 +128,7 @@ void func_002CBC58(int mode)
         } else if (D_001F2840.page == (void *)D_0025A190 && !D_001AB910) {
             func_0027C540(0); func_0029C340(); func_0027C660(); return;
         } else if (D_001F2840.page == (void *)D_0025A058 && !D_001AB910) {
-            /* The comparison has no further action in retail. */
+            panels = 0;
         }
     }
     func_002FC560(0x47,0x5360B);
