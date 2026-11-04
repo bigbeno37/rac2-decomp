@@ -942,5 +942,6 @@
 #define L18_DisableModeGroups            func_L18_003FA180
 #define UpdateBeamLinkStrips             func_L09_003FB9F8
 #define FollowWaypointPath               func_L23_004186D0
+#define DestroyCrate                     func_003120C8
 
 #endif /* NAMES_H */
