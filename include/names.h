@@ -944,5 +944,6 @@
 #define FollowWaypointPath               func_L23_004186D0
 #define DestroyCrate                     func_003120C8
 #define DrawHrugisRibbon                 func_L10_0039DA48
+#define DrawMenuItemGrid                 func_002D9008
 
 #endif /* NAMES_H */
