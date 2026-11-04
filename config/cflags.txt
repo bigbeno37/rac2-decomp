@@ -3155,3 +3155,4 @@ src/levels/23_damosel_orbit/L23_0042A018-g8.c	-O2 -G8 -ffunction-sections -frac2
 src/game/002D5E98-render-g8.c	-O2 -G8 -ffunction-sections -frac2-gcse-unsplit-edges
 src/game/0030F7B0-death-g8.c	-O2 -G8 -ffunction-sections -frac2-keep-block-order
 src/levels/shared/L10_0037D200-ribbon.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/game/00345358-list-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels -frac2-gcse-unsplit-edges -fmove-all-movables
