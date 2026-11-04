@@ -1,27 +1,32 @@
-/* Claude Opus 5.5 (opus-1, task v2310), 3 November 2026. Pinned GNU game compiler.
- * Best US check: 1200/1200 bytes, 0/2 placements, 71 of 300 cdiff rows differ,
- * -O2 -G0 -ffunction-sections -g (own unit L03_002AB5C8-region.c). Frame 0x1d0
- * now matches retail with no spill: `int none = 255;` in the second link scan
- * keeps 255 out of loop.c's movables (a multi-block, maybe_never register), so
- * s5 and the sp+0x120 spill from the sol-high draft are gone.
- * First link scan: retail's has a .p2align nop at 0x32A194, so it is a real C loop
- * whose exit test jump.c did not duplicate (not peeled). The goto spelling below
- * gives retail's bnel back edge but no loop note. for+break, for(;;) with two
- * breaks, and an empty-body for followed by `if (k < 4)` are all peeled (213-218
- * rows). Next idea: an exit test containing a CODE_LABEL (e.g. an || condition)
- * or over 30 RTL insns, so duplicate_loop_exit_test refuses.
- * Other differences: flood-loop head order (retail i=0, nop, changed=0, blez,
- * nextPass; back edge bnel with i=0 in the slot; ours bnez); swapped -1 compare
- * registers; link init hoists fp+4 then +3 (ours folds to +7, natural-index forms
- * give 76 rows); second scan k/edge registers and links/edges store order swapped;
- * center section i/geometry/point permuted across s1-s3.
- * Initialised declarations: pass, count, none, edge (review if matched).
+/* 4 November 2026: correct the storage contract without register steering.
+ * RegionGeometry owns runtime-count trailing points rather than one point.
+ * The backwards link-byte cursor is based on the complete RegionRecord;
+ * after the last decrement it remains within that record's representation.
+ * A direct indexed reset changes seven local rows and is not retained.
+ * This complete-record cursor gives the identical full USA checker listing
+ * as the preceding draft: 1200/1200 bytes, 0/2 placements, first +0x0.
+ * US2 and PAL also give 1200/1200 bytes, 0/2 each, first +0x0.
+ * The 0x1E0 frame versus retail's 0x1D0 and existing allocation blockers
+ * remain. No linked or native behavior qualification is claimed.
+ */
+/* GPT-6.1 Sol high, 29 October 2026. Upstream pinned GNU game compiler.
+ * Best US check: 1200/1200 bytes, 0/2 placements, -O2 -G0 -ffunction-sections -g.
+ * Phase-local loop counters, byte-offset visited-array access and qcopy recover
+ * much of the flood fill. An explicit first-link scan avoids the initial peel.
+ * Remaining: 255 is hoisted into s5 across pair checks, spilling the outer next
+ * index at sp+0x120; frame 0x1e0 versus retail 0x1d0, spill slots and allocation.
+ * The destination edge byte is captured once; retail also retains it through
+ * that scan. Debug labels recover the two nops before the center division.
+ * Reopen with evidence for the sentinel and adjacency-counter lifetimes.
+ * Other trials: ordinary scoped loops 1208 bytes (default flags), unsigned
+ * visited-address form plus ordinary scans 1232; separate next-pass and count-up
+ * loop spellings did not fix allocation. No linked build: not an exact match.
  * Declarations below are complete. Preserve source-line layout with -g.
  */
 #include "common.h"
 typedef struct { float x, y, z, w; } __attribute__((aligned(16))) RegionPoint;
 typedef struct { int id; unsigned char links[4]; unsigned char edges[4]; int reserved; RegionPoint sphere; } RegionRecord;
-typedef struct { int count; int reserved[3]; RegionPoint points[1]; } RegionGeometry;
+typedef struct { int count; int reserved[3]; RegionPoint points[0]; } RegionGeometry;
 extern float (*D_L03_001FE700[])[4];
 extern void func_00282C88(void *);
 extern void func_00282CC0(void *, void *, void *);
@@ -53,7 +58,7 @@ int func_L03_00329EF0(void *unused, int *ids, RegionRecord *records, int capacit
             if (*(unsigned char *)(visited + i) == pass) {
                 records[count++].id = ids[i];
                 for (j = 0; j < capacity; j++) {
-                    if (i == j || *(unsigned char *)(visited + j))
+                    if (j == i || *(unsigned char *)(visited + j))
                         continue;
                     if (ids[j] == -1)
                         break;
@@ -70,7 +75,8 @@ int func_L03_00329EF0(void *unused, int *ids, RegionRecord *records, int capacit
     }
     { int i, j;
     for (i = 0; i < count; i++) {
-        unsigned char *link = &records[i].links[3];
+        /* The cursor remains inside the complete record after the final decrement. */
+        unsigned char *link = (unsigned char *)&records[i] + 7;
         for (j = 3; j >= 0; j--)
             *link-- = 255;
     }
@@ -82,19 +88,18 @@ int func_L03_00329EF0(void *unused, int *ids, RegionRecord *records, int capacit
                 ((RegionGeometry *)D_L03_001FE700[records[i].id])->points[edgeA].w = 0;
                 ((RegionGeometry *)D_L03_001FE700[records[j].id])->points[edgeB].w = 0;
                 k = 0;
-                goto find_source_link;
-            next_source_link:
-                k++;
             find_source_link:
                 if (k >= 4) goto source_link_done;
-                if (records[i].links[k] != 255) goto next_source_link;
+                if (records[i].links[k] != 255) {
+                    k++;
+                    goto find_source_link;
+                }
                 records[i].links[k] = j;
                 records[i].edges[k] = edgeA;
             source_link_done:
                 { unsigned char edge = edgeB;
-                int none = 255;
                 for (k = 0; k < 4; k++) {
-                    if (records[j].links[k] == none) {
+                    if (records[j].links[k] == 255) {
                         records[j].edges[k] = edge;
                         records[j].links[k] = i;
                         break;
