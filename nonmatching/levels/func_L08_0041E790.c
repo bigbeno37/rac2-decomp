@@ -1,3 +1,11 @@
+/* 4 November 2026, Opus 5.5 xhigh (opus-2), task v2444, on v2/c03: recompiled unchanged in its own
+ * unit (-O2 -G8 -ffunction-sections -g): 752/756 bytes, 0/2, only the nop before the rise division
+ * (+0x1B0) is missing. cc1 writes `$LM: l.s $f12,D_L08_001B1B18__gp; #nop; div.s`, and gas opens a
+ * relaxation frag for every $gp macro load, so pad_div_erratum_nops falls back to its saturated
+ * count (2) and adds nothing. This cc1 cannot write an explicit %gp_rel load (its only gp_rel
+ * strings are PIC prologue forms), so no C form gives retail's label; lwc1; nop; div.s. Needs a
+ * frag-aware distance in tools/compiler/transformers/pad_div_erratum_nops.py.
+ */
 /* Retained exact-C attempt: 752/756 bytes.
  * Profile: -O2 -G8 -ffunction-sections -g.
  * US and US2 0/2; PAL absent. The body agrees until the final rise division needs one incoming nop. Splitting the division gives two nops instead; G8 and hazard labels do not close it. The dependent boost transfer uses clobbering qcopy.
