@@ -1,3 +1,42 @@
+/*
+ * Tier: Claude Opus 5.5 (xhigh), task v2503 (opus-2), 5 November 2026.
+ * Best check.py (USA v1.01): 3604/3604 bytes, 0 of 28 places, first difference at
+ * +0x150; 44 aligned rows differ once relocations are masked (was 48). PAL and US2:
+ * in neither catalogue. No link check was run.
+ * Build it as its own unit, src/game/002F9BC0-preview-g8.c, in place of the
+ * INCLUDE_ASM marker, with this cflags.txt line (new unit, so append it):
+ *   src/game/002F9BC0-preview-g8.c<TAB>-O2 -G8 -ffunction-sections -frac2-hazard-labels
+ *
+ * Fixed in this round (keep these):
+ * - -frac2-hazard-labels: retail's (index & 1) ? 0.3203f : 0.165f join label sits
+ *   on the mtc1 hazard nop (beqz +4, not +5).
+ * - Mode 0, kind == 1 arm ends with `resourceActive = 0` (written modelActive,
+ *   resourceActive, field90: sched1 swaps the last two). Retail's `b` lands on the
+ *   final else's `sw $zero,0x8C($s1)`; that store is cross-jumped, not extra code.
+ *   The final else must stay `resourceActive = 0; modelActive = 0;` (also swapped by
+ *   sched1), or it cross-jumps with mode 1's modelActive store instead.
+ * - `extern const int D_001A7AF0[] MACRO_ADDR;`: the /u read no longer depends on
+ *   `sw objectCount` (in sched2 it was ready 2 cycles after the store), so the lw
+ *   issues before the D_001A8C20 la as in retail.
+ *
+ * Still different (mechanisms below in the earlier notes):
+ * 1. Mode-3 tail $s0/$s1 (21 rows + the 3 tail store rows). The tail's address
+ *    pseudo is a lo_sum whose expand-time REG_EQUAL (symbol_ref) becomes REG_EQUIV:
+ *    live 64 doubled to 128 -> 3*14/128 = 0.33 < moby's 3*9/49 = 0.55. gcse PRE does
+ *    not merge the lo_sums (each is hashed on its own HIGH pseudo), so every lo_sum
+ *    keeps its note. A tail-local `PreviewState *tail = &D_0021F240;` gives the same
+ *    bytes. The only remaining lever is an $s0 preference on the tail pseudo alone:
+ *    via %hi (expand_preferences at the REG_DEAD %hi lo_sum) it leaks to every
+ *    allocno conflicting with %hi.
+ * 2. First loop head (+0x150), 7 rows; 3. render/flags $a1/$a2, 4 rows; plus the loop
+ *    latch delay-slot lw $v1 (same cause as 2).
+ * 4. Bit 6: retail dsrl 5 + andi 2. `unsigned long long bits = equipment;
+ *    D_001A8C38[(bits >> 6) & 1]` gives dsrl 6 + andi 1 + sll 1 (+1 insn): the
+ *    scaling has to be in DImode for combine to merge it, and pointer_int_sum
+ *    truncates the index to 32 bits first. (ull)x >> 6 inline is narrowed by
+ *    c-typeck's short_shift.
+ * 5. addiu $s4,$s3,0x54 two rows early in the mode-2 preheader, 3 rows.
+ */
 /* 4 November 2026 actual-contract review; retained near miss, not linked.
  * USA v1.01 check.py: 3604/3604 bytes, 0/28 placements; first difference 0x150.
  * Profile: -O2 -G8 -ffunction-sections.
@@ -131,7 +170,7 @@ extern PreviewClasses D_001AD500;
 extern int D_001A7290[] MACRO_ADDR;
 extern int D_001AD250[] SDATA(D_001AD250);
 extern int D_001A8B00[] MACRO_ADDR;
-extern int D_001A7AF0[] MACRO_ADDR;
+extern const int D_001A7AF0[] MACRO_ADDR;
 extern short D_001A8C20[] MACRO_ADDR, D_001A8C28[] MACRO_ADDR, D_001A8C30[] MACRO_ADDR, D_001A8C38[] MACRO_ADDR, D_001A8C40[] MACRO_ADDR, D_001A8C48[] MACRO_ADDR, D_001A8C50[] MACRO_ADDR, D_001A8C58[] MACRO_ADDR;
 extern float D_001B1390[] MACRO_ADDR;
 typedef struct { float m[16]; } PreviewTransform;
@@ -352,7 +391,8 @@ void func_002FB1A0(void)
             moby->rotX = 0; moby->rotY = 0; moby->rotZ = 0;
             D_0021F240.field9c = 0;
             func_002A0F48(moby);
-            D_0021F240.modelActive = 1; D_0021F240.field90 = 0;
+            D_0021F240.modelActive = 1; D_0021F240.resourceActive = 0;
+            D_0021F240.field90 = 0;
         } else {
             if (D_0021F240.rows.item[D_0021F240.selected].owned) {
                 int special = 0;
