@@ -225,6 +225,8 @@
 #define RevealMapAroundPosition          func_L00_003080D0
 #define DecodeMapRleRow                  func_00297550
 #define SpawnDecoy                       func_L00_00398810
+#define RenderLocalizedUiEntryList       func_002D6230
+#define FadeMenuColor                    func_002D68D8
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
