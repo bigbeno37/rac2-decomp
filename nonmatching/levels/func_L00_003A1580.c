@@ -1,3 +1,20 @@
+/* Tier: FAILED, Opus 5.5 (v2509), 2026-11-05. Best: 2532/2532 bytes, 0/27 places, 16 instruction
+ * words differ, all in the address/spill-store run just before the attachment loop (first at +0x13C).
+ * New in this draft: normal's address goes through a user pointer `n` (declared at the top, set just
+ * before the loop). Its pseudo is then older than the PRE reaching regs, so all eight spill slots match
+ * retail (normal 0x12C, points[2..4]/attachments[1..4] 0x130..0x148). What still differs: `n = normal`
+ * is emitted ahead of gcse's PRE insertions in that block, so its addiu/sw pair comes first instead of
+ * last. In retail it comes last, so retail's normal address is either a PRE insertion (needs 273 buckets,
+ * see below) or something hoisted after the insertions (loop.c moves invariants there; untested).
+ * Measured counts of insns entering gcse (bucket = (max_cuid/2)|1, retail needs 544-547 for 273, or
+ * 524-527 for 263): index loop 538, sibling pointer loop 536; byte-neutral: `char *state = 0;` +1,
+ * `int selected = 0; selected = rand();` +1, `int i = 0;` 0. Not neutral: `int lookup = 0;` (extra
+ * store), chained matrix[3] zeroing (+1, code changes), short/char loop counter (+2, code changes), a
+ * local `scale` variable (+3, kept in $f23), an inline glow-pair helper (-8/-10: the 0.055/0.025 loads
+ * stop being PRE'd into $f20/$f21, 2580 bytes). Best neutral total 540 (271 buckets), still 4 short.
+ * The two glow constants are float products 2.25f*0.0825f and 2.25f*0.0375f (sibling 003E8A98 uses
+ * 2.0f*x*0.0825f), and 0.2000000179f is 12.0f*(1.0f/60.0f); all fold in the tree, so no insns.
+ * Declarations below are complete for a -g8.c unit (-O2 -G8 -ffunction-sections -frac2-qcopy). */
 /* Tier: FAILED, Opus 5.5 (v2099), 2026-11-03. Best: 2532/2532 bytes, 0/27 places, only the
  * 39 spill-slot loads/stores differ (unchanged). Cause, measured: the gcse PRE expression table
  * size. Reaching-reg pseudos (and so spill slots) follow raw-hash bucket order; the raw hash of
@@ -68,6 +85,7 @@ void func_L00_003A1580(void *object)
     char *moby = object;
     char *state;
     int lookup, i;
+    float *n;
     func_002FC560(0x47, 0x53001ULL);
     state = *(char **)(moby + 0x68);
     func_L00_003A2138((int)moby, D_L00_0023B510[0], 4);
@@ -82,6 +100,7 @@ void func_L00_003A1580(void *object)
     D_L00_002947B0[1][1] = -func_00283180(D_L00_001AF5F4) * 0.0151f;
     D_L00_001AF5F0 = func_00283B98(D_L00_001AF5F0, 0.4188790917f);
     D_L00_001AF5F4 = func_00283B98(D_L00_001AF5F4, 0.4130613208f);
+    n = normal;
     for (i = 0; i < 5; i++)
         func_002830C0(attachments[i], D_L00_002947B0[i], matrix);
     func_L00_003A2BB8(moby, 0, (char *)points[0], (char *)attachments[0]);
@@ -107,12 +126,12 @@ void func_L00_003A1580(void *object)
     func_L00_003A25D8((int)moby, (int)points[4], 0x7F7F2020, 0x40, 0.055f);
     func_L00_003A25D8((int)moby, (int)points[4], 0x7FFF4040, 0x78, 0.025f);
     func_L00_003A2258(moby, points[0], D_L00_001B2850, D_L00_0023B510[0]);
-    func_L00_003A2408(moby, D_L00_001B2850, normal, *(float *)(state + 0xC) * 0.35f);
+    func_L00_003A2408(moby, D_L00_001B2850, n, *(float *)(state + 0xC) * 0.35f);
     func_00282CF0(side, D_L00_001B2850, points[2]);
     func_00282F20(side, side, 1.0f);
-    func_00282DD8(side, side, normal);
+    func_00282DD8(side, side, n);
     func_00282F20(side, side, 1.0f);
-    func_00282DD8(side, side, normal);
+    func_00282DD8(side, side, n);
     func_00282F20(side, side, *(float *)(state + 0xC) * 0.45f);
     func_00282CC0(endpoint, side, D_L00_001B2850);
     func_L00_003A2258(moby, points[2], endpoint, D_L00_0023B510[1]);
@@ -122,9 +141,9 @@ void func_L00_003A1580(void *object)
         func_L00_003A2C60(endpoint, 1, 0.0f);
     func_00282CF0(side, D_L00_001B2850, points[3]);
     func_00282F20(side, side, 1.0f);
-    func_00282DD8(side, side, normal);
+    func_00282DD8(side, side, n);
     func_00282F20(side, side, 1.0f);
-    func_00282DD8(side, side, normal);
+    func_00282DD8(side, side, n);
     func_00282F20(side, side, *(float *)(state + 0xC) * 0.45f);
     func_00282CC0(endpoint, side, D_L00_001B2850);
     func_L00_003A2258(moby, points[3], endpoint, D_L00_0023B510[2]);
@@ -134,9 +153,9 @@ void func_L00_003A1580(void *object)
         func_L00_003A2C60(endpoint, 1, 0.0f);
     func_00282CF0(side, D_L00_001B2850, points[4]);
     func_00282F20(side, side, 1.0f);
-    func_00282DD8(side, side, normal);
+    func_00282DD8(side, side, n);
     func_00282F20(side, side, 1.0f);
-    func_00282DD8(side, side, normal);
+    func_00282DD8(side, side, n);
     func_00282F20(side, side, *(float *)(state + 0xC) * 0.45f);
     func_00282CC0(endpoint, side, D_L00_001B2850);
     func_L00_003A2258(moby, points[4], endpoint, D_L00_0023B510[3]);
