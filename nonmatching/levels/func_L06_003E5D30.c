@@ -1,39 +1,43 @@
-/* func_L06_003E5D30: near miss, 968/976 bytes, 0 of 3 places (USA v1.01, 1 November 2026).
-
-   Profile: its own `-g8` unit, `-O2 -G8 -ffunction-sections` (the three $gp floats come out
-   $gp-relative only under -G8; the level and period words take the `.sdata` macro form).
-
-   Control flow, calls, constants, the 0xC80-byte stack buffer and the frame size follow retail;
-   writing the period as `k * D_L06_001B31B0 / 10` gives retail's hoisted 45. What differs is
-   allocation: retail spills the state pointer to 0xC80 at entry and keeps the strand offset
-   r * 0x2580 in $s6, while here the state pointer takes $fp and the strand offset is spilled,
-   so retail's reloads of the state pointer from 0xC80 are missing. Loop 3 also starts its
-   buffer pointers from a hoisted sp + 0xA0 instead of retail's (k * 16 + sp) + 0xA0 / 0x140.
-   Tried: per-strand pointers for pos/vel/timer, swapping which access goes through `st`,
-   declaration orders, a zero-based smoothing loop (944 bytes), -g, -fno-gcse,
-   -fno-strength-reduce, -frac2-keep-block-order. */
-
+/* Claude Opus 5.5 (xhigh), task v2441. Best: 976/976 bytes, 0/3 places, 3 instructions differ
+ * (first at +0x2A0). Own unit L06_003E5D30-g8.c, -O2 -G8 -ffunction-sections (-fmove-all-movables
+ * changes nothing here). No removed orch/main switch is used.
+ *
+ * Compared with the v1673 draft (968 bytes, cse2 merged the col*16+sp sums): temporary[k] goes
+ * through a second pointer, middle = &temporary[1][col], whose start is sp + (col*16 + 0xA0), so
+ * cse2 no longer folds it into the column base; temporary[k-1] is written directly. Frame, saved
+ * registers, spill slots and the col/col*16 registers ($s0/$s1) now all follow retail.
+ *
+ * What still differs, smoothing-loop preheader only:
+ *     retail: addu v1,s1,sp ; addu a0,sp,s1 ; ... addiu s2,a0,0xA0
+ *     here:   addu v1,sp,s1 ; addiu a0,s1,0xA0 ; ... addu s2,sp,a0
+ * Retail's temporary[k] start (sp + col*16) + 0xA0 cannot exist at cse2 next to the column base
+ * (cse2 merges it: 968 bytes), so it is probably made later by combine splitting
+ * sp + (col*16 + 0xA0); here combine has no third insn to do that split.
+ * Measured: column = (L06GridVector (*)[10])(col * 16 + (int)temporary) gives retail's
+ * addu v1,s1,sp but then the temporary[k-1] start is addu s1,sp,s1 instead of a copy of v1
+ * (still 3 instructions). column[k-1] for temporary[k-1] swaps $s0/$s1 (50 rows); direct
+ * temporary[k+1] gives 984 bytes; middle as &temporary[0][col] + 10 or column-based sums merge
+ * again (968). temporary[k-1] spelled as temporary[k - 1] + col or &temporary[k][col] - 10 ties.
+ * Next: a source form for temporary[k] whose sp + (col*16 + 0xA0) chain has a third insn for
+ * combine to split, or the col*16 + sp column base together with a temporary[k-1] start that
+ * reload_cse can see as the same sum.
+ * Required declarations are retained below.
+ */
 #include "common.h"
-
-typedef int Quad __attribute__((mode(TI)));
-typedef union { Quad quad; float f[4]; } VecE5D30;
-
-/* The object's state: two grids of four strands of 20 x 10 points (30 x 20 allocated), the
-   per-cell reset timers and the scroll phase. */
+typedef struct { float f[4]; } __attribute__((aligned(16))) L06GridVector;
 typedef struct {
-    VecE5D30 pos[4][30][20];
-    VecE5D30 vel[4][30][20];
+    L06GridVector point[4][30][20];
+    L06GridVector velocity[4][30][20];
     int timer[4][30];
     float phase;
-} StateE5D30;
-
-extern int D_001A79F0 __attribute__((section(".sdata")));
-extern u8 D_0018C0D4 __attribute__((nosda));
-extern int D_L06_001B31B0 __attribute__((section(".sdata")));
-extern int D_L06_001B31B4 __attribute__((section(".sdata")));
-extern float D_L06_001AF710 __attribute__((sda));
-extern float D_L06_001AF714 __attribute__((sda));
+} L06Grid;
+extern int D_001A79F0;
+extern u8 D_0018C0D4[] NOT_SDA;
+extern int D_L06_001B31B0;
+extern int D_L06_001B31B4;
 extern float D_L06_001AF718 __attribute__((sda));
+extern float D_L06_001AF714 __attribute__((sda));
+extern float D_L06_001AF710 __attribute__((sda));
 extern void func_0029F338(void *);
 extern int func_00282948(int *);
 extern void func_00282C88(void *);
@@ -41,60 +45,69 @@ extern void func_002A7A00(void *, float, float);
 extern void func_00282CC0(void *, void *, void *);
 extern void func_00282D30(void *, void *, float);
 
-void func_L06_003E5D30(u8 *obj)
+void func_L06_003E5D30(u8 *moby)
 {
-    VecE5D30 buf[20][10];
-    StateE5D30 *st = *(StateE5D30 **)(obj + 0x68);
-    int r, k, j;
-    float f;
+    L06Grid *st = *(L06Grid **)(moby + 0x68);
+    L06GridVector temporary[20][10];
 
-    switch (obj[0x20]) {
+    switch (moby[0x20]) {
     case 0:
-        if (D_001A79F0 == 10 && D_0018C0D4 == 1) {
-            func_0029F338(obj);
-            return;
+        if (D_001A79F0 == 10 && D_0018C0D4[0] == 1) {
+            func_0029F338(moby);
+            break;
         }
-        D_L06_001B31B0 = 0x2D;
-        D_L06_001B31B4 = 0x16;
-        for (k = 0; k < 10; k++) {
-            int t = k * D_L06_001B31B0 / 10;
-
-            st->timer[0][k] = t;
-            st->timer[1][k] = t + 11;
-            st->timer[2][k] = t + 23;
-            st->timer[3][k] = t + 34;
+        D_L06_001B31B4 = 22;
+        D_L06_001B31B0 = 45;
+        {
+            int i;
+            for (i = 0; i < 10; i++) {
+                int delay = i * D_L06_001B31B0 / 10;
+                st->timer[0][i] = delay;
+                st->timer[1][i] = delay + 11;
+                st->timer[2][i] = delay + 23;
+                st->timer[3][i] = delay + 34;
+            }
         }
-        obj[0x20] = 1;
+        moby[0x20] = 1;
         break;
-    case 1:
-        f = st->phase + D_L06_001AF718 * (1.0f / 60.0f);
-        st->phase = f;
-        if (f > 1.0f)
-            st->phase = f - 1.0f;
-        for (r = 0; r < 4; r++) {
-            VecE5D30 (*pos)[20] = st->pos[r];
-            VecE5D30 (*vel)[20] = st->vel[r];
+    case 1: {
+        int group, col, row;
 
-            for (k = 0; k < 10; k++) {
-                if (func_00282948(&st->timer[r][k])) {
-                    for (j = 0; j < 20; j++) {
-                        func_00282C88(&pos[j][k]);
-                        st->pos[r][j][k].f[3] = 1.0f;
-                        st->pos[r][j][k].f[1] = (float)j * 0.05f * D_L06_001AF714 - D_L06_001AF714 * 0.5f;
-                        func_002A7A00(&buf[j][k], 0.0f, D_L06_001AF710 * (1.0f / 60.0f));
+        st->phase += D_L06_001AF718 * (1.0f/60.0f);
+        if (st->phase > 1.0f) st->phase -= 1.0f;
+        for (group = 0; group < 4; group++) {
+            for (col = 0; col < 10; col++) {
+                int hit = func_00282948(&st->timer[group][col]);
+                int base = group * 0x2580;
+                L06GridVector (*points)[20] = (L06GridVector (*)[20])((char *)st + base);
+                L06GridVector (*velocities)[20] = (L06GridVector (*)[20])((char *)st + (base + 0x9600));
+                if (hit) {
+                    for (row = 0; row < 20; row++) {
+                        func_00282C88(&points[row][col]);
+                        ((L06GridVector *)((char *)st + (row * 0x140 + (col * 16 + base))))->f[1] = row * 0.05f * D_L06_001AF714 - D_L06_001AF714 * 0.5f;
+                        ((L06GridVector *)((char *)st + (row * 0x140 + (col * 16 + base))))->f[3] = 1.0f;
+                        func_002A7A00(&temporary[row][col], 0.0f, D_L06_001AF710 * (1.0f/60.0f));
                     }
-                    for (j = 1; j < 19; j++) {
-                        func_00282CC0(&vel[j][k], &buf[j - 1][k], &buf[j][k]);
-                        func_00282CC0(&vel[j][k], &vel[j][k], &buf[j + 1][k]);
-                        func_00282D30(&vel[j][k], &vel[j][k], 0.333f);
+                    {
+                        int k;
+                        L06GridVector (*column)[10] = (L06GridVector (*)[10])&temporary[0][col];
+                        L06GridVector (*middle)[10] = (L06GridVector (*)[10])&temporary[1][col];
+                        for (k = 1; k < 19; k++) {
+                            func_00282CC0(&velocities[k][col], &temporary[k - 1][col], middle[k - 1]);
+                            func_00282CC0(&velocities[k][col], &velocities[k][col], column[k + 1]);
+                            func_00282D30(&velocities[k][col], &velocities[k][col], 0.333f);
+                        }
                     }
-                    st->timer[r][k] = D_L06_001B31B0;
+                    st->timer[group][col] = D_L06_001B31B0;
                 } else {
-                    for (j = 1; j < 19; j++)
-                        func_00282CC0(&pos[j][k], &pos[j][k], &vel[j][k]);
+                    int k;
+                    for (k = 1; k < 19; k++) {
+                        func_00282CC0(&points[k][col], &points[k][col], &velocities[k][col]);
+                    }
                 }
             }
         }
         break;
+    }
     }
 }
