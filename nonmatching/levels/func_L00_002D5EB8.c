@@ -1,17 +1,34 @@
-/* Tier opus-1, 3 November 2026: 1368/1376 bytes, 0 of 27 places (check.py, -O2 -G8 -ffunction-sections,
- * would need a `-g8.c` unit; the old 1336 draft no longer applies).
- * Declarations that matter: D_001A7A28, D_001A7398 and D_001A7AF8 are MACRO_ADDR incomplete arrays (tied
- * lui/lbu and unsplit la, which also stops the cross-jumped entry copy in the last loop); D_001A7A00 is an
- * sda unsigned char array: the count goes through *(int *)D_001A7A00 and the flag is D_001A7A00[0x7A], a
- * sym+off 2-insn macro load that keeps it out of the `beqz ok` delay slot (MACRO_ADDR puts it there as $gp).
- * The last loop indexes D_00139568[i] (fixes the s4/s5 order and the epilogue).
- * Left, all in the last loop: retail keeps 0xE0 in s3 and the table base (s5+0x2570) in s2, sets both in
- * the entry copy and the rotated bottom test, and reuses them (and a p giv in s1) after the call; 17/18/53
- * sit in fp/s7/s6 (frame 0x60, we have 0x50 and 7 saved regs); 14 and 10 live in a2.  That looks like the
- * exit test was duplicated by the rerun jump pass after loop.c (cse1 then sees one EBB from the test to the
- * state check), while ours is duplicated at jump1 (21 insns, no label or call left by iteration 2).  Finding
- * the construct that stops jump1's duplicate_loop_exit_test but not the rerun one should fix all of it.
- * ref_L00_002D5EB8_00 is the sda int at the `>= 11` test.
+/* Tier opus-2, 5 November 2026: best legal C is still opus-1's body below, 1368/1376 bytes, 0 of 27
+ * places (check.py, placed at the end of src/levels/shared/L00_002D3798-g8.c, which already declares
+ * D_L00_001B19C8 as `int[] sda` and D_00189E20 as Hero5940: there use D_L00_001B19C8[0] and
+ * (H *)&D_00189E20).
+ *
+ * Cause of the last-loop difference, confirmed with -dr/-dj/-ds dumps: retail's exit test (i<56, the
+ * map/table `exists` test, i==10, i==9 and the AF8 break; expand_end_loop rotates everything up to the
+ * last `break` found within LOOP_TEST_THRESHOLD = 30 insns) was NOT duplicated by jump1.  jump1 copies
+ * it only if the exit code holds no CODE_LABEL, call, LOOP_CONT note, libcall or asm (jump.c
+ * duplicate_loop_exit_test, threshold 30).  Left undivided, cse1 follows the bottom test into the body
+ * (body label: one use, after a barrier), so the body's tbl[map[i]].state reuses the test's 0xE0 and
+ * table-base pseudos; loop.c then makes the map address a giv (s1) and hoists 17/18/53; the rerun jump
+ * before cse2 duplicates the test.  That gives s3=0xE0, s2=base, frame 0x60 with s7/fp.
+ *
+ * Proof (NOT landable, dead test): put `if(i>=56) D_L00_001A903C=0;` as the first statement of the last
+ * loop body (the conditional memory store keeps a label through jump1; cse1 folds the test from i<56),
+ * drop the a/b/c locals and write `if(i==17) continue; if(i==18) continue; if(i==53) continue;`.
+ * The whole last loop then matches retail.  Only two scheduling slips remain: the prologue's
+ * `lui s5`/`lui s4` order (retail lui s4 first) and the position of `daddu a1,zero,zero` before the
+ * `sb ...0x7A($at)` at the end.  With that statement the region is exactly 30 insns at expand time
+ * (the AF8 break is insn 30), so any legal blocker must cost at most 3 expand insns, or else the rest of
+ * the region must get cheaper.  Blockers that vanish by the pre-cse2 jump: a label whose jump cse1 or
+ * gcse cprop folds (i<56 is known at the region start; ok==1 is known to gcse there), sitting before
+ * the map/table loads, since a label after them splits cse1's EBB.  Already tried, no effect (jump1
+ * still duplicates): `i<56 && ok` / `ok && i<56` as the loop condition; `if(i>=56) ok=0;` (jump1
+ * turns register assignments into scc/cmove, so only stores keep a label); `i==10||i==9` (fold turns it
+ * into an sltiu range test, which retail does not have).
+ * Opus-1 notes still apply to the rest: D_001A7A28, D_001A7398 and D_001A7AF8 are MACRO_ADDR incomplete
+ * arrays; D_001A7A00 is an sda unsigned char array (count through *(int *)D_001A7A00, flag
+ * D_001A7A00[0x7A]); the last loop indexes D_00139568[i]; ref_L00_002D5EB8_00 is the sda int at the
+ * `>= 11` test.
  */
 #include "common.h"
 extern int D_L00_001B19C8;
