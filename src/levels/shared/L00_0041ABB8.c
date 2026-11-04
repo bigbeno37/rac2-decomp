@@ -241,7 +241,7 @@ void func_L00_0041AFD8(void *unused, float *a, int k, float f)
     func_00280B90(&local, &local.m00, 0);
 }
 
-INCLUDE_ASM("asm/levels", func_L00_0041B1B8);
+/* func_L00_0041B1B8 is in L00_0041ABB8-trail-g8.c. */
 
 /* func_L00_0041B840 is in L00_0041ABB8-ring-g8.c. */
 
