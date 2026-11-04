@@ -1,30 +1,9 @@
-/* 3 November 2026, Claude Opus 5.5 (opus-1), v2286, USA v1.01:
- * 1448/1448 bytes, 0/27 places, 60 of 362 side-by-side rows differ (155 in
- * the incoming draft; relocations included); first rejected insn +0xA4.
- * Profile: file named *-g8.c, -O2 -G8 -ffunction-sections -frac2-zero-ti-por
- *          -frac2-qcopy -frac2-qcopy-barrier -g -frac2-gcse-unsplit-edges.
- * Indexing all four table loops (D_L00_00232A60[i], no tile pointers) fixes
- * the table HIGH reuse: loop.c strength reduction builds each giv start after
- * gcse, so every loop gets the fresh lui/addiu that retail has.
- * Remaining:
- *  1. s0/s1 swap of the gp vector address PRE copy versus &st->timer: gcse
- *     numbers reaching regs in hash-bucket order (bucket = hash % ((max_cuid/2)|1),
- *     table size 165 here); a size of 161/167/171, or a priority change, would
- *     put the gp-address pseudo first.
- *  2. Final loop: retail hoists 0.5 -> f22 and the clamp zero -> f21 (compare
- *     `c.lt.s $f12,$f21`, but `t = 0` stays `mtc1 $zero,$f12`), so the zero is a
- *     loop.c-hoisted temp moved after 0.5 in loop pass 2. This draft uses the
- *     `lower` user var instead, which gives f21/f22 swapped. With a literal
- *     `t < 0.0f` the zero (life 1, savings 1) is "not desirable": the measured
- *     pass-2 threshold T is 60 or 61 (62 - 3 per move does not fit), so after
- *     the 0.5 hoist the pass-2 loop must count <= 57-58 insns. The index loop
- *     counts 60: a flow (use (const_int 0)) nop after the last call (it is
- *     followed by the continue label) and the pre-dbra slt exit test are the
- *     only invisible insns. Reading flags into an int local drops the HImode
- *     zero_extend (61 -> 60); a pointer + count-down loop reaches 59 but brings
- *     back HIGH reuse (176 rows). Neither hoists the zero.
- * Reopen with a construct that removes 2-3 RTL insns from the final loop
- * without changing its asm, or that lengthens the zero temp's life.
+/* func_L00_00384678: built with -G8 (gp-relative vectors) and the qcopy/zero-TI
+ * profile in config/cflags.txt.  The `scan = 0` declaration init sizes gcse's
+ * expression table (167 buckets), which numbers the gp-vector PRE copy before
+ * &st->timer (retail s0/s1).  `one` and `half` hold the clamp constants so that
+ * loop.c hoists 1.0 and 0.5 in its first pass and the clamp zero in its second
+ * (retail f20/f22/f21).
  */
 #include "common.h"
 
@@ -83,8 +62,8 @@ void func_L00_00384678(char *obj)
     float vb[4] __attribute__((aligned(16)));
     float vc[4] __attribute__((aligned(16)));
     int all, i, hit, pick;
-    int scan, remaining, count;
-    float t, lower;
+    int scan = 0, remaining, count;
+    float t, half, one;
 
     st = *(Board_384678 **)(obj + 0x68);
     if (0.0f < st->drop)
@@ -150,16 +129,17 @@ void func_L00_00384678(char *obj)
     }
     pick = func_002A77E0(hit);
     if (hit != 0 && func_00282948(&st->liftTimer)) {
-        lower = 0.0f;
         for (count = 0; count < 24; count++) {
             if (!((((Tile_384678 *)D_L00_00232A60[count])->flags ^ 1) & 1))
                 continue;
             if (--pick != 0)
                 continue;
-            t = 1.0f / ((float)(st->rounds + 1) * 0.5f);
+            one = 1.0f;
+            half = 0.5f;
+            t = one / ((float)(st->rounds + 1) * half);
             if (1.0f < t)
                 t = 1.0f;
-            else if (t < lower)
+            else if (t < 0.0f)
                 t = 0.0f;
             st->liftTimer = func_L00_0031D620(1, 0xF0, t);
             va.q = 0;
