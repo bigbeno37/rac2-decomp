@@ -133,7 +133,6 @@ void func_L00_003C8A58(Rac2Native_9cdc323a4d0c2fbd_AnalysisOwner *owner)
     }
 }
 
-INCLUDE_ASM("asm/levels", func_L00_003C8A90);
 
 INCLUDE_ASM("asm/levels", func_L00_003C94D8);
 

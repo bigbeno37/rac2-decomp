@@ -3189,3 +3189,4 @@ src/levels/shared/L00_003B84F0-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-p
 src/levels/shared/L00_003A0F30-quad-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy
 src/levels/shared/L00_003D37E8-missile.c	-O2 -G0 -ffunction-sections -g
 src/levels/shared/L00_003F0198-qcopy.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -fno-gcse -fno-strength-reduce
+src/levels/shared/L00_003C6298-charge-g8.c	-O2 -G8 -ffunction-sections -g -frac2-zero-ti-por -frac2-hazard-labels
