@@ -3158,3 +3158,4 @@ src/levels/shared/L10_0037D200-ribbon.c	-O2 -G0 -ffunction-sections -frac2-qcopy
 src/game/00345358-list-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels -frac2-gcse-unsplit-edges -fmove-all-movables
 src/levels/shared/L00_00384678-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por -frac2-qcopy -frac2-qcopy-barrier -g -frac2-gcse-unsplit-edges
 src/levels/shared/L00_00373F48-g64.c	-O2 -G64 -Wa,-G64 -ffunction-sections
+src/levels/shared/L00_003A0F30-lock.c	-O2 -G0 -ffunction-sections -g
