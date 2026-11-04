@@ -22,6 +22,20 @@
  * Both phases set the standard UVs {0,0,0,1,1,0,1,1} before overriding
  * uv[4]/uv[6]: flow deletes phase 2's dead 1.0 stores but keeps phase 3's
  * because the segments[i].v load sits in between, as in retail.
+ *
+ * opus-2 (Claude Opus 5.5, xhigh), task v2416, 4 November 2026: same 131 rows,
+ * strip stores now uv5,uv1,c2,c3,uv6,uv4,uv0,uv2,uv3,uv7 (retail has uv4 after
+ * uv3, and next in $f0 / u+k in $f1; computing next after the uv0/uv2 stores
+ * fixes the registers but reorders the loads: 133 rows).  Colour via
+ * `inner = D_..764; color = (...) | inner;` grows the body (351 of 386 rows).
+ * Spill-slot analysis (x.i.gcse, T = 175 buckets, raw hash of (plus $1 X) =
+ * 14030+X, of (plus (reg i) 1) = 14030+regno(i)): here the slots follow PRE
+ * bucket order sp10,spC0,sp20,spD0,sp30,i+1,sp490,sp4A0 (46,47,62,63,78,126,
+ * 148,164).  Retail is sp30,sp490,i+1,sp4A0 | sp10,spC0,sp20,spD0: two runs,
+ * each in T=175 bucket order, so no table size gives it in one sweep (checked
+ * every odd T 51..899).  Likely the second run got slots in a later reload
+ * round (spilled from hard regs by finish_spills) rather than by global; i+1
+ * inside run one needs regno(i) 119..133 at T=175 (here 96).
  */
 #include "common.h"
 
@@ -105,11 +119,11 @@ void func_L00_003A91A0(char *object)
                 qcopy(packet.vertex[2], rings[j - 1][k]);
                 qcopy(packet.vertex[3], rings[j - 1][(k + 1) % 20]);
                 next = v + D_L00_001AF758;
-                packet.uv[1] = packet.uv[5] = v;
-                packet.uv[3] = packet.uv[7] = next;
+                packet.uv[5] = packet.uv[1] = v;
                 packet.color[3] = packet.color[2] = inner;
-                packet.uv[4] = packet.uv[6] = u + D_L00_001AF754;
-                packet.uv[0] = packet.uv[2] = u;
+                packet.uv[6] = packet.uv[4] = u + D_L00_001AF754;
+                packet.uv[2] = packet.uv[0] = u;
+                packet.uv[7] = packet.uv[3] = next;
                 v = next;
                 func_00280B90(&packet, 0, 0);
             }
