@@ -36,6 +36,29 @@
  * (empty volatile asm after the fix, also not allowed) was worse: 2004 bytes,
  * 68 rows. No allowed construct gives a boundary without code: a real or folded
  * test leaves its loads or loses its labels before combine.
+ *
+ * Claude Opus 5.5, 5 November 2026 (v2492), on the current toolchain: this draft
+ * still gives 2012/2008 bytes, 0/1 places, 112 of 503 rows differ when only
+ * relocations are masked. Measured constraints on the missing boundary:
+ *   - Retail shares f21 = 0.5f and s3 = 1 from image 197's join through the
+ *     EAA5,0 test, and f20 = 0.5f and s4 = 1 from the EAA5,0 join through icon
+ *     #1's test. So cse1 sees no join at the two EAA4 sites or the text site.
+ *     The boundary must be invisible to cse but still a basic-block boundary
+ *     for combine, sched1 and sched2. In this cc1, sched2 (toplev.c:4311) runs
+ *     before jump2's cross-jump (4335).
+ *   - -fno-schedule-insns alone still interleaves the loads (sched2 does it).
+ *   - The matched scaled_screen_size two-arm form (src/game/002D3390.c),
+ *     tested on the texture handle at the EAA4 sites, does give retail's
+ *     "chain, mfc1 a2, then the loads" order. But it rematerialises 0.5f in
+ *     each arm, because cse ends its block at the inline's return label (2044
+ *     bytes). Testing first (= 1) instead is folded with GCSE on. With
+ *     -fno-gcse it survives, but the arms differ (f2/f3) and it is an
+ *     always-true test anyway.
+ *   - The shape that fits is a one-armed jump around a block that cse skips
+ *     (-fcse-skip-blocks keeps the table) and that flow1 empties, leaving the
+ *     label until jump2. A probe (if (r < 0) k = 0; k = r;) was removed by
+ *     cse1's copy propagation. No natural source for it, and no live register
+ *     to test at the panel site, was found.
  */
 #include "common.h"
 typedef unsigned long long U64;
