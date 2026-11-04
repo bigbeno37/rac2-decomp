@@ -943,5 +943,6 @@
 #define UpdateBeamLinkStrips             func_L09_003FB9F8
 #define FollowWaypointPath               func_L23_004186D0
 #define DestroyCrate                     func_003120C8
+#define DrawHrugisRibbon                 func_L10_0039DA48
 
 #endif /* NAMES_H */
