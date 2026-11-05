@@ -3782,3 +3782,4 @@ src/us2/levels/11_joba/L11_0042ADB8-cc-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/shared/L04_00417578-route-g8.c	-O2 -G8 -ffunction-sections
 src/pal/game/0030B4E0-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier
 src/pal/levels/shared/L01_0039C7E8-swing.c	-O2 -G0 -mno-split-addresses -ffunction-sections
+src/pal/game/002EF2D8-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels
