@@ -1,3 +1,38 @@
+/* Claude Opus 5.5 xhigh, v2619, 2026-11-05: closest so far, not linked.
+ * Unit: any -O2 -G8 -ffunction-sections file (tested as L00_003B9CB8-trail-g8.c).
+ * USA v1.01: 916/916 bytes, 0/27 places, first difference +0xB0, 8 words differ, all
+ * in the inner-loop setup (+0xAC..+0xDC): ours has M=v0 D=a0 X=v1 and from-sum before
+ * to-sum, retail M=v1 D=v0 X=a0 and to-sum before from-sum. Everything else is equal
+ * except relocation immediates. Previous best: 11 words.
+ * Measured this round (use these, they cost about 30 compiles):
+ * - A movable is opaque to simplify_giv_expr when its SET_SRC is not PLUS/MULT/ASHIFT/
+ *   CONST_INT/SYMBOL_REF/sym+int, or when simplifying it returns 0. So retail's
+ *   last*16 + (i*320 + X) comes from a LO_SUM X, a PRE copy (set X R), or a
+ *   X = (plus R -16) with REG_EQUAL const whose R is not invariant.
+ * - The D-16 / D relation must not fire in cse1 and must fire in cse2. It does when D is
+ *   set in a block before the loop (a real la, or `to = D[i]`) and D-16 is written in
+ *   the body: the body's label stops cse1, and after loop.c moves X into the same
+ *   extended block cse2 relates it (addiu X,D,-16). This is the form below.
+ * - Fall-through critical edges give no PRE block: split_edge's empty block vanishes in
+ *   the second find_basic_blocks, so a statement between guard and loop needs a real
+ *   block. `j = last; if (j > 0) { ...; do ... while (j > 0); }` keeps j=last in the
+ *   blez delay slot (`if (last > 0) for (j = last...` loses it to the i+1 spill).
+ * - In the outer loop a la in that block is movable unless used across blocks; it matches
+ *   the later D[i][0] loads (savings 3) and is hoisted, so those go through `table`.
+ *   A last use in a movable adds its savings via force_movables (D forced by X).
+ *   Rerun pass: hoisted when threshold(63)*savings*life >= 165, so life <= 2.
+ * - r5900_madd_profitable_p: a D local set in the block of D[i][0] loses mtlo/madd.
+ * - Local-alloc flips dst/src of the first qcopy (a0/v1) in forms with no function-top
+ *   la of D (+0x8 onward); function-top `table` keeps retail's order.
+ * - A sum in that block sorts before loop-emitted giv inits only by luid: sched1 takes
+ *   the later luid on a priority tie, so retail's to-then-from means both are giv inits,
+ *   i.e. `to` is in the body, as is retail's fresh lui v0 (a loop.c move-insn HIGH; a
+ *   la in the block uses PRE's spilled HIGH and reloads it into another register).
+ * Other forms, all 916 bytes: row = D multi-set in the block plus body &row[i][j] gives
+ * retail's to/from order and registers but needs a second set of row in v0 and a local
+ * HIGH (lui a1; addiu v0,a1). Reopen: a form with D and D-16 both in the body but in
+ * different cse1 blocks (a real vanishing test, or a bare volatile asm between them).
+ */
 /* Claude Opus 5.5 xhigh, v2430, 2026-11-04: no closer (916/916, 0/27, same 11 words).
  * Mechanism, from -ds/-dL dumps: retail's source start last*16 + (i*320 + X)
  * needs the giv add_val (plus (mult i 320) X) with X opaque when the giv is
@@ -85,6 +120,7 @@ void func_L00_003C4F78(char *owner)
     UiHistoryPoint vertices[20], origin, change;
     UiTrailState *state = *(UiTrailState **)(owner + 0x68);
     int i;
+    UiHistoryPoint (*table)[20] = D_L00_0023FB80;
     qcopy(&origin, &state->origin);
     for (i = 0; i < 4; i++) {
         int last, j;
@@ -95,13 +131,19 @@ void func_L00_003C4F78(char *owner)
         if (D_L00_001B2940[i] >= 20)
             D_L00_001B2940[i] = 20;
         last = D_L00_001B2940[i] - 1;
-        for (j = last; j > 0; j--) {
-            int index = last - j;
-            qcopy(&D_L00_0023FB80[i][j], &D_L00_0023FB80[i][j - 1]);
-            func_00282CC0(&vertices[index], &origin, &D_L00_0023FB80[i][j]);
-            vertices[index].f[3] = 0.05f;
+        j = last;
+        if (j > 0) {
+            int offset = i * 320;
+            UiHistoryPoint *to = (UiHistoryPoint *)((char *)D_L00_0023FB80 + offset);
+            do {
+                int index = last - j;
+                qcopy(&to[j], (UiHistoryPoint *)((char *)&D_L00_0023FB80[0][j - 1] + offset));
+                func_00282CC0(&vertices[index], &origin, &to[j]);
+                vertices[index].f[3] = 0.05f;
+                j--;
+            } while (j > 0);
         }
-        head = &D_L00_0023FB80[i][0];
+        head = &table[i][0];
         func_002AB668(&change, &D_L00_001B2900[i], 0.10471976548433304f);
         func_002ACDE8(head, head, &change);
         func_002ACB48(head->f, 0.025f);
@@ -114,7 +156,7 @@ void func_L00_003C4F78(char *owner)
             if (length < limit)
                 func_00282D30(head, head, limit / length);
         }
-        func_00282CC0(&vertices[last], &origin, &D_L00_0023FB80[i][0]);
+        func_00282CC0(&vertices[last], &origin, &table[i][0]);
         vertices[last].f[3] = 0.05f;
         {
             int endpoint = D_L00_001B2940[i] - 1;
