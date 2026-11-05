@@ -3689,3 +3689,4 @@ src/us2/levels/20_yeedil/L20_00441AD8-g8.c	-O2 -G8 -ffunction-sections -frac2-ha
 src/us2/game/00280550-fpw-g8.c	-O2 -G8 -ffunction-sections -Wa,-G32 -mno-split-addresses
 src/us2/levels/shared/L08_003F7AB0-g8.c	-O2 -G8 -ffunction-sections
 src/us2/game/00348E70-menu.c	-O2 -G0 -ffunction-sections -fno-strength-reduce
+src/us2/game/0027FCB0-g8.c	-O2 -G8 -ffunction-sections -Wa,-G32
