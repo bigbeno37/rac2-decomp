@@ -3829,3 +3829,4 @@ src/pal/levels/02_maktar_nebula/L02_003ED0D8-g8.c	-O2 -G8 -ffunction-sections -f
 src/pal/levels/14_aranos_prison/L14_003E8608-g.c	-O2 -G0 -ffunction-sections -g
 src/pal/game/00348DF8-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/20_yeedil/L20_003A1B00-qcopy.c	-O2 -G0 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier
+src/pal/levels/shared/L00_003ABDC8-g8-dbg.c	-O2 -G8 -ffunction-sections -g
