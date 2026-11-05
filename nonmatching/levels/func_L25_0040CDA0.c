@@ -1,39 +1,50 @@
-/* opus-1 (Claude Opus 5.5) retained draft, USA v1.01, game compiler -O2 -G8.
- * Belongs in src/levels/25_wupash_nebula/L25_00373ED0-g8.c (same-file callees
- * func_L25_003752D8/00376FE0/00377608 are defined there as void (u8 *[, f32])).
- * check.py: 1128/1128 bytes, 0 of 1 places match; 3 instructions differ:
- * the second quadword clear's reload register is v0 instead of retail v1
- * (por/sq/sq at +0x304/+0x358/+0x35C).  reload's find_reg takes v0 at that
- * insn because nothing is live in v0 there; retail must have v0 live or
- * costed at the clear, cause not found (calls before it are same-file voids).
- * Fixed versus sol-high's draft: the D_L25_001B3060 = 540 store is placed
- * before ctx->owner (+0xE4/+0xF4 exchange), and case 1 re-sets active = 1
- * before func_L05_00379B60: two sets stop update_equiv_regs sinking the
- * constant, reproducing retail's addiu s2,zero,1 at +0x158 (this re-set is
- * redundant at source level; a more natural form may exist).
+/* opus-2 (Claude Opus 5.5, v2612) retained draft, USA v1.01, game compiler -O2 -G8.
+ * Belongs in src/levels/25_wupash_nebula/L25_00373ED0-g8.c, after func_L25_00377608
+ * (it calls the three same-file voids defined there; the file then needs
+ * #include "common.h" in place of its own u8/s32/f32 typedefs).
+ * check.py: 1128/1128 bytes, 0 of 1 places; 3 instructions differ, all the same cause:
+ * the second quadword clear's reload register is v0, retail v1 (+0x304/+0x358/+0x35C).
  *
- * opus-2 (Claude Opus 5.5, v2478) rechecked on v2/c03: still 1128/1128 bytes,
- * 0 of 1 places, the same 3 differences. Cause measured: the zero is a reload,
- * and reload's spill set holds only $v0 for general registers here (the
- * fix_truncsfsi2 scratch and the four zero stores); $f1 is the only other
- * spill register. allocate_reload_reg's round-robin can reach $v1 only if $v1
- * is a spill register, which happens when some reload anywhere in the
- * function needs a general register while $v0 is busy. Confirmed: a test
- * reload in case 3 with $v0 live moved the second clear to the new spill
- * register ($a0, because $v1 was busy there). With spill set {$v0,$v1,$f1}
- * the order comes out v0, v0 (inherited), v1, v1 (inherited), as in retail.
- * Best lead: case 3's `lui v1; addiu v1; lw v0,0x14(v1)` would be exactly such
- * a reload if retail's base there were a spilled REG_EQUIV pseudo for
- * &D_L25_00221850 (the reload avoids $v0, which the loaded value holds).
- * Tried here, all far worse: a function-scope ctx used everywhere, ctx set at
- * entry and used in cases 0 and 3, ctx set in case 3 before the call (each
- * takes a saved register), and L05's `int one; one = 1;` form for active.
- * Same bytes: L05 func_L05_00420A88's `typedef union { TI128 q; float f[4]; }
- * Vector;` with a.q = 0 ... c.q = 0; d.q = 0; (a more natural form).
- * Matched siblings of this state machine: src/levels/05_feltzin_system/
- * L05_0041DA20-g8.c, src/levels/15_gorn/L15_0042DCE0-g8.c.
+ * What changed against opus-1's draft (same bytes, more natural source):
+ * - No `int active = 1` at entry and no re-set. `s2` at entry is the switch's compare
+ *   constant: case 0 and case 3 write literal 1s and cse replaces them with that pseudo
+ *   (case 3's use crosses a call, hence the saved register). `active = 1` before
+ *   func_L05_00379B60 is the same `one`/`on` as L05, L10 and L15.
+ * - A single use of `active` is sunk by update_equiv_regs (retail keeps the addiu at
+ *   +0x158). The sink needs REG_N_REFS == 2, depth == 0 and INSNs at both ends, and flow
+ *   weights refs by loop depth, so the one-pass group around the store keeps it. In
+ *   L05/L10/L15 `on` has several uses; a second real use here would show as `s2`, and
+ *   retail has only the one, so the original form of this is still unknown.
+ *
+ * The remaining difference, measured from reload1.c and the .greg "Spilling reg" lines:
+ * spills here are insn fix_truncsfsi2 (reg 2, reg 33) and the four TImode zero stores
+ * (reg 2). The round-robin order fits retail exactly if $v1 is in used_spill_regs and
+ * no GPR reload sits between the fix and the first clear: scratch v0, f1; clear a v0,
+ * inherited; clear c v1, inherited. So retail has one more GPR need, somewhere else, at
+ * an insn where a pseudo or hard reg occupies $v0 and $v1 is free
+ * (order_regs_for_reload: uses == 0 first, in REG_ALLOC_ORDER).
+ * Ruled out by reading the code and dumps, so do not repeat:
+ * - A pseudo left without a hard reg (the REG_EQUIV reload lead for case 3): that happens
+ *   in func_L00_003B14D0 only because s0-s7 and fp are all taken; here s5+ are free.
+ * - A constraint reload elsewhere: only a TImode zero store survives to reload with a
+ *   constant source. Stores of other constants are refused by the mov patterns' condition.
+ * - An occupant of $v0 at a clear or at the fix: retail has no v0 write or read in either
+ *   block, and a value cannot cross the calls around them. In matched func_L04_003F9C60,
+ *   which also goes por v0 then por v1, the occupant is a visible call value in $v0.
+ * - qcopy's inputs: both are pseudos, the asm needs no reload; -frac2-qcopy declares
+ *   $v0 as a fixed clobber, so it adds no need either (read, not compiled).
+ * - Cases 0 and 3 written with a ctx pseudo (opus-2, v2478): worse.
+ * Open: a hidden need in code deleted after reload, the only places left being insns
+ * that flow2 or jump2 remove. The empty wait loop is the obvious suspect, since $v0 is
+ * live there and $v1 free, but no body that survives flow1 and dies later could be
+ * thought of; this was reasoned, no such body was compiled.
+ * Same bytes: L05's `typedef union { TI128 q; float f[4]; } Vector;` for the clears.
  */
 #include "common.h"
+extern void func_L25_003752D8(u8 *);
+extern void func_L25_00376FE0(u8 *, f32);
+extern void func_L25_00377608(u8 *, f32);
+
 typedef unsigned int Quad __attribute__((mode(TI)));
 
 typedef struct MissionContext {
@@ -92,9 +103,6 @@ extern int func_L05_00442860(void);
 #define B(p,o) (*(unsigned char *)((char *)(p)+(o)))
 #define H(p,o) (*(unsigned short *)((char *)(p)+(o)))
 
-extern void func_L25_003752D8(u8 *);
-extern void func_L25_00376FE0(u8 *, f32);
-extern void func_L25_00377608(u8 *, f32);
 
 
 void func_L25_0040CDA0(char *obj)
@@ -105,12 +113,12 @@ void func_L25_0040CDA0(char *obj)
     float c[4] __attribute__((aligned(16)));
     float d[4] __attribute__((aligned(16)));
     int i;
-    int active = 1;
+    int active;
     MissionContext *ctx;
     switch (B(obj,0x20)) {
     case 0:
         ctx = &D_L25_00221850;
-        
+
         ctx->scale=8.0f;
         ctx->deathCallback=func_L25_0040DCD0;
         D_L25_001B0CE0=obj;
@@ -125,9 +133,9 @@ void func_L25_0040CDA0(char *obj)
         ctx->owner=obj;
         if (D_0018C0B0) H(D_0018C0B0,0x34)|=0x41;
     case 1:
-        
+
         if (!D_0018C958.dialogue) func_00288E18(0xa16,0x6d);
-        
+
         if (func_00282948(state+0x34)) D_L25_00221850.timerVisible=0;
         else D_L25_00221850.timerVisible=1;
         active = 1;
@@ -137,7 +145,7 @@ void func_L25_0040CDA0(char *obj)
         if (D_00138324&0x10) func_002E5DA0(0,0,obj,0xeee);
         if (D_L25_001A904C && !D_L25_001B0CDC) {
             func_0029B758(0,func_L25_0040D208);
-            D_L25_001B0CDC=active;
+            do { D_L25_001B0CDC=active; } while (0);
         }
         for (i=6;i>=0;i--) {}
         if (D_L25_00221850.paused || D_L25_001B1BC8<6) break;
@@ -172,11 +180,11 @@ void func_L25_0040CDA0(char *obj)
     case 2:
         break;
     case 3:
-        
+
         if (!func_L05_00442860()) {
             D_L25_00221850.timerVisible=0;
             D_L25_00221850.completed++;
-            B(obj,0x20)=active;
+            B(obj,0x20)=1;
         }
         break;
     }
