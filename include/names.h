@@ -228,6 +228,7 @@
 #define RenderLocalizedUiEntryList       func_002D6230
 #define FadeMenuColor                    func_002D68D8
 #define render_water_grids               func_L04_003A21F8
+#define volume_camera_swing_active       func_L06_0047A268
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20

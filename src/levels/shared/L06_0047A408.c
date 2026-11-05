@@ -1,47 +1,5 @@
-/*
- * Tier: Claude Opus 5.5 (xhigh effort), task v2393; supersedes v1356.
- * USA v1.01, game -O2 -G0 -ffunction-sections -g -frac2-hazard-labels, as an
- * isolated source unit (the hazard labels fix the branch at +0x580).
- * Best check.py: 2144/2144 bytes, 0 of 3 places match (06, 12, 13), first
- * mismatch +0x290, 42 differing instructions.
- *
- * Fixed here: entry descriptor order, follow no longer spills, no saved hero
- * address, one/at_end/ten in s0/s1/s2.
- *  - ref_00 and D_00189EA0 are MACRO_ADDR, D_0018A0E0 is plain (both hero
- *    symbols MACRO_ADDR gives 2136 bytes). Keep RAC1's alias order.
- *  - follow needs 8 refs. f2 = follow survives cse only because qcopy's asm
- *    inputs escape it; regmove then ties the copy at no code cost. Without f2
- *    follow spills. A single-use alias is merged by combine (2160 bytes).
- *  - Placing f2 = follow just before the focus qcopy adds a no-code insn
- *    there, which moves the D_00189EA0 load from a0 to v1 as in retail.
- *  - params->timer = 1 before at_end = 1 reuses the type == 1 constant.
- *
- * Remaining differences:
- *  1. The reset stores: this draft stores the three zeros before look_height
- *     and distance. That gives retail's s3 reset / s4 follow, but puts those
- *     stores in the wrong order. RAC1's order gives the right stores and swaps
- *     s3/s4 (49 differing instructions, first mismatch +0x1C4). Priorities:
- *     follow+f2 8 refs, reset 8 refs, and reset must rank first. sched2 keeps
- *     the order of a store and a load on different bases, so retail's order
- *     pins the look_height load early and only a 9th reset ref or a later
- *     reset def can flip them. The def fills the slot beside the first call in
- *     sched1 whatever its source position, and reorg then takes it into the
- *     delay slot. Neither was found.
- *  2. 0047A698: the follow.offset destination is in a0, retail v1. This needs
- *     one more no-code insn between the focus and offset qcopies. A second
- *     follow alias gives 2160 bytes; a state alias deletes the state = rig copy
- *     (2140 bytes).
- *  3. Reload registers: 0047A6C4, 0047A7BC, 0047A85C, 0047A8A0, 0047A8B0 and
- *     0047A8D0 swap v1/a0, which also reorders the yaw loads at 0047A8B0-8DC.
- *     Probably reload's round-robin; it may follow once 1 and 2 are fixed.
- *
- * Tried with no effect: a local for D_00189EA0, moving reset's def, r2 = reset
- * (cse removes it), reading zero before look_height, an initial value on reset.
- * All declarations are below. External refs (ref_L06_0047A408_*, func_L00_*,
- * func_L06_0047A268, func_L06_00475C10) are still unqualified: per-level
- * ref_L06_0047A408_kk externs are needed once the bytes match. No link check
- * was run; the src marker and the temporary cflags line were restored.
- */
+/* Follow camera swing volume update, shared by levels 06, 12 and 13.
+ * A unit of its own because it needs -g and hazard labels, and flags are per file. */
 #include "common.h"
 typedef struct {
     f32 swing; u8 pad04[4]; s32 volume_25faf0; s32 clip_volume; s32 volume_25fa38; s32 path; u8 pad18[8];
@@ -52,7 +10,11 @@ typedef struct {
 typedef struct { u8 pad0[0x18]; f32 yaw; SwingCameraParams *params; } CamDesc;
 typedef struct { u8 pad0[0x100]; f32 analog[4]; } PadSt;
 
-/* Adapted from OpenRAC/rac1-decomp camera_modes_and_scripts.c (GPL-3.0), volume_camera_swing. */
+/* Adapted from OpenRAC/rac1-decomp camera_modes_and_scripts.c (GPL-3.0), volume_camera_swing.
+ * hero_pos holds a constant across calls, so it gets no register and every use rebuilds it.
+ * The copies escape cse through qcopy's asm inputs: state must stay separate from rig, and
+ * follow_copy gives follow its two extra references.
+ */
 typedef float CameraVec[4];
 typedef struct { float f[4]; } Vec4f;
 typedef struct {
@@ -69,7 +31,7 @@ extern char *ref_L06_0047A408_00 MACRO_ADDR;
 extern char *ref_L06_0047A408_01;
 extern char ref_L06_0047A408_02[];
 extern float ref_L06_0047A408_03, ref_L06_0047A408_04;
-extern char D_00189EA0[] MACRO_ADDR;
+extern char D_00189EA0[];
 extern char D_0018A0E0[];
 extern s32 D_00138320[];
 extern PadSt D_00138180;
@@ -99,7 +61,6 @@ extern void func_L00_00424B70(f32, f32);
 extern void func_L00_00424BB8(f32, f32);
 
 extern int func_L06_0047A268(void *);
-extern void func_L00_00424B70(f32, f32);
 void func_L06_0047A408(char *arg) {
     struct UpdateCam *cam = (struct UpdateCam *)arg;
     CameraVec dir;
@@ -112,7 +73,9 @@ void func_L06_0047A408(char *arg) {
     FollowCamTail *tail;
     FollowCamSnap *snap;
     FollowCamReset *reset;
-    FollowCamBlock *f2;
+    FollowCamBlock *follow_copy;
+    char *hero_pos;
+    f32 zero;
     s32 at_end;
     f32 total;
     f32 swing;
@@ -155,6 +118,7 @@ stop:
     }
     if (*(s32 *)&params->type == 5) {
         *(s32 *)&params->swing = 0;
+        hero_pos = D_00189EA0;
         rec = ((struct UpdateCam *)ref_L06_0047A408_01);
         rig = FOLLOW_CAM_STATE(rec);
         follow = &rig->follow;
@@ -162,31 +126,29 @@ stop:
         snap = &rig->tail.snap;
         state = rig;
         reset = &state->reset;
-            func_00282F20(tail->unk130, tail->unk130, params->distance);
+        func_00282F20(tail->unk130, tail->unk130, params->distance);
+        follow_copy = follow;
         tail->unk15C = params->distance;
         tail->distance = params->height;
-        follow->look_height = params->offset_scale;
+        follow_copy->look_height = params->offset_scale;
         qcopy(state->tail.unk140, tail->unk130);
         func_00282D30(dir, D_0018A0E0, -tail->distance);
         pos = &rec->pos;
-        func_00282CC0(state->follow.eye, D_00189EA0, dir);
+        func_00282CC0(state->follow.eye, hero_pos, dir);
         func_00282CC0(pos, state->follow.eye, tail->unk130);
-        func_00282D30(dir, D_0018A0E0, -follow->look_height);
-        func_00282CC0(state->follow.look_target, D_00189EA0, dir);
+        func_00282D30(dir, D_0018A0E0, -follow_copy->look_height);
+        func_00282CC0(state->follow.look_target, hero_pos, dir);
         qcopy(state->follow.unkD0, state->follow.look_target);
-        f2 = follow;
-    qcopy(f2->focus, D_00189EA0);
-        qcopy(state->follow.offset, f2->focus);
+        qcopy(follow_copy->focus, hero_pos);
+        qcopy(state->follow.offset, follow_copy->focus);
         qcopy(state->position, pos);
         qcopy(state->tail.snap.unk1F0, pos);
         snap->unk200 = tail->unk15C - func_00282DF0(tail->unk130);
         *(s32 *)&reset->unk34 = 0;
-        { f32 zero = reset->unk34;
-        reset->unk38 = zero;
-        reset->unk30 = zero;
-        reset->unk2C = zero;
-        reset->look_height = f2->look_height;
-        reset->distance = tail->distance; }
+        reset->look_height = follow_copy->look_height;
+        reset->distance = tail->distance;
+        zero = reset->unk34;
+        reset->unk2C = reset->unk30 = reset->unk38 = reset->unk34 = zero;
     }
     at_end = 0;
     total = func_00283CE0(200);
