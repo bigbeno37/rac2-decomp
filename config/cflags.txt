@@ -3346,3 +3346,4 @@ src/pal/levels/06_notak/L06_00380B10-flags.c	-O2 -G0 -ffunction-sections -frac2-
 src/pal/game/0027FB48-g8.c	-O2 -G8 -ffunction-sections -Wa,-G32
 src/pal/levels/shared/L05_00449258-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/pal/levels/11_joba/L11_0044B0B0-g32.c	-O2 -G32 -Wa,-G32 -ffunction-sections
+src/pal/levels/shared/L00_003CF868-pool-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
