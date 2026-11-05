@@ -3677,3 +3677,4 @@ src/us2/game/002D5C08-g8.c	-O2 -G8 -ffunction-sections -fno-builtin
 src/us2/levels/15_gorn/L15_00432BA8-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/us2/game/002CC908-g8.c	-O2 -G8 -mastra-r5900-extern-buffer -ffunction-sections -fno-builtin
 src/us2/game/002F95E8-g16.c	-O2 -G16 -ffunction-sections -Wa,-G16
+src/us2/levels/10_hrugis_cloud/L10_00426260-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
