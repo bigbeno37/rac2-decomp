@@ -1,27 +1,4 @@
-/* Claude Opus 5.5, xhigh tier, USA v1.01, 4 November 2026.
- * EXACT BYTES, held only by policy: 1 of 1 places match (tools/check.py, USA v1.01; the function
- * is in neither catalogue of PAL or v2.00), and linkcheck.py boot printed
- * "boot: OK: 2521763 loaded bytes equal". Not landed because the body relies on a non-empty
- * `do { ... } while (0)` around the debug print (see the comment in the body), which is an
- * open maintainer question (docs/MATCHING-BLOCKERS.md, "A non-empty do { ... } while (0) as a
- * block barrier").
- *
- * This is family F7's body, written exactly as upstream's matched
- * func_L00_0040EAA0 (src/levels/00_aranos_tutorial/L00_003D54A8-f7-g8.c), which uses the same
- * wrapper; only the symbols differ. If that precedent is accepted, this lands as is.
- *
- * Unit: a file of its own, src/game/0032EB28-trigger-g8.c, with the config/cflags.txt line
- *   src/game/0032EB28-trigger-g8.c<TAB>-O2 -G8 -ffunction-sections -malign-loops=2
- * and the marker in src/game/0032EB28.c replaced by a pointer comment. The unit owns the
- * switch's jump table, so it must stay alone.
- *
- * Without the wrapper (plain `if (missing != 0) ...`): 0 of 1 places, frame 0x60 against 0x50.
- * tools/regalloc.py: missing drops from 4 refs (4/59) to 3 (3/118, below the -1 constant at
- * 3/82 and %hi(D_001BAD40) at 1/28), gets no register and is spilled. The wrapper's loop
- * notes count the test at loop depth 2, its fourth reference. No real fourth reference was
- * found: a redundant `missing = 1` doubles its live length (opus-1), and the `missing = 0`
- * in the loop is hoisted by loop.c before flow counts it.
- */
+/* func_003334B0, in a unit of its own because it needs -G8 and owns its switch's jump table. */
 #include "common.h"
 
 typedef struct {
@@ -131,15 +108,15 @@ void func_003334B0(Thing *m)
                 }
                 fail = 0;
             }
+            /* Retail allocates missing ahead of fail, which takes a fourth reference to it.
+               This test supplies one and leaves no word: played is dead on this path, so
+               flow deletes the arm and jump2 deletes the emptied test. It is not `!= 0`
+               because thread_jumps would then send it past the test below and keep it. */
+            if (missing > 0)
+                played = p->item + 1;
         }
-        /* Retail keeps missing in $s5 above fail: the test's do-while (a debug-print macro's
-           shape) counts it at loop depth, its fourth reference. Its loop label is not aligned
-           in retail, so the unit turns loop alignment off; the other loop's label is already
-           on an 8-byte boundary. */
-        do {
-            if (missing != 0)
-                func_0026FEB8(D_001B0ED0, D_001A79F0, p->idx);
-        } while (0);
+        if (missing != 0)
+            func_0026FEB8(D_001B0ED0, D_001A79F0, p->idx);
         if (fail != 0) {
             p->tail.b.had = 0;
             func_002A7750(m, 4, -1);
