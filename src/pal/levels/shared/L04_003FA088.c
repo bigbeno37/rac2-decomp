@@ -75,5 +75,29 @@ void func_PAL_L04_003FA170(unsigned char *a0)
 
 
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L04_003FD168);
+/* func_PAL_L04_003FD168, the PAL copy of func_L04_003F8FA0: the same C as func_PAL_L04_003FA088, every field four bytes lower. */
+void func_PAL_L04_003FD168(unsigned char *a0) {
+    unsigned char *obj = *(unsigned char **)(a0 + 0x68);
+    float *p;
+    int *q;
+    int i;
+    int j;
+
+    p = (float *)(obj + 0x10);
+    for (i = 3; i >= 0; i--) {
+        *p++ = (float)func_002A77E0(0xFF);
+    }
+    *(float *)(obj + 0x20) = -1.0f;
+    *(float *)(obj + 0x24) = -2.25f;
+    *(float *)(obj + 0x28) = 1.25f;
+    *(float *)(obj + 0x2C) = 2.5f;
+    q = (int *)(obj + 0x30);
+    for (j = 0; j < 4; j++) {
+        q[j] = ((0x3F + j * 0x40) * 5 + 2) / 6;
+    }
+    *(float *)(obj + 0x40) = 2.0f;
+    *(float *)(obj + 0x44) = 2.5f;
+    *(float *)(obj + 0x48) = 2.5f;
+    *(float *)(obj + 0x4C) = 2.0f;
+}
 
