@@ -1,30 +1,7 @@
-/* Claude Opus 5.5 (xhigh), 5 November 2026: FAILED, 1496/1496 bytes,
- * 0/1 USA v1.01 places (111 cdiff lines; previous draft 142). Standalone game
- * unit profile: -O2 -G2 -ffunction-sections -mastra-quad-saves
- * (src/core/001185E8.c). Change over the 3 November draft: the integer-part
- * loop counts with its own local k (`k = 0; while (++k < 163)`) instead of e.
- * That lowers e's ref count in that loop and puts e in $s4 and eps/precision
- * in $s5, as retail does (all the $s4/$s5 rows are gone).
- * Left: (1) retail has a once-through loop note before the dispatch: it is a
- * sched2 barrier (param spills and all saves come before the extraction) and
- * gives $L17 at 0x678 the .p2align 3 nop at 0x674. A diagnostic
- * do { u.d = value; ... switch ... } while (0); around the dispatch alone
- * reproduces both and leaves 47 lines, but it is forbidden. Ending that loop
- * later (after the sign test, the integer part, len, rounding, '.', or the
- * whole body) gives 83-360 lines. (2) Integer loop store `p[n] = digit + '0'`:
- * retail gives the address $v0 and the value $v1, stores, puts the litodp a0
- * move in the jal slot and n++ after the call. Here sched1 issues the address
- * (insn 245, ready one cycle before the value) with the digit copy, so the
- * value has the shorter life, local-alloc gives it $v0, and the a0 move goes
- * before the sb. A shared int temp (`c = digit + '0'; p[n] = c;`, c also used
- * by the reverse loop) gives the address $v0 but puts c in $a1. These make no
- * difference: n++ placement, p[n++], an int temp used only here, (char)digit.
- * The value must come first in sched1 (as in the fraction loop, where digit
- * dies at the value insn), and the source form that does that is unknown.
- * All declarations follow.
- */
 #include "common.h"
 
+
+/* Shared retail scratch. Requested precision is not bounded here. */
 extern char D_0013C080[];
 
 extern char D_0013A490[];
@@ -49,6 +26,7 @@ char *func_001185E8(double value, int ndigits, char ch, int dot) {
     char c;
     double f;
     double eps;
+    int integer_count;
     int e;
     int n;
     int i;
@@ -56,8 +34,9 @@ char *func_001185E8(double value, int ndigits, char ch, int dot) {
     int digit;
     int len;
     int precision;
-    int k;
 
+    do {
+    /* Retail tests the low word, not the general IEEE high-word classifier. */
     u.d = value;
     n = u.i[0];
     n &= ~0xFFFF;
@@ -73,9 +52,10 @@ char *func_001185E8(double value, int ndigits, char ch, int dot) {
     case 0xFFF80000:
         return D_0013A4A8;
     }
+    } while (0);
 
     precision = ndigits;
-    k = 0;
+    integer_count = 0;
     n = 0;
     if (value < 0) {
         D_0013C080[0] = '-';
@@ -88,9 +68,13 @@ char *func_001185E8(double value, int ndigits, char ch, int dot) {
     if (value >= 1.0) {
         f = func_00117650(value);
         value = value - f;
-        while (++k < 163) {
+        while (++integer_count < 163) {
             digit = (int)func_00117848(f, 10.0);
-            p[n] = digit + '0';
+            /* Encode and emit the digit before the next numeric conversion. */
+            do {
+                c = digit + '0';
+                p[n] = c;
+            } while (0);
             f = (f - (double)digit) * 0.1;
             n++;
             if (f < 1.0)

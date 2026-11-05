@@ -1,46 +1,42 @@
-/* opus-2 (Claude Opus 5.5, xhigh), 2026-11-05, USA v1.01 check.py, -O2 -G8 unit.
- * Best: 1088/1088 bytes, 0/28 places (first mismatch +0x118), 10 instructions differ.
- * Place in src/game/0034CEA0-g8.c (it uses $gp data): the declarations below are complete,
- * but that unit already has `extern void func_0034DB98(void *);`, hence the void * parameter.
- * Fixed versus earlier drafts (all measured):
- *  - Indexed member-array loops with the vtable address written from &a[i]
- *    (`*(HudVEntry **)((char *)&object->a[i] + 0x30)`): every giv's add value is then
- *    object+C, so loop.c cannot eliminate the counter biv. The rerun pass reverses it to
- *    retail's 7..bgez, and the loop-2 bases become loop.c giv inits after gcse, so they
- *    are no longer hoisted. `object->a[i].vtable` lets PRE hoist object+0x388 into a
- *    pointer register and the counter is eliminated (slt against an end pointer).
- *  - A separate counter (j) for loop 2 gives retail's s5/s3 counters and loop-1 rotation.
- *  - The text loop is `step = 3.0f; if (step < (float)count) { start; do ... while (step < (float)count); }`
- *    with &object->text inside: PRE copy s4=s0, hoisted s1=s4, mov.s f25/f26 copies, and the
- *    (float)yoffset hoist (PRE needs a real preheader block) all match retail.
- *  - `long long style = t->style; func_0027C878((int)style)` gives retail's ld+dsll32+dsra32.
- *  - EE-ABI interleaved func_0027F640 prototype (float drawX before the pointer) fixes the
- *    f12/a3 argument-move order.
- *  - `unsigned int shadow = 0;` (declaration initializer, 1 of 5) makes shadow the canonical
- *    CSE register (cse.c make_regs_eqv: referenced outside its CSE block), restoring retail's
- *    `and v1` + `daddu s0, v1` copy and the 1088-byte size.
- * Still differs:
- *  - both vtable calls: lw v0,0xC(v0); jalr v0 versus retail v1. sched1 ranks the delta lh (5)
- *    above the fn lw (4), so the vtable pseudo dies at the fn load and local-alloc reuses v0
- *    (birth and death share slot 2n). Retail needs fn loaded while the vtable pointer is still live.
- *    An int-returning fn (call_value) did not change it.
- *  - D_001A7BB4: sda incomplete array is one insn to gcc, so reorg fills the n-loop pre-test's
- *    bnel slot (retail: bnez + nop); plain or nosda forms let PRE/loop hoist the %hi into s7.
- *  - shadow block: sched2 puts `and s1,s1,v0` before `lw a0` (retail the reverse).
- * D_001A7A32 stays volatile (retail reloads it for the sprintf argument); unproven.
+/* 5 November 2026: retained, not linked. Getter declarations now match the existing int32 address-returning definitions, with explicit pointer conversions.
+ * Array/text phase, wide snapshot and signed/full-width style trials remain failures. Retail reads eight bytes at +0x38 before narrowing the font index and preserves signed high bits in the final styles; those representation questions remain open. Do not call this a native-qualified renderer.
+ */
+#include "common.h"
+/* 2026-11-03 w02 source-contract/lifetime review (USA v1.01 only).
+ * Profile: -O2 -G8 -ffunction-sections.
+ * Current check.py: 1088/1088 bytes, 0/28 places, first mismatch +0x4.
+ * The font lookup now returns its full64-bit texture descriptor with int input; text draw retains full64-bit style and pointer metrics; final draw helper has its actual int return. Same-size code still rotates saved object/array/vtable registers and differs in font-field/format scheduling.
+ * Reopen: Independent paired-array, text-field storage and format-call lifetime evidence with full64-bit font/style contracts.
+ * No linked or cross-release match is claimed. Earlier notes follow.
+ */
+/* GPT-6.1 Sol high, USA v1.01, pinned v2 game -O2 -G8 profile.
+ * Retained attempt: 1076/1088 bytes, 0/28 places (check.py --diff).
+ * Advancing the first array's completed object/vtable cursors by 0x4C
+ * reaches the second array without hoisting its two bases. This recovers
+ * retail's 0xB0 frame and seven saved GPRs, versus the old draft's 0xC0
+ * frame and nine saved GPRs. Registers still differ; retail derives the
+ * second pair from the owner instead of the completed first pair.
+ * Other differences: count-to-float conversion moves before sprintf;
+ * the font lookup narrows the text object's +0x38 field load to lw instead of
+ * retail's ld followed by sign extension of its low word. Its complete
+ * storage contract needs independent evidence before adding qualifiers.
+ * Typed array records retain the old 1100-byte result. Indexed loops
+ * collapse the two induction pointers (1048 bytes). A bounded
+ * -fno-sched-interblock probe retains 1100 bytes and does not cure hoisting.
+ * The declarations below are sufficient in a standalone -g8.c unit.
  */
 #include "include_asm.h"
 
 extern void func_00336320(void *);
 extern void func_00336828(void *);
 extern void func_00336A78(void *);
-extern float *func_00335E18(void *);
-extern float *func_00335E10(void *);
-extern unsigned int *func_00335E20(void *);
+extern int func_00335E18(void *);
+extern int func_00335E10(void *);
+extern int func_00335E20(void *);
 extern void func_0034AD10(void *);
-extern void *func_0027C878(int);
-extern void func_0027F640(unsigned long long, char *, int, float, void *, int, float, float);
-extern void func_0027FBD8(int, int, unsigned int, char *, int);
+extern unsigned long long func_0027C878(int);
+extern void func_0027F640(unsigned long long, char *, int, unsigned long long, void *, float, float, float);
+extern int func_0027FBD8(int, int, unsigned long long, char *, int);
 extern int func_00115DA8(char *, const char *, ...);
 extern int D_001A8C64[] __attribute__((sda));
 extern int D_001A79F8[] __attribute__((sda));
@@ -51,115 +47,81 @@ extern int D_001ADAE8 __attribute__((sda));
 extern int D_001ADAEC __attribute__((sda));
 extern unsigned int D_001ADAF0 __attribute__((sda));
 
-typedef struct HudVEntry {
-    short delta;
-    short index;
-    void (*fn)(void *);
-} HudVEntry;
-
-typedef struct HudElem4C {
-    char pad0[0x30];
-    HudVEntry *vtable; /* 0x30 */
-    char pad34[0x18];
-} HudElem4C;
-
-typedef struct HudElem3C {
-    char pad0[0x30];
-    HudVEntry *vtable; /* 0x30 */
-    char pad34[0x8];
-} HudElem3C;
-
-typedef struct HudText {
-    char pad0[0x34];
-    int font;          /* 0x34 */
-    long long style;   /* 0x38 */
-} HudText;
-
-typedef struct HudOwner {
-    HudElem4C top[3];       /* 0x0 */
-    char pad0E4[0x1C];
-    char panel100[0x48];    /* 0x100 */
-    char panel148[0x3C];    /* 0x148 */
-    HudElem4C mid[2];       /* 0x184 */
-    char pad21C[0x1C];
-    HudText text;           /* 0x238 */
-    char pad240[0x280 - 0x238 - sizeof(HudText)];
-    char panel280[0x40];    /* 0x280 */
-    HudElem4C side[2];      /* 0x2C0 */
-    HudElem4C a[8];         /* 0x358 */
-    HudElem4C b;            /* 0x5B8 */
-    HudElem3C c[8];         /* 0x604 */
-    char pad7E4[4];
-    char final[4];          /* 0x7E8 */
-} HudOwner;
-
-void func_0034DB98(void *arg)
+void func_0034DB98(char *object)
 {
-    HudOwner *object = arg;
     char text[32], countText[16];
-    HudVEntry *vt;
+    char *left, *right, *p, *vtable, *final, *textObject;
+    char *cursor;
     float *scale;
-    float x, y, step;
-    unsigned int color, foreground;
-    unsigned int shadow = 0;
-    int i, j, count, n, alternate, yoffset, xoffset;
+    float x, y, step, digits;
+    unsigned int color, shadow, foreground;
+    int i, count, n, alternate, yoffset, xoffset;
 
-    func_00336320(&object->top[0]);
-    func_00336320(&object->top[1]);
-    func_00336320(&object->top[2]);
-    func_00336828(object->panel148);
-    func_00336A78(object->panel100);
+    func_00336320(object);
+    func_00336320(object + 0x4C);
+    func_00336320(object + 0x98);
+    func_00336828(object + 0x148);
+    func_00336A78(object + 0x100);
     if (!D_001A8C64[0]) {
-        HudElem4C *left = &object->side[0];
-        HudElem4C *right = &object->side[1];
+        left = object + 0x2C0;
+        right = object + 0x30C;
         func_00336320(left);
         func_00336320(right);
-        { float *value = func_00335E18(left); *value = -*value; }
-        { float *value = func_00335E18(right); *value = -*value; }
+        { float *value = (float *)func_00335E18(left); *value = -*value; }
+        { float *value = (float *)func_00335E18(right); *value = -*value; }
         func_00336320(left);
         func_00336320(right);
-        { float *value = func_00335E18(left); *value = -*value; }
-        { float *value = func_00335E18(right); *value = -*value; }
-        for (i = 0; i < 8; i++) {
-            vt = *(HudVEntry **)((char *)&object->a[i] + 0x30);
-            vt[1].fn((char *)&object->a[i] + vt[1].delta);
+        { float *value = (float *)func_00335E18(left); *value = -*value; }
+        { float *value = (float *)func_00335E18(right); *value = -*value; }
+        {
+        p = object + 0x358;
+        cursor = p + 0x30;
+        for (i = 7; i >= 0; i--, p += 0x4C, cursor += 0x4C) {
+            vtable = *(char **)cursor;
+            (*(void (**)(void *))(vtable + 12))(p + *(short *)(vtable + 8));
         }
-        for (j = 0; j < 8; j++) {
-            vt = *(HudVEntry **)((char *)&object->c[j] + 0x30);
-            vt[1].fn((char *)&object->c[j] + vt[1].delta);
         }
-        func_00336320(&object->b);
-        *func_00335E20(&object->b) = 0x70FFFEED;
+        {
+        p += 0x4C;
+        cursor += 0x4C;
+        for (i = 7; i >= 0; i--, p += 0x3C, cursor += 0x3C) {
+            vtable = *(char **)cursor;
+            (*(void (**)(void *))(vtable + 12))(p + *(short *)(vtable + 8));
+        }
+        }
+        func_00336320(object + 0x5B8);
+        *(unsigned int *)func_00335E20(object + 0x5B8) = 0x70FFFEED;
     }
-    func_00336320(&object->mid[0]);
-    func_00336320(&object->mid[1]);
-    func_00336A78(&object->text);
-    func_00336828(object->panel280);
-    x = func_00335E10(&object->text)[0];
-    y = func_00335E10(&object->text)[1];
+    func_00336320(object + 0x184);
+    func_00336320(object + 0x1D0);
+    textObject = p = object + 0x238;
+    final = object + 0x7E8;
+    func_00336A78(p);
+    func_00336828(object + 0x280);
+    x = ((float *)func_00335E10(p))[0];
+    y = ((float *)func_00335E10(p))[1];
     x += 32.0f;
     y += -10.0f;
-    color = *func_00335E20(&object->text);
+    color = *(unsigned int *)func_00335E20(p);
     count = 1;
     n = D_001A79F8[0];
     while (n >= 10) { n /= 10; count++; }
     alternate = D_001A7BB4[0] != 3 && D_001A7BB4[0] != 5;
+    step = 3.0f;
     func_00115DA8(text, alternate ? D_001AE6F8 : D_001AE700);
+    digits = (float)count;
     yoffset = alternate ? 21 : 10;
     xoffset = alternate ? -34 : -29;
-    step = 3.0f;
-    if (step < (float)count) {
+    if (step < digits) {
         float start = x + (float)xoffset;
+        p = textObject;
         do {
-            HudText *t = &object->text;
             float drawX = start - (float)(int)(step * 11.6f);
-            long long style;
             step += 3.0f;
-            scale = func_00335E18(t);
-            style = t->style;
-            func_0027F640(color, text, -1, drawX, func_0027C878((int)style), t->font,
-                          y + (float)yoffset, *scale);
-        } while (step < (float)count);
+            scale = (float *)func_00335E18(p);
+            func_0027F640((unsigned long long)color, text, -1, func_0027C878((long long)(int)*(long long *)(p + 0x38)),
+                         *(void **)(p + 0x34), drawX, y + (float)yoffset, *scale);
+        } while (step < digits);
     }
     if (D_001A7A32[0] >= 2) {
         func_00115DA8(countText, D_001AE708, D_001A7A32[0]);
@@ -170,5 +132,5 @@ void func_0034DB98(void *arg)
         func_0027FBD8(D_001ADAE8 + 2, D_001ADAEC + 2, shadow, countText, -1);
         func_0027FBD8(D_001ADAE8, D_001ADAEC, foreground, countText, -1);
     }
-    func_0034AD10(object->final);
+    func_0034AD10(final);
 }

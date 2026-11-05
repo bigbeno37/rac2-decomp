@@ -1,48 +1,43 @@
-/* Claude Opus 5.5, xhigh effort, 5 November 2026 (task v2500).
- * USA v1.01, current pinned game compiler, -O2 -G8 -ffunction-sections
- * (dedicated unit src/game/002CC6B0-g8.c; take the INCLUDE_ASM marker out of
- * src/game/002C7748.c first). check.py: 2076/2076 bytes, 0/28 places
- * (first difference at +0x6a0). 45 rows differ once relocations are ignored,
- * in three places: +0x6A0..+0x6EC, +0x73C..+0x780 and +0x790..+0x7DC.
+/* 5 November 2026: retained reconstruction, not linked or counted.
+ * Retain the actual func_0029DB28 and func_00289FC8 interfaces.
+ * A consistent volatile scroll-field experiment preserved the two tail stores and reached 2076 bytes, but changed earlier branch slots and still failed 0/28 USA places at +0x25C.
+ * The better nonvolatile source remains below; its missing intermediate store is unresolved.
+ * Earlier measurements below describe earlier sources or toolchains.
+ */
+#include "common.h"
+/* 4 November 2026: an alias-model control declares D_001AB984 as an
+ * incomplete SDA array and reads element zero, following the documented
+ * fixed-scalar/struct-store distinction. It keeps the intermediate store
+ * but grows 2072 to 2084 bytes against 2076, still 0/28 USA placements.
+ * The broader reload/scheduling regression is rejected; the better C
+ * below is retained. No extra volatile access or barrier was introduced.
+ */
+/* Claude Opus 5.5, xhigh effort, 2 November 2026 (task v2080).
+ * USA v1.01, current pinned game compiler, -O2 -G8 -ffunction-sections:
+ * check.py: 2072/2076 bytes, 0/28 places match (53 differing rows, all of the
+ * shortfall is the one deleted store). Builds on GPT-6.1 Sol's v1320 draft
+ * (adapted from RAC1 src/game/pause.c render_configured_text_label, GPL-3.0).
  *
- * New here:
- * - func_0029DB28 has its real prototype (it returns int, see
- *   src/game/0029DB28.c). The ignored call_value moves helpResult's reload to
- *   $v1, as in retail (+0x474).
- * - D_001AB984 is declared `extern const` and read as `*(int *)&D_001AB984`.
- *   The cast drops the scalar flag from the MEM, so sched1 keeps the tail's
- *   gap load below `so += k`, and flow2 keeps that intermediate store: the
- *   size is now right. sched2 keeps it there as well, though, while retail
- *   hoists the load to the top of the block (+0x790). So retail's load must
- *   have been pinned below the store at sched1 and free at sched2. The two
- *   schedulers use the same alias rules here, and a block boundary between
- *   them cannot be it: flow2's tidy_fallthru_edge keeps the label, and jump2
- *   runs only after sched2. A fixed-scalar load (plain extern int) is hoisted
- *   by sched1 and flow2 then deletes the store (2072 bytes).
+ * Fixed here: the item-table lookup at +0x164 (index the two tables directly
+ * from the cell, with no table variable, so no global pseudo takes $a1). The
+ * scroll tail now follows RAC1: the span is computed inside the %= (after the
+ * add) and the field is written as a struct member (LabelSO). Through reload
+ * this keeps the intermediate store between the div and the trap, which is
+ * retail's order, and every register in the tail matches retail.
  *
- * Still different:
- * (1) +0x6A0: in retail win.s[0] is reloaded into $v0 right next to its
- *     self-store and the y chain is in $a0. Local-alloc only gives that
- *     order if the s[0] load sits next to its store at allocation time,
- *     but sched1 ties it (prio 4) with the flags load and LUID order puts
- *     it first. The helper's argument order, direct statements (cse drops
- *     `win.s[0] = win.s[0]`) and a temporary all give the same bytes.
- * (2) +0x73C: retail has gap in $a0 and s[5] in $t2, so the $a1..$t1
- *     argument moves are set during s[5]'s life and only $a0's comes late.
- *     In ours sched1 puts `$a0 = &win` at t=1 (a free ALU slot). A probe
- *     test between the stores and the call (identical arms, not landable)
- *     frees the argument registers but gives gap $a1.
- * (3) +0x790: the gap load is below the intermediate store (see above).
- * Tried without success: one shared gap local (it gets a stack slot, and the
- * whole frame moves); a flow1-dead arm (jump1 removes it); an identical-arm
- * test around the `%=` (it keeps the store, but sched2 cannot hoist across
- * the arms; probe only).
- * No volatile, register pins or barriers.
- *
- * Earlier attempts (opus-1, sol-high, sol-low): RAC1 render_configured_text_label
- * counterpart (src/game/pause.c, GPL-3.0) adapted to RAC2; the item table at
- * +0x164 is indexed directly; the scroll tail follows RAC1 with a
- * struct-member field.
+ * Remaining: (1) flow2 still deletes the intermediate `sw v0,0x3C(s1)`.
+ * sched1 hoists the fixed-scalar D_001AB984 load above the struct store
+ * (true_dependence allows that), so at flow2 nothing reads memory between
+ * the two stores (the b1013 pattern). Retail must have kept that load below
+ * the store until after flow2 and hoisted it only in sched2. The span-first
+ * or cast `*(int *)(w + 0x3C)` forms lose the store in flow1, or keep it with
+ * the load scheduled after it. (2) The marquee window sets at +0x6A0..+0x6EC
+ * put the scroll chain in v0 and s[0] in a0, where retail is the reverse.
+ * Argument order, store order and a temporary did not change this. (3) At
+ * +0x73C..+0x780, s[0] is loaded early into t1, where retail loads it late
+ * into v0.
+ * No volatile, register pins or barriers. Needs a dedicated -g8.c unit
+ * (sda declarations); replace the marker before running check.py.
  */
 #include "common.h"
 typedef struct { short s[12]; } Win;
@@ -54,7 +49,7 @@ extern int D_001C51D0 NOT_SDA;
 extern int D_001A7B90[] MACRO_ADDR;
 extern int D_001A79F0 __attribute__((sda));
 extern int D_001AA440 __attribute__((sda));
-extern const int D_001AB984 __attribute__((sda));
+extern int D_001AB984 __attribute__((sda));
 extern int D_001AB9A8 __attribute__((sda));
 extern int D_001AB974 __attribute__((sda));
 extern int D_001AB9AC __attribute__((sda));
@@ -62,8 +57,8 @@ extern int D_00138320[];
 extern char *D_001F2854 NOT_SDA;
 extern char D_0025A498[];
 extern void func_002FC560(int, long);
-extern int func_0029DB28(int *, int *, int *, int);
-extern void func_00289FC8(int, int, void *);
+extern int func_0029DB28(int *, unsigned int *, int *, int);
+extern int func_00289FC8(short, int, unsigned short *);
 typedef struct { unsigned char pad[4]; unsigned char available; unsigned char tail[0xDB]; } ItemConfig;
 extern ItemConfig D_00239BA0[];
 extern int func_00115DA8(char *, const char *, ...);
@@ -78,7 +73,7 @@ extern void func_0027ECC8(int, int, int, int, int);
 #define TEXT(id) func_00288FB8(id)
 #define DRAW(c,t) func_0027FC70(&win,c,t,-1,tex,glyphs)
 static inline int translated_edge(int extent, int origin) { return extent + origin; }
-static inline void set_window_vertical(Win *p, unsigned short anchor, unsigned short top) { p->s[5] = anchor; p->s[0] = top; }
+static inline void set_window_vertical(Win *p, unsigned short top, unsigned short anchor) { p->s[5] = anchor; p->s[0] = top; }
 int func_002CC6B0(unsigned char *w) {
     char buf[0x40];
     int id;
@@ -146,7 +141,7 @@ int func_002CC6B0(unsigned char *w) {
         content = *(int *)(st + 0x40);
         id = *(short *)(*(char **)(st + 0x34) + content * 12);
         *(int *)(w + 0x34) = 0xFFFF;
-        func_00289FC8(id, 0, w + 0x34);
+        func_00289FC8(id, 0, (unsigned short *)(w + 0x34));
     } else {
         char *cell;
         int k;
@@ -222,7 +217,7 @@ int func_002CC6B0(unsigned char *w) {
     a23 = *(int *)(w + 0x18) + *(int *)(w + 0x20) / 2;
     a21 = *(int *)(w + 0x1C) + *(int *)(w + 0x24) / 2;
     if ((f & 0x4004) == 0x4004 && *(int *)(w + 0x34) == 0x112D) {
-        func_0029DB28((int *)0x70000000, &helpResult, 0, 0);
+        func_0029DB28((int *)0x70000000, (unsigned int *)&helpResult, 0, 0);
         if (helpResult < 0) text = TEXT(0x112C);
         a21 += 8;
     }
@@ -278,7 +273,7 @@ int func_002CC6B0(unsigned char *w) {
 
     {
         int y = a21 - (*(int *)(w + 0x3C) >> 4);
-        set_window_vertical(&win, y, win.s[0]);
+        set_window_vertical(&win, win.s[0], y);
     }
     if (*(int *)(w + 0x30) & 0x20000) {
         func_0027F120();
@@ -288,7 +283,7 @@ int func_002CC6B0(unsigned char *w) {
         func_0027F110();
     }
     if (*(int *)(w + 0x30) & 0x400) {
-        set_window_vertical(&win, win.s[5] + (win.s[7] + *(int *)&D_001AB984 * 3), win.s[0]);
+        set_window_vertical(&win, win.s[0], win.s[5] + (win.s[7] + *(int *)&D_001AB984 * 3));
         DRAW(colour, text);
         if (*(int *)(w + 0x30) & 0x400) {
             ((LabelSO *)w)->so += (D_00138320[0] & 0xF) == 0xF ? 10 : 3;

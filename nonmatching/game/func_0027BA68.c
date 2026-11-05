@@ -1,42 +1,54 @@
-/* func_0027BA68 - 772 bytes, 28 places. Claude Opus 5.5 (xhigh), task v2614, USA v1.01.
- * Best check: 772/772 bytes, 0/28 places, check.py first mismatch +0x78, 4 rows really differ
- * (cdiff prints 47 of 193, the rest being masked relocations). Own unit needed, for example
- * src/game/0027BA68-qcopy.c with -O2 -G16 -Wa,-G16 -ffunction-sections -frac2-qcopy
- * -frac2-qcopy-barrier. Declarations are below. func_0027BA48 and func_0027B9C0 stay extern there.
- * func_002A0380 keeps its defined int return even though this caller ignores it.
- *
- * What differs: only the words before the first func_00282B50.
- *     here:   lhu, a0, a1, a2, andi, jal [sh]
- *     retail: lhu, a0, andi, a1, sh, jal [a2]
- * Every register is right. The one-pass group around view_position is what gives view_matrix its
- * eighth ref and keeps the addiu after the call (without it, 12 rows differ; see git history of
- * this file for the older `first` wording and the priority working).
- *
- * Why it stops here. sched2 trace, -fsched-verbose-5: after the call lhu and a0 issue at t; a1 and
- * a2 are both ready at t+1, so they take that cycle; andi waits for the load until t+2. Retail
- * needs a1 and a2 to miss t+1: {lhu,a0} {} {andi,a1} {sh,a2} {jal}. a2 is a constant into a hard
- * reg, so only anti/output links can reach it, and those cost 1 (ADJUST_COST). alu has two units
- * and no blockage. With -fno-schedule-insns the same a1/a2 rows differ, so sched1's order is not
- * the cause. Reasoned from the source and the trace, not proved: something in the block is missing.
- * Measured, none closer (on the C below):
- * - inline wrapper around the copy, or around the flag restore: same 4 rows.
- * - int return on func_002A0300 (lhu moves to v1, 5 rows; a false prototype anyway), void * return
- *   on func_00282B50, -g, -fno-sched-interblock, -fno-gcse: same rows or worse.
- * - dst local + `if (f) dead = 1;`, or a dead float store in the arm: same 4 rows, no branch left
- *   (the dumps were not read to see which pass removed it).
- * - The restore and call written in both arms of a test on two live registers: the arms stay, 812
- *   bytes, as expected if a call arm cannot cross-jump with a fall-through arm.
- * - A forced label between lhu and andi: 140 rows, saved registers scrambled, with or without a
- *   dst local. This argues that retail's body is one block through register allocation, so a
- *   vanished test here looks unlikely. One wording only, and forced labels are forbidden anyway.
- * Not tried, by reasoning only: loop notes. A note makes the next insn a full barrier, and a0 follows
- * the restore in RTL order, so a0 could not rise above andi and sh. This agrees with the older
- * do-while measurements on the restore and the call (4 to 18 rows).
- * Retail evidence: a scan of the boot image (levels not scanned) for load, a-reg, op, a-reg, store,
- * jal finds this site only, also counting the two-argument form. func_00282B50 decodes to a
- * handwritten lq/addi/sq loop, so this is a plain call, not a block-move libcall.
- * Next idea, untested: two no-code insns ranked above a1/a2 at t+1, or one they depend on. No C
- * source for such an insn found; a same-register extendsidi2 follows the move, so it comes too late.
+/* 5 November 2026: retained reconstruction, not linked or counted.
+ * Retain the four 64-bit fields of func_002A0468 and a complete camera owner at D_001B5200: position +0x140, matrix +0x370.
+ * Do not subtract before a separately declared D_001B5570 array.
+ * USA remains 0/28 at +0x78.
+ * Retail also explicitly supplies the unused f12=1.0 to func_0027B9C0; preserve that observed input.
+ * Earlier measurements below describe earlier sources or toolchains.
+ */
+/* 4 November 2026 actual-contract review; retained near miss, not linked.
+ * USA v1.01 check.py: 772/772 bytes, 0/28 placements; first difference 0x78.
+ * Profile: -O2 -G16 -Wa,-G16 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier.
+ * func_002A0380 keeps its defined int return even though this caller ignores it. The view-
+ * pointer register roles and flag/argument scheduling residual remain unchanged.
+ * Earlier measurements below are historical where superseded by this note.
+ */
+/* func_0027BA68 - 772 bytes, 28 places. Claude Opus 5.5 (xhigh), task v1962, USA v1.01.
+ * Best check: 772/772 bytes, 0/28 places, check.py first mismatch +0x78, 12 rows really differ
+ * (cdiff prints 53 of 193, the rest being masked relocations), in a unit of its own built with
+ * -O2 -G16 -Wa,-G16 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier. Needs the declarations
+ * below; cflags line: src/game/0027BA68-qcopy.c with those flags.
+ * What differs in the C below:
+ * 1. view_matrix $s4 / view_position $s1, retail $s1 / $s4 (8 of the 12 rows).
+ * 2. lhu, a0, a1, a2, andi, jal [sh]; retail lhu, a0, andi, a1, sh, jal [a2] (4 rows).
+ * Probe, not landable (do-while wrappers are forbidden): replace the `first` block with
+ *     do { view_position = view_matrix - 0x230; } while (0);
+ *     qcopy(&saved_position, view_position);
+ * That fixes every register and leaves only the 4 rows of item 2. Why (priorities worked out by
+ * hand from the sched dump's insn numbers; their order agrees with every allocation seen):
+ * - Local-alloc order. Retail needs view_matrix > moby > D_001B9040 > view_position. The lui and
+ *   addiu tie, so view_matrix's qty has 7 refs: 14/150, below moby's 14/146. It needs 8 refs
+ *   (24/150). REG_N_REFS counts by loop depth, so one read inside loop notes supplies the eighth
+ *   (the dump shows view_matrix used 6 times instead of 5).
+ *   view_position must then stay under D_001B9040 (10/106): 5 refs do, 6 refs in 124 (the `first`
+ *   tie, 12/124) do not.
+ * - Position after the first func_00282B50. sched1 fills the free slot beside the func_002A01F0
+ *   call with the addiu. A set of a pseudo crossing no call gets an anti-dependence on the last
+ *   call (haifa sched_analyze_1), and LOG_LINKS are not cleared between passes, so it also holds
+ *   in sched2. `first` below does that; so does a loop note.
+ * Tried for the eighth view_matrix ref without a loop: a copy just before the third
+ * func_00282B50, kept alive by a dead store after the loop or after the if/else. With the store
+ * after the loop it is still in the gcse dump but gone by sched (cse2 is the likely cause, not
+ * confirmed), and either way view_matrix stays at 5 refs. A copy right after the first
+ * func_00282B50 does survive, but sched1 lifts it above the a1 read, which adds a daddu (129 rows).
+ * Item 2: with lhu at t, a1 and a2 are issued at t+1 here; retail's order implies they are not
+ * ready until t+2. They read only s1 and a constant. Ties, same 4 rows, on the probe: flag restore
+ * through a short local, an int local, a pointer local, a one-bit bitfield; a long byte count;
+ * dst/src/n in locals before the restore. A loop note should not be able to do it: it would have
+ * to fall after the lhu and before a1, a2 and sh, but the a-register moves follow the store in RTL
+ * order. Measured on the probe, none matches: do-while around the restore (15 rows), the call (4
+ * rows, another order), both (15), the first restore and call (18), the first call (8), and a
+ * restore split around one (15). Next idea, untested: whatever gives a1 and a2 a one-cycle-later
+ * dependence; a no-code insn such as a same-register extendsidi2 would fit the timing.
  */
 #include "common.h"
 
@@ -56,7 +68,13 @@ typedef struct { char pad[0x34]; unsigned short flags; } CaptureMoby;
 typedef struct { QuadPoint position; float angles[4]; QuadPoint vertices[4]; float width, height; CaptureMoby *moby; } CaptureObject;
 typedef struct { char pad[0x50]; CaptureObject *capture; } CaptureState;
 extern CaptureState D_001B8840;
-extern char D_001B5570[];
+typedef struct {
+    char reserved0[0x140];
+    QuadPoint position;
+    char reserved150[0x370 - 0x150];
+    QuadPoint matrix[4];
+} CaptureCamera;
+extern CaptureCamera D_001B5200;
 typedef struct { char pad[0xB0]; float scale; } CaptureView;
 extern CaptureView D_001B9040;
 extern char D_001C2AC0[];
@@ -76,7 +94,8 @@ extern void func_001292C0(void *, void *, float);
 extern void func_00129368(void *, void *, float);
 extern void func_00129218(void *, void *, float);
 extern void func_00279D18(void);
-extern void func_002A0468(void *, int, int, int, int);
+extern void func_002A0468(unsigned long long *, unsigned long long,
+                        unsigned long long, unsigned long long, unsigned long long);
 extern void func_0027AB40(void), func_002FC748(void), func_002A0220(void), func_002A03C0(void);
 extern int func_002A0380(void);
 extern void func_00280B90(void *, int, int);
@@ -96,15 +115,18 @@ void func_0027BA68(void)
         int i;
         func_002A0250();
         func_002A01C8();
-        view_matrix = D_001B5570;
+        view_matrix = (char *)&D_001B5200 + 0x370;
         func_002A01F0();
         scene = (void *)D_001B1B58[1];
         moby->flags |= 1;
         func_002A0300(scene, -1);
         moby->flags &= ~1;
         func_00282B50(saved_matrix, view_matrix, 0x40);
-        do { view_position = view_matrix - 0x230; } while (0);
-        qcopy(&saved_position, view_position);
+        {
+            char *first = (char *)&D_001B5200 + 0x140;
+            qcopy(&saved_position, first);
+            view_position = first;
+        }
         saved_scale = D_001B9040.scale;
         func_0027B9C0(8, 8, 1.0f);
         func_00129178(matrix);
@@ -114,7 +136,7 @@ void func_0027BA68(void)
         func_00282B50(view_matrix, matrix, 0x40);
         qcopy(view_position, position);
         func_00279D18();
-        func_002A0468(moby, 0x404040, 0xE, 0, 0);
+        func_002A0468((unsigned long long *)moby, 0x404040, 0xE, 0, 0);
         qcopy(D_001C2AC0, &D_001A8820);
         qcopy(D_001C2AC0 + 0x20, &D_001A8830);
         qcopy(D_001C2AC0 + 0x10, &D_001A8840);

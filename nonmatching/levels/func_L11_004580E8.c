@@ -1,65 +1,39 @@
-/* Tier: opus-2 (Claude Opus 5.5, xhigh), task v2620. USA v1.01 (v2.00 identical; not in PAL).
- * Best check: 2476/2476 bytes, 0 of 1 places match. cdiff: 92 of 619 rows differ, 6 of them
- * real; the rest are relocation-only (unlinked symbol and $gp offsets).
- * Build it as its own unit with -O2 -G8 -ffunction-sections -g -fmove-all-movables
- * (e.g. src/levels/11_joba/L11_00453358-state-g8.c plus that cflags.txt line): -G8 for
- * the SDATA tunings, -g for the nop pairs before both div.s (a line note = $LM label
- * before the div.s; plain statements give the same nops as the old ({...}) forms).
- *
- * Fixed in v2620: case 5 now matches exactly (it was 7 of the 13 real rows). The store to
- * 0x160 was issued too early because its link to the call was a true dependence (cost 2,
- * priority 4, created by the call's (mem (symbol_ref)) read in sched_analyze_2). An insn
- * that references a pseudo with REG_N_CALLS_CROSSED == 0 joins sched_before_next_call, so
- * it gets an anti link to the call first, and "if a dependency already exists, don't
- * create a new one" keeps that link at cost 0: priority 2, last before the jal, reorg puts
- * it in the slot. So the stored value must not cross func_002A77E0(2), which is why
- * "angle" and "spin" are separate locals: angle is local to its block and crosses the
- * call, so local-alloc gives it $f20; spin=angle after the call gets a copy preference for
- * $f20 and the copy disappears. spin=angle must come after the call, and spin=-spin keeps
- * angle dead at the copy. A ternary leaves angle global and spin lands in $f2.
- * The old "constant argument pairs through combine" lead is not needed.
- *
- * Remaining (6 real rows, case 0 only): gravity (0.0027778) and 0.1 swap $f1/$f0. Every
- * other register and the whole order are right.
- *  - sched1 order here: 0.0174 / speed, max, damping, turn / store 0x160, sb 0x30 / limit,
- *    lw 0x58, 0.1, gravity. sched2 then moves whichever constants got $f1 and $f0 up behind
- *    the mul and the 0x160 store, because the anti link to the next set of that register
- *    gives them one more dependent (rank_for_schedule's depend_count, ahead of luid). So
- *    final positions do not show the sched1 order, and the swap is only local-alloc.
- *  - Local-alloc (qty_compare, fake_birth/fake_death) simulated offline reproduces this
- *    draft and the other orders compiled. With all seven constants at 2 refs, NO order of them
- *    gives retail's registers, nor do integer-insn placements up to two moves away (speed first): gravity
- *    dies first, so after the 0x160 store it is always shortest and takes $f0, and before
- *    that store limit and turn outrank it. The model does give retail with 0.1 at 4 refs
- *    (six orders, all starting speed, max, damping, turn, this one included), or with 0.1
- *    and gravity at 3 refs each and gravity born fourth (speed, max, damping, gravity,
- *    turn, limit, 0.1). These ref counts are model results, not compiled.
- *  - So look for something that gives the 0.1 constant extra refs at local-alloc
- *    (recompute_reg_usage counts real references, doubled inside loop notes), or a tied
- *    pair (qty_n_refs sums). Tried without result: a local reused for the mul result and
- *    0.1, or for 0.1/gravity and the later 0x2C/global reads (two deaths = global-alloc);
- *    one-field local structs (constructor clobber); sibling statement order with direct
- *    constants (L11_00453358-g8.c, func_L02_0040CAF0: 0x60,0x68,0x64,0x6C,0x70,0x90,
- *    0x8C,|=,0x28: same swap and the stores come out wrong); -ffast-math and the -frac2
- *    block/gcse flags. Reasoned but not compiled: a do{}while(0) group should not carry
- *    the double count here, as its loop notes are a sched barrier and retail issues
- *    a0-a2 above the constants.
- *
+/* 5 November 2026: retained reconstruction, not linked or counted.
+ * Retain the pointer return of func_0032C700 and the typed scheduler callback.
+ * The shared scratch covers 48 bytes, including all three vectors.
+ * USA remains 0/1 at +0xC8; constant order and loop allocation are unresolved.
+ * Earlier measurements below describe earlier sources or toolchains.
+ */
+/* Tier: opus-1 (Claude Opus 5.5, xhigh). USA v1.01 (v2.00 identical; not in PAL).
+ * Best check: 2476/2476 bytes, 0 of 1 places match. cdiff: 107 of 619 rows differ,
+ * all but 22 of them relocation-only (unlinked symbol and $gp offsets).
+ * Build it as its own unit with -O2 -G8 -ffunction-sections -g (e.g.
+ * src/levels/11_joba/L11_00453358-state-g8.c plus that cflags.txt line): -G8 for the
+ * SDATA tunings, -g plus the statement-expression line breaks for the nop pairs
+ * before both div.s.
+ * Remaining (22 rows, three places):
+ *  - case 0: gravity (0.0027778) and 0.1 swap $f1/$f0 (local-alloc order after sched1).
+ *    Gravity store first with gravity's constant loaded last gives retail's other five
+ *    registers. Inline constants in the order .3,.75,.5,1.134,.5236,.1,gravity give all
+ *    seven registers, but then the 0x4C store comes last.
+ *  - loop preheader: li.s 1.0 ($f20) is scheduled before 45000 ($f22). Retail's order
+ *    needs 45000 hoisted in loop pass 1 ahead of 1.0; here it is hoisted in pass 2.
+ *  - case 5: swc1 $f20,0x160($s3) issues after the 0.016667 constant instead of in the
+ *    jal delay slot (sched1 prefers the store, which frees a register). Locals, const
+ *    data and argument order did not move it.
  * Load-bearing choices (each measured): the life/mode/alpha locals in the inner loop
  * block (loop pass 1 hoists them; 120 then spills and is rematerialised in the loop,
  * so 2/127 win $fp/$s7); the axis local before the loop (whole-address reload into
  * $a2); one qcopy per branch (cross-jumped into the shared lq/sq); one Collision
  * pointer per block (separate %lo, shared %hi); the bounce scale read before the
- * counter increment; the "lifetime" statement on its own (lifetime+5000 passed to the
- * call) with -fmove-all-movables, which loads 45000 before 1.0; and the real return
- * types of func_00282978, func_00277F48, func_002AA548 and func_002B4FF0, which change
- * $v0 lifetimes and reload's round-robin choices later in the function.
+ * counter increment; and the real return types of func_00282978, func_00277F48,
+ * func_002AA548 and func_002B4FF0, which change $v0 lifetimes and reload's
+ * round-robin choices later in the function.
  * func_002BDCE8 is defined as (TI128 *, int, TI128 *, int, int, float, float, float,
  * float). It is declared here with the same registers in a different interleaving,
  * (void *, int, float, float, float, void *, unsigned, int, float), which gives
  * retail's argument-load order. Disclose that, or find the source shape that does it.
- * Earlier attempts: sol-low (control flow), sol-high (rotation/state 6, division nops),
- * opus-1 (22 real rows), opus-2 (13 real rows).
+ * Earlier attempts: sol-low (control flow), sol-high (rotation/state 6, division nops).
  */
 #include "common.h"
 typedef int Quad __attribute__((mode(TI)));
@@ -70,13 +44,14 @@ extern void *func_002A9640(void *,unsigned int,int);
 extern int func_002B4FF0(void *,void *,float);
 extern float func_002AA548(void *,void *,float,float,float,float);
 extern int func_00282978(void *);
-extern void func_002A7750(void *,int,int),func_00282CC0(void *,void *,void *),func_00282F20(void *,void *,float),func_00282D30(void *,void *,float),func_00283028(void *,void *,void *),func_L00_0031D670(void *,void *,void *,float),func_002E59F8(int),func_002A8BD0(void *,void *,int,float),func_L00_002E6EF8(void *,void *);
+extern void func_002A7750(void *,int,int),func_00282CC0(void *,void *,void *),func_00282F20(void *,void *,float),func_00282D30(void *,void *,float),func_00283028(void *,void *,void *),func_L00_0031D670(void *,void *,void *,float),func_002E59F8(int),func_002A8BD0(void *,void *,int,float);
+extern void func_L00_002E6EF8(void (*)(void *),void *);
 extern int func_00277F48(float,void *,int,void *,void *);
 typedef struct { int unused; int mode; short unused8; u8 alpha, duration; } ParticleAttributes;
 typedef struct { char unused[10]; s16 lifetime; char unused12[20]; ParticleAttributes attributes; } Particle;
 extern Particle *func_002BDCE8(void *,int,float,float,float,void *,unsigned,int,float);
 extern char *func_L11_004417E8(void *);
-extern void func_0032C700(void *,int,int,int,int,int,int,int,float,float,int,int,int,int);
+extern char *func_0032C700(void *,int,int,int,int,int,int,int,float,float,int,int,int,int);
 extern void func_002B60B0(void *,float,float,float,float);
 extern void func_L11_00458C38(void *);
 typedef struct { char pad0[0x18]; char *hit; int count; float point[4]; float pad30[4]; float normal[4]; } Collision;
@@ -135,8 +110,9 @@ void func_L11_004580E8(char *p) {
     f=func_00283CE0(D_L11_001B1F84);
     {
     int life=120,mode=2,alpha=127;
-    float lifetime=(float)*(s16 *)(q+0x16C)/f*45000;
-    Particle *particle=func_002BDCE8(scratch.v.b,n,0.025f,1,1,axis,0x80808080,0,lifetime+5000);
+    Particle *particle=func_002BDCE8(scratch.v.b,n,0.025f,1,1,axis,0x80808080,0,
+      ({float lifetime=(float)*(s16 *)(q+0x16C)/f;
+        lifetime*45000+5000;}));
     if(particle) {ParticleAttributes *attributes;particle->lifetime=life;attributes=&particle->attributes;attributes->mode=mode;attributes->alpha=alpha;attributes->duration=(u8)particle->lifetime;}
     }
    }
@@ -171,10 +147,9 @@ void func_L11_004580E8(char *p) {
  case 5: {
   float f,t;
   if(func_002B3868(p)) {
-   float angle,spin;int sign;
-   p[0xBC]=0;angle=func_002A7878(15,40)*0.017453294f;sign=func_002A77E0(2);spin=angle;if(sign)spin=-spin;
+   p[0xBC]=0;f=func_002A7878(15,40)*0.017453294f;if(func_002A77E0(2))f=-f;
    t=D_L11_001B1F98;
-   *(float *)(q+0x160)=spin;func_002B60B0(p,(t+t)*0.00027777778450399637f,t*0.01666666753590107f,0.0011635529808700085f,0.10471977293491364f);
+   *(float *)(q+0x160)=f;func_002B60B0(p,(t+t)*0.00027777778450399637f,t*0.01666666753590107f,0.0011635529808700085f,0.10471977293491364f);
   } else if(!*(u8 *)(p+0xBC)) {
    other=func_L11_004417E8(*(void **)(p+0xB8));
    if(*(float *)(p+0x18)<*(float *)(other+8)+D_L11_001B1F94) {
@@ -211,8 +186,9 @@ void func_L11_004580E8(char *p) {
   f=func_00282E20(q+0xC0);min=0.0033333336468786f;max=0.10000000894069672f;
   if(f<min)f=min;if(f>max)f=max;
   f=f-min;
-  {float fraction=f/0.09666667878627777f;
-  *(float *)(p+0xF4)=func_00283B98((fraction*7+1)*0.017453294f,*(float *)(p+0xF4));}
+  *(float *)(p+0xF4)=func_00283B98(
+    ({float fraction=f/0.09666667878627777f;
+      (fraction*7+1)*0.017453294f;}),*(float *)(p+0xF4));
  }
  if(*(u8 *)(p+0x20)>=2)func_L00_002E6EF8(func_L11_00458C38,p);
  if(*(void **)(p+0xB8)) {other=func_L11_004417E8(*(void **)(p+0xB8));if(*(float *)(p+0x18)<*(float *)(other+8)-1){*(int *)(p+0x98)=0;*(u16 *)(p+0x34)=(*(u16 *)(p+0x34)|0x41)&0xEFFF;func_002A7750(p,1,-1);}}

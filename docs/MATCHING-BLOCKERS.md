@@ -34,6 +34,97 @@ agreed result here. A persistent personal issue comment is no longer required fo
 
 ## Recent verified updates
 
+### Reload self-conflicts and padding counters
+
+**5 November 2026, strict linked matches; pending PR review.**
+The non-spill exclusion in `reload_reg_free_for_value_p` now uses the initial
+instruction mask, before `RELOAD_OTHER` marks accumulate. The lifetime loop
+still rejects other interfering reloads and permits its own reload. Authored
+controls reject both the old self-conflicting guard and a removed exclusion.
+This removes the partial color/flag spills in `func_002E7338`,
+`func_00337210`, `func_00316E08`, `func_L00_00418230` and
+`func_L03_002ECF08`; ordinary mode-store ordering and independent switch-case
+placement supply the remaining source differences. No register or opcode is
+patched. See [the mechanism and controls](COMPILER-NOTES.md#inheritance-into-a-register-the-insns-pseudos-hold).
+
+Two existing counters had separate accounting errors. The post-delay-slot loop
+pass must include nops inserted before an already-visited branch: otherwise
+another back edge adds them again (`func_00294420`, 28 places per release).
+The assembler's division-label distance must count the selected GP expansion
+once, excluding its stored absolute alternative (`func_L05_00419CC8`, four
+places, and `func_L00_00424F98`, 27 places, in both USA releases). Known symbol
+metadata permits the latter correction; unknown symbols and general alignment
+remain bounded by the prior fallback. Neither USA identity is carried in PAL.
+All three corrections have authored positive and negative controls; the linked
+build remains the acceptance gate. The complete qualification passes all 84
+programs across USA v1.01, USA v2.00 and PAL with zero C fallbacks, including
+the separately witnessed abort/assertion entries described below.
+The existing museum brightness routine retains its 1,424-byte match after
+keeping its calculation, clamp and store on one debug source line; it earns
+no additional credit. Progress reports were not regenerated.
+
+The renderers use complete quad, matrix and UV owners. `GridEquipped.item[4]`
+includes the observed menu selector 3; a two-element declaration was too small
+even though its object matched. Both trail renderers preserve a retail defect:
+the second packet's color word at offset `0x44` is never initialized before
+the assembly renderer transfers it. The C caller never evaluates that word as
+a scalar. This is not evidence of a fully initialized packet or native gameplay
+validation; adding a new store would change retail.
+
+`func_L11_004465F8` is explicitly held. Although its `qcopy_nc` spelling becomes
+locally exact, subsequent C reads and modifies those copied vertices, violating
+the helper's dependency contract. The retained normal-`qcopy` source is
+1668/1660 bytes, 0/1 USA placement. Typed TI copies with the existing copy
+pattern, with and without its barrier, both give 1636/1660. None earns C credit.
+The vehicle-input callback uses an unsigned level-bit shift on its current
+gameplay-level contract (observed overlay IDs 0..26 excluding 21, plus 30).
+Adding an explicit mask costs a word; no out-of-range vehicle caller has been
+observed. A discovered caller outside that domain must reopen the assumption.
+
+The remaining unannounced-symbolic-macro counter case is also resolved:
+`func_002EEBC8` (320 USA bytes) and `func_002F0FA0` (108) pass every carrying
+placement and the complete 84-program strict build. Only ordinary unannounced
+external SI loads/addresses count as two words; prior metadata, SDATA aliases,
+PIC, buffering and delay-slot sequences remain excluded. Seven authored
+controls cover the boundary; the old compiler fails the three positive cases.
+See [the counter model](COMPILER-NOTES.md#short-loop-padding).
+
+The retained counter-display draft `func_0034DB98` is no longer registered as
+functional native C. Its wide font read and sign-preserving style inputs are
+not faithfully represented by the retained body; declaration repairs alone
+do not settle those differences. The C and measured failed alternatives stay
+in `nonmatching/` and private working evidence, with no matching credit.
+
+`func_00342BE8` remains a 900-byte near miss: only the `clip.x1` and `clip.y1`
+store order differs. Complete screen-size views, explicit width capture,
+builtin/byte-view copies, complete-owner stores and equivalent initialization
+state transitions all tie. Reopen with independent scheduling or source-boundary
+evidence, not another store permutation or invented volatile stack access.
+
+### Floating formatter lifetimes and inherited limits
+
+`func_001185E8` is 1,496 bytes in each release and passes all three strict boot
+builds. A separate integer-digit budget and decimal exponent shorten the real
+value lifetimes. Grouping the actual bit-pattern dispatch, and the character
+encoding/store, preserves the remaining schedule without fake inputs or asm.
+Its unit uses `-O2 -G2 -ffunction-sections -mastra-quad-saves`.
+
+Keep the measured behavior distinct from a safe formatting API: retail examines
+the low word for its special-value dispatch, and the caller supplies an
+unbounded precision. The formatter applies no new cap. For example, formatting
+zero with precision 128 reaches `p[130]`, beyond the next known tty-buffer base
+at `D_0013C100`. No larger scratch extent or missing guard was invented.
+
+A separate pre-existing source issue remains in the `INSERT_WORDS` macros of
+`func_00117650` and `func_00117848`: the scalar `iw` is evaluated before it is
+initialized. Overwriting both halves later does not make that C evaluation
+defined. Initializing it to zero gives 460/500 and 1048/1108 bytes; initializing
+from the destination gives 504/500 and 1112/1108. Proper bit-field owners, with
+and without real half-write groups, give 472/500 and 1052/1108. None replaces
+the existing source in this change. Reopen with a defined word-construction
+model or independently supported compiler behavior; the current retail-byte
+proof is not an ISO-C or native-safety certification of those callees.
+
 ### Trigger and title/setup lifetimes
 
 **4 November 2026, strict linked matches; [PR #420](https://github.com/OpenRAC/rac2-decomp/pull/420) pending review.**
@@ -549,6 +640,61 @@ with 161 to 183, 191, 193, 201 and up all exact, so it needed 2 more buckets (4 
 loops give them: `for (i = 0; i < 16; i++) a[i] = 0;` has an address computation per element at gcse, and loop.c turns it
 into the same pointer countdown as `*dst++` over a reversed counter. Check loop spellings first when a near miss is
 all stack offsets; they change nothing after loop.c.
+
+**Joba state machines, 5 November 2026 (USA v1.01, `-O2 -G8`, retained in `nonmatching/levels/`):**
+`func_L11_00453358` is now 4524/4524 bytes with every instruction equal; a scratch cc1 whose bucket
+count is forced from an environment variable (not committed) makes it `1 of 1` at S 539-543 and
+561-565, so only the gcse insn count is left (its source gives 551). Whole-file `-fno-force-mem`
+also lands it in the window (it removes the HI copy that `emit_cmp_insn`/`compare_from_rtx` force
+before each `short` compare), but changes four other places, among them a `u8` compare whose
+`andi 0xFF` retail keeps, so that flag is not retail's profile. Skipping `force_not_mem` only
+in `extendhisi2`, or only for HImode compares, moves `max_cuid` by just 2 and 4. Every spelling of
+an `if (*(s16 *)p)` test (`!= 0`, an `(s32)` cast, a struct field, an `s32` local) expands to the
+same three insns. Dead initialisers count one insn each and change no instruction. The case-9
+cross-jump in that function is closed only by the matched twin `func_L02_0040BE08`'s
+`height = 0.0f;`, which needs a ruling. (Under blocker 26 it is an artificial use, so `func_L11_00453358` is kept in `nonmatching/` exact but unlanded.) `func_L11_00451178`'s natural wording needs S 575-585 and
+then still differs in two orders, so it is not a count alone.
+Second pass: for 453358, loop spellings, `rot` placement and the byte-offset `qcopy` are
+count-neutral, and even all ten dead initialisers reach only S 555. A `pos` local lands in the
+window but takes a saved register, so the roughly 20-insn difference is still unidentified.
+**Later on 5 November 2026:** `func_L11_00453358` became exact (level 11 `OK`) but is kept in
+`nonmatching/` because of the case-9 dead store (blocker 26). The count came from two inlined helpers, not from
+spellings: `anim(self, a, b)` (`if (self[0x43] != a) func_002A7470(self, a, 0, b);`, eight
+sites) and `turn(self, rate, speed)` (`func_002B60B0` with the shared last two constants, four
+sites). Both are code-neutral and bring S from 551 to 543. So a void helper that wraps a
+repeated idiom is a count lever: F4's "inline helpers returning a value do nothing" does not
+extend to these. On the forced-bucket check, an `emit()` helper around the `func_002A8C28`
+calls is code-neutral too (S 541). For `func_L11_00451178` the same helpers bring the natural
+wording into its window (`turn` alone gives S 581), but its case-7 hoist order still differs.
+**Resolved later the same day:** `func_L11_00451178` matches too (`L11_00451178-gu-g8.c`). Three
+steps, each read from a dump:
+- **Slot order.** Retail's 0xCC slot for `tmpl` sits between gcse registers (0xC4/0xC8 for
+  `&work[1]`/`&work[4]`, 0xD0+ for case 12's addresses), which a user variable can only get if
+  it is *evicted*. Global-alloc gives `tmpl` and case 12's three reaching registers one saved
+  register (their lives do not overlap), reload takes it back, and the evicted pseudos get
+  slots in pseudo order after the ones spilled from the start. The variable has to win the
+  register first, so `tmpl = &particle;` goes just before the template is filled (a short
+  life), not earlier in the case. As a register argument it also drops gcse's copy from the
+  particle loop: 46 insns, so loop.c's first-pass threshold (61 - 3 per hoist) still covers
+  0x70707F.
+- **PRE copy order.** PRE inserts its copies in expression-index order, which is the order of
+  first appearance. `spin = (float *)(state + 0x2B0);` before the loop (`func_L11_0044AFC8`'s
+  `rotation`) makes `state+0x2B0` appear before `object+0xF0`.
+- **Bucket count.** The `turn()` helper gives S 583.
+Reading `-dL` for "not desirable" and the loop's real insn count is the quickest check on a
+preheader order.
+
+**PR #419 contract review, 4 November 2026:** the sentry's `func_002B1C20` call must
+preserve its matched callee's unsigned 64-bit return. With that declaration and a
+64-bit local, the compound `!func_002A77E0(30) || (flags & 1)` condition adds a
+`dsll32`/`dsra32` normalization pair (4832/4824 bytes). The equivalent early exit
+`if (func_002A77E0(30) && (flags & 1UL) == 0) break;` preserves the original call
+order and low-bit tests and restores 4824 bytes, 1/1 USA v1.01 placements. Its
+canonical identity is absent from PAL and USA v2.00. The held drone also restores
+four ignored return contracts from their matched definitions: integer results for
+`func_002A8C28`, `func_002A8D70` and `func_L07_00321D68`, and a float result for
+`func_002AA548`. It remains 1/1 in both USA releases, but its case-9 dead store
+still prevents promotion.
 
 **Update, 3 November 2026 (pending review):** now matched. `func_L12_00300410` is C in `src/levels/12_todano/L12_00300410-g8.c` (`-O2 -G8 -ffunction-sections`), placed at 1 US place (PAL and US2 catalogues have no function of this name). The measurements above are kept as history.
 
@@ -1545,6 +1691,15 @@ included in the 84 strict program builds; old drafts remain in Git history.
 A start inside a prior epilogue, measured linker filler, or an implausible entry warrants an extent/reference audit before matching.
 
 No jr, two returns, a short size, or a register read before its local definition is not proof by itself. Trap/tail-call bodies may lack jr; ABI-defined live-ins must be considered. A four-byte residue needs its surrounding completed return and reference evidence, not just its size.
+
+**Abort/assertion boundary, 4 November 2026:** the old 64-byte
+`func_00115E28` extent contains a 16-byte abort thunk and the independently
+entered 48-byte `func_00115E38` assertion reporter. All three releases have
+the same complete normalized body, named callees and four incoming assertion
+calls. Guarded generation and two replays change only these boot rows;
+seven synthetic tests reject changed bodies, targets and malformed metadata.
+Both C bodies pass their local checks in every release. The strict linked
+qualification accompanies the implementation PR; the split alone is not C credit.
 
 **Resolved entry, 30 October 2026, `func_L05_0042AFE0`:** callback address
 construction in `func_L05_0042AC30` (US/US2) and the distinct PAL caller
@@ -3446,7 +3601,7 @@ attributed for provenance, not exclusive ownership.
 | **Clear through a register address at a nonzero offset:** `func_002B5678` | Open | Retail has `addiu $v0,$s1,0x60 ; sq $zero,0($v0)`, the clear macro's register operand. After #258, C gives `por` + `sq $v0,0x60($s1)`. **Next:** a profile that materializes the address of a displaced const-0 TImode store. |
 | **A `por` clear at a zero displacement:** `func_L02_003DB200`, `func_L02_00423520`, `func_L23_00422798`, and with the copy barrier `func_L02_003DBA70`, `func_L23_00429DC8` | Proposed: PR #281 | These functions clear a stack vector with `por $v0,$zero,$zero` + `sq $v0,0($sp)`. Since #258, the fold still makes that `sq $zero,0($sp)`, because the address is register-only.<br><br>A finer retail count (one place per catalogue row, boot game code from 0x26EA00, a store counted when every path into it starts from the `por`) finds 183 `por`-fed stores at a zero displacement, in 153 functions. Every one of them is to `0($sp)`; none goes through another register. Against that, 396 `sq $zero,0(reg)` stores in 263 functions, of which 82 (58 functions) are also to `0($sp)`.<br><br>PR #281 adds the opt-in `-frac2-zero-ti-por`: with it, the fold leaves a store to `0($sp)` alone, and stores through any other register still fold. It is neutral by default (806 of 806 units). Forced on everywhere, it changes exactly the 4 units whose matched functions clear `0($sp)` with `sq $zero`. The five functions above are exact with it. `func_L23_003C16D8` stays out: three of its clears go through a computed stack address. |
 | **A cse block boundary that leaves no instruction:** `func_L02_003D26B0`; the five 632-byte twins `func_L11_00436D08`, `func_L11_00449C70`, `func_L11_0044C850`, `func_L11_004530E0`, `func_L11_004566C0`; `func_L02_003F1BA8`, `func_L02_0040BBD8`; `func_L07_00378898` | Open | Retail keeps a gcse (PRE) copy, for example `daddu $s5,$s4,$zero` of `e + 0x10`, that this cc1 makes only when cse1 and cse2 both see a label at that spot. Adding `\|\| x == 7 \|\| y == 9` to the test reproduces it, with extra code. An empty `do { } while (0)` reproduces it exactly but is rejected (#257, fc4a6c6). For `func_L07_00378898`, `-fno-cse-follow-jumps -fno-cse-skip-blocks` reproduces the block, as a probe only. **Next:** the original's construct at that spot, or a measured cse rule. |
-| **Meaningful nonempty one-pass groups:** `func_L02_003FB000`, `func_002CDA20`, `func_002CF2B8`, `func_002D53F0` | Strict linked matches; pending PR review | **4 November 2026:** current active RAC1 game C supplies the missing source-method precedent; see [source methods](COMPILER-NOTES.md#source-methods-shared-with-rac1). The actual last store gives Maktar 288 bytes, 1/1 places in each USA release (PAL identity absent). Actual formatter-call groups give the three text draws 140/136/140 bytes and 28/28 USA v1.01 places each; their canonical identities are absent in the other releases. The formatter style remains 64 bits; its return and the signed32 address getter follow their real definitions. Old narrower-style trials remain invalid. All 84 strict programs pass with zero C fallbacks, and all 92 placements of the five added functions are present in their carrying programs. This supersedes the earlier blanket hold on nonempty groups, not the ban on empty loops or fake dependencies. `func_0033A520` is still unresolved: its historical exact probe also assumes an unevidenced const global and fails both alternate releases. |
+| **Meaningful nonempty one-pass groups:** `func_L02_003FB000`, `func_002CDA20`, `func_002CF2B8`, `func_002D53F0` | Strict linked matches; pending PR review | **4 November 2026:** current active RAC1 game C supplies the missing source-method precedent; see [source methods](COMPILER-NOTES.md#source-methods-shared-with-rac1). The actual last store gives Maktar 288 bytes, 1/1 places in each USA release (PAL identity absent). Actual formatter-call groups give the three text draws 140/136/140 bytes and 28/28 USA v1.01 places each; their canonical identities are absent in the other releases. The formatter style remains 64 bits; its return and the signed32 address getter follow their real definitions. Old narrower-style trials remain invalid. All 84 strict programs pass with zero C fallbacks, and all 92 placements of the five added functions are present in their carrying programs. This supersedes the earlier blanket hold on nonempty groups, not the ban on empty loops or fake dependencies. `func_0033A520` is still unresolved: its historical exact probe also assumes an unevidenced const global and fails both alternate releases.<br><br>**5 November 2026:** `func_L02_003FE768` (shared boss bar) matches the same way, with each real conversion of its rounded edge in a group (`t = v * scale + 0.5f; do { top = t; } while (0);`): 2 of 2 USA places, 0 of 2 without the groups. A scratch cc1 that made every float-to-int conversion a sched2 barrier broke 95 of 228 matched functions, so the barrier belongs to these sources. In `func_L11_00444400` the same groups give retail's boundary before each box call (4692/4684 bytes); its register allocation is still open. |
 | **Jump tables the build cannot place:** `func_L06_003FDA08`, `func_L13_00422CB8`, `func_L03_003C4578`, `func_L02_003F9AF0`, `func_L02_003F9B70`, `func_L02_003FE1B0` | Solved, PR pending | A computed goto through retail's own table, in the form of `func_00310A40`, matches all six. The three level 2 records' in-order switches were wrong: retail's tables map the values to the bodies in another order. Decode the table before trusting a record's `switch`. |
 | **Labels behind hazard nops:** `func_L18_004308F0`, `func_L02_00411530` | Merged, #264 | Opt-in `-frac2-hazard-labels`. 198 retail branch targets after a compare or `mtc1` sit on the nop, and SN's `Ps2EeAs` agrees. Forced on everywhere it is neutral (778 of 779, one `.mdebug`). |
 | **gcse critical-edge split, Cygnus block merge:** `func_002CD720`, `func_L02_003E79F8`, `func_L02_003FCCA0`, `func_L18_004283F0` | Merged, #261 | Opt-in `-frac2-gcse-unsplit-edges` and `-frac2-keep-block-order`. `func_L23_0041B9F0` reaches retail's size with the gcse switch and still stops at the copy order. |
@@ -4232,12 +4387,14 @@ deletion. Direct or nearby address-pair absence alone is not proof of no entry.
   diagnostic return; narrowing the IMR or declaring the ignored result void is
   not a legitimate scheduling remedy. Its equal error-path variants are recorded
   in the retained source.
-- `func_L00_0042A4E8` contains three independent return stubs: initialized
-  pointers reach `+0`, `+8` and `+0x10` in all 27 USA placements. The same
-  three-entry pattern has separate witnesses for `func_L13_0043E8C0` in all
-  three releases; its named repair is described above. The L00 family still
-  needs its own release-qualified generator correction. Do not fabricate a
-  single C function spanning these entries.
+- `func_L00_0042A4E8`, `func_L00_0042A4F0` and `func_L00_0042A4F8` now have
+  separate eight-byte rows and C bodies. In each release, 26 copies have a
+  camera-table record naming all three entries; Boldan names each through
+  its object dispatch table instead. The generator verifies the complete
+  original extent, every typed witness and all 27 placements before splitting.
+  Both regeneration replays and all 243 C placements pass; all 84 complete
+  programs pass the strict build. No return-looking padding was promoted
+  without an entry witness.
 
 Reference scans must separate EE text from `.vutext`: decoding VU microcode as
 R5900 instructions creates false branch witnesses. An aligned word equal to an
