@@ -350,7 +350,6 @@ void func_L02_003EA488(char *arg0) {
 
 /* func_L02_003EB138 is defined in L02_003DB310-g8.c (it reads D_L02_001B35B8 through $gp). */
 
-INCLUDE_ASM("asm/levels", func_L02_003EB258);
 
 /* func_L02_003EB648 is matched in L02_003EB648-g8.c (built with -frac2-qcopy -frac2-qcopy-barrier). */
 

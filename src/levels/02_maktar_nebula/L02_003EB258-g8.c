@@ -1,29 +1,15 @@
-/* Claude Opus 5.5 (xhigh), 2026-11-05, task v2465: 1004/1004 bytes, 0/1 USA v1.01 places,
- * 8 differing instructions (was 16), all one $s7/$fp swap. All stack slots now match.
- * Profile (own unit, e.g. L02_003EB258-g8.c):
- * -O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -mno-split-addresses -g
- * (-mno-split-addresses IS needed here: without it the D_L02_001B0DAC/DB0/DB4 lui+lw pairs split;
- *  -g only places two nops around the div.s).
- * New in v2465:
- * - `float (*uv)[2] = packet[0].uv;` (top-level local, used for the U store): sp+0x50 is held by a
- *   user pseudo instead of the last-bucket gcse PRE reaching reg, so it no longer gets the last of
- *   the four entry slots. The alternative, PRE table size 111 (max_cuid 220..223, now 206/207),
- *   would need 14..17 more insns at gcse that disappear later; none found.
- * - `mask = 0x00FFFFFF;` in a top-level local assigned just before the vertex loop: keeps the
- *   spilled constant's slot (0x194) ahead of uv's (0x198), as retail has. Assigning it inside the
- *   fade block or before the blend code gives the same bytes; initializing it at the declaration
- *   is far worse (set moves above the layer loop).
- * - FastTweenColor uses the canonical (int, int, float) prototype (same bytes as float-first).
- * Remaining: V-source cursor (la D_L02_001B0D6C) gets $fp and destination-U cursor (copy of uv)
- * gets $s7; retail has the reverse. Priorities: U-src 27/196 (s6) > U-dest 14/102 = 1372 >
- * V-src 27/198 = 1363 (REG_EQUAL doubles it) > spilled V0-dest giv 14/104 = 1346. Only U-dest
- * live length exactly 103 gives retail. In sched1 the U-dest copy (insn 891) is in the big block
- * after the layer loop (it is hoisted above the calls), 3 slots ahead of the V-src set; it needs
- * one more insn between itself and the V-src set, or to issue one slot earlier. Adding an insn
- * after both does not help (V-src goes up by 2).
- * Tried, worse: indexed packet[k].vertex[i][j] stores (1108 bytes); mask initialized at the
- * declaration. No linked build.
- */
+/* func_L02_003EB258 is a unit of its own: it needs the quadword-copy profile with its barrier,
+   -mno-split-addresses for the unsplit lui+lw and la pairs, and -g, which places the nops around
+   the div.s (config/cflags.txt).
+
+   D_L02_001B0DA8 is one table of four colors and D_L02_001B0D68 one table of U,V pairs. Retail's
+   assembler used $gp only at offset 0, so sym+N came out as lui+lw or lui+addiu; ours would use
+   $gp for sym+N too, hence the second names D_L02_001B0DAC and D_L02_001B0D6C.
+
+   `tint` is a real pseudo: it is not allocated, and reload substitutes the symbol at each use, so
+   it leaves no code of its own. The compiler still hoists its set into the loop preheader, where
+   it separates the U-destination copy from the V-source set. That live length is what gives the
+   V source $s7 and the U destination $fp. Direct loads do not: they also move the lui+lw. */
 #include "common.h"
 typedef int Quad __attribute__((mode(TI)));
 typedef struct {
@@ -36,9 +22,7 @@ extern int D_L02_001B0D60[2] __attribute__((sda));
 extern float D_L02_001B0D68[][2] SDATA(D_L02_001B0D68);
 extern float D_L02_001B0D6C[][2] __attribute__((sda));
 extern unsigned int D_L02_001B0DA8 __attribute__((sda));
-extern unsigned int D_L02_001B0DAC[] NOT_SDA;
-extern unsigned int D_L02_001B0DB0[] NOT_SDA;
-extern unsigned int D_L02_001B0DB4[] NOT_SDA;
+extern unsigned int D_L02_001B0DAC[] __attribute__((sda));
 extern char *D_L02_001B368C;
 extern void func_00281DE8(void *, int, int, int);
 extern float func_00283198(float);
@@ -59,6 +43,7 @@ void func_L02_003EB258(char *actor) {
     char *state = *(char **)(actor + 0x68);
     int i, slice, count;
     float step;
+    unsigned int *tint;
     unsigned int mask;
     char *vertex;
     float (*uv)[2] = packet[0].uv;
@@ -79,8 +64,9 @@ void func_L02_003EB258(char *actor) {
         packet[0].uv[i][1] = D_L02_001B0D6C[i][0];
         packet[1].uv[i][0] = D_L02_001B0D68[i+4][0] + *(float *)(state + 0x18);
         packet[1].uv[i][1] = D_L02_001B0D6C[i+4][0];
-        packet[0].color[i] = func_00283D38(D_L02_001B0DA8, D_L02_001B0DAC[0], blend.weights[0]);
-        packet[1].color[i] = func_00283D38(D_L02_001B0DB0[0], D_L02_001B0DB4[0], blend.weights[1]);
+        tint = D_L02_001B0DAC;
+        packet[0].color[i] = func_00283D38(D_L02_001B0DA8, tint[0], blend.weights[0]);
+        packet[1].color[i] = func_00283D38(tint[1], tint[2], blend.weights[1]);
         if (*(float *)(state + 0x1C) < 1.0f) {
             packet[0].color[i] = func_00283D38(packet[0].color[i] & mask, packet[0].color[i], *(float *)(state + 0x1C));
             packet[1].color[i] = func_00283D38(packet[1].color[i] & mask, packet[1].color[i], *(float *)(state + 0x1C));
