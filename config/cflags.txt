@@ -3609,3 +3609,4 @@ src/pal/game/002CECF8-g8.c	-O2 -G8 -fno-expensive-optimizations -ffunction-secti
 src/pal/levels/shared/L00_00417ED0-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/16_snivelak/L16_00411710-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/16_snivelak/L16_00411E88-g8.c	-O2 -G8 -ffunction-sections
+src/pal/levels/shared/L04_0041AF28-g8.c	-O2 -G8 -ffunction-sections -g
