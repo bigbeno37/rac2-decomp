@@ -3582,3 +3582,4 @@ src/pal/levels/19_grelbin/L19_004205C8-cc-g8.c	-O2 -G8 -ffunction-sections -frac
 src/pal/levels/shared/L00_002B6488-cc.c	-O2 -G0 -ffunction-sections -frac2-hazard-labels
 src/pal/levels/16_snivelak/L16_00412170-cc.c	-O2 -G0 -ffunction-sections -fno-sched-interblock
 src/pal/levels/23_damosel_orbit/L23_003C3B70-g8.c	-O2 -G8 -ffunction-sections
+src/pal/game/00270FC0-qcopy.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
