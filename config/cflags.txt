@@ -3586,3 +3586,4 @@ src/pal/game/00270FC0-qcopy.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qc
 src/pal/game/0030E0E0-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-hazard-labels
 src/pal/levels/18_damosel/L18_00441640-g8.c	-O2 -G8 -ffunction-sections -fno-gcse
 src/pal/levels/01_oozla/L01_003C4530-g8.c	-O2 -G8 -ffunction-sections
+src/pal/game/002C0078-rc2.c	-O2 -G8 -mastra-r5900-extern-buffer -ffunction-sections -fno-builtin
