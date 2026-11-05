@@ -3244,3 +3244,4 @@ src/levels/shared/L00_003E3258-fade.c	-O2 -G64 -Wa,-G64 -ffunction-sections -fno
 src/levels/02_maktar_nebula/L02_003EB258-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -mno-split-addresses -g
 src/levels/08_tabora/L08_00429560-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
 src/levels/shared/L00_003F8E08-glow-g8.c	-O2 -G8 -ffunction-sections -ffast-math -g
+src/pal/game/002F96D8-g16.c	-O2 -G16 -ffunction-sections -Wa,-G16
