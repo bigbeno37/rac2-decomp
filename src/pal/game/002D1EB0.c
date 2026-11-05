@@ -1,8 +1,5 @@
 #include "include_asm.h"
 
-INCLUDE_ASM("asm/pal/game", func_PAL_002D1EB0);
-
-
 extern int D_001A7A00[] __attribute__((sda));
 extern unsigned char D_001A7BB0[] __attribute__((sda));
 extern char *D_001A8CFC[] __attribute__((sda));

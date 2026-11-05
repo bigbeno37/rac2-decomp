@@ -3315,3 +3315,4 @@ src/pal/levels/01_oozla/L01_003DD0E8-port.c	-O2 -G8 -ffunction-sections -fno-bui
 src/pal/game/00317310-port.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/pal/game/002CC7B8-flags.c	-O2 -G8 -mastra-r5900-extern-buffer -ffunction-sections -fno-builtin
 src/pal/levels/02_maktar_nebula/L02_00401EC8-g8.c	-O2 -G8 -ffunction-sections -frac2-gcse-unsplit-edges -frac2-keep-block-order
+src/pal/game/002D1EB0-menu-g8.c	-O2 -G8 -ffunction-sections
