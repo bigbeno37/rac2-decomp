@@ -3313,3 +3313,4 @@ src/pal/levels/shared/L00_00387088-port.c	-O2 -G8 -ffunction-sections -frac2-qco
 src/pal/game/003422D0-port.c	-O2 -G0 -ffunction-sections
 src/pal/game/002E91B0-port.c	-O2 -G8 -ffunction-sections
 src/pal/levels/01_oozla/L01_003DD0E8-port.c	-O2 -G8 -ffunction-sections -fno-builtin
+src/pal/game/00317310-port.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
