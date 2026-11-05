@@ -1,49 +1,52 @@
 /*
- * Tier: opus-1 (Claude Opus 5.5 xhigh), task v1879, 31 October 2026. Retained near miss, USA v1.01.
- * Game profile: -O2 -G8 -ffunction-sections in a dedicated -g8.c unit (e.g. L04_0040F8F0-hud-g8.c).
- * Final check.py: 3732/3732 bytes, 0 of 2 places (04 Barlow, 11 Joba); 370 lines in a relocation-masked
- * two-sided diff, nearly all scheduling and register choice. No linked build; not a match. PAL and v2.00
- * have no catalogue row under this name. About 23 check.py compiles and 2 regalloc.py runs.
+ * Tier: opus-2 (Claude Opus 5.5 xhigh), task v2562, 5 November 2026. Retained near miss, USA v1.01.
+ * NOT LANDABLE AS WRITTEN: the C below is a shape probe, kept because it is far closer than any earlier draft.
+ * hud_y/hud_l/hud_yx hold invented tests and dead stores, and TXT is a statement expression. The admissible
+ * opus-1 wording (3732/3732 bytes, about 154 rows off when aligned) is the previous git revision of this file.
+ * Profile: -O2 -G8 -ffunction-sections, in a dedicated unit such as L04_0040F8F0-hud-g8.c (no cflags line needed).
+ * Best check.py: 3736/3732 bytes, 0 of 2 places (04 Barlow, 11 Joba). Measured with relocations masked:
+ * every row from the entry through 0x4119F4 equals retail (472 of 933); the first difference is 0x4119F8, in the
+ * loop preheader; 890 of 933 retail rows align overall. PAL and v2.00 have no row. No linked build. Not a match.
+ * About 40 compiles. D_L04_001B2D40 as the mode flag is by analogy with boot D_001B23A0/A4 (retail has no read).
  *
- * All declarations it needs follow. Everything below is admissible wording. Corrected against earlier drafts:
- * - Table is a 64-byte row with times at +8, indexed lap - 1: retail forms base, then base + 8, and (lap-1)*4.
- * - One local (flag here) holds state->0x320 for the == 1 test. flag = 1 with D_L04_001B0A38 = flag gives
- *   retail's addiu $s3,1 and sw $s3. See below: retail's source probably just stores 1.
- * - time / 60 % 60 is a block-scoped local (seconds, $s0), reused as the sprintf argument.
- * - alpha is one expression over (f32)bottom, which stays in $f24; 1.0f is then a temporary, as in retail.
- * - No panelX/panelY locals: (f32)(D_001A7340 / 2) and the rounding are direct arguments.
- * - D_L04_001B2D44 and D_L04_001A8FE8 want one MACRO_ADDR declaration (`lui $at` in ordinary flow, $gp in a
- *   delay slot, automatically). That is the truthful form and the probes below use it, but it needs the right
- *   delay-slot filling: this plain C then gives 3736. The _gp aliases are only what keeps plain C at 3732.
+ * WHAT WAS LEARNED (retail's vanished per-rounding test; the same family as func_L04_00416E38, func_0033A520,
+ * func_0033C028, func_002900B8 and the saved-but-unused registers). Each measured here:
+ * 1. Sprite in $a2, lap in $s4 and every panel row need a test `D_mode == 1` in the block that ends after the fix.
+ *    The load is block-local, so local-alloc gives it $a0 ($v0/$v1 hold x), and sprite cannot have $a0. cse replaces
+ *    the constant 1 with the local known to be 1, so state->0x320 stays live in $s3 through the arm: this is why
+ *    retail skips $s3 there. After the arm the constant is `li $s3,1`, which `D_L04_001B0A38 = 1` then reuses.
+ *    The test dies at flow2: arm dead at flow1, jump tidied by flow.c, load and constant then dead in life_analysis.
+ * 2. That test alone is not enough: with no block left, sched2 hoists 0.92, argument moves and strlen's a0.
+ *    Retail also has a boundary at sched2, so a second test must live until jump2, and it must compare a live
+ *    register or zero, because delete_computation leaves its inputs behind once sched2 runs.
+ * 3. flow.c drops a jump into a single-predecessor join before sched2 if its arm is empty at flow2's CFG build, so
+ *    the second test needs an arm that is live at flow1 and dead at flow2. Found: an arm insn read only by a THIRD
+ *    test whose own arm is dead at flow1: `t = 0; if (r != 0) { t = 2; dead = 1; } if (t != 0) dead = 0;`.
+ *    That third test is tidied at flow2, t dies in life_analysis, the arm empties after the CFG build, and the
+ *    first jump survives sched2 and goes at jump2. It leaves no word. Two arm insns are required: jump1 if-converts
+ *    a single set, and even `if (c) t = global` becomes load + movn.
+ * 4. cse must stay transparent or 0.5/0.92/194 rematerialize: each jump needs a label with one use and a label-free
+ *    arm (AROUND). `a && b`, `a || b` and if/else all flush (measured: 974 words). cse follows at most 9 branches
+ *    per path (PATHLENGTH), which limits tests per site. Probes of an empty do { } while (0) after the test
+ *    (retail order but wrong dependant counts, so ori $a1 moves) and -fno-schedule-insns2 (prologue wrong) are out.
+ * 5. Text sites want x $s0, y $s1. A test on y gives y three refs and y wins, so the probe tests x there (hud_yx).
+ *    Tie otherwise: a statement expression numbers its pseudo before x, which also swaps them. Use an inline.
+ * 6. MACRO_ADDR on D_L04_001B2D44 and D_L04_001A8FE8 is right here: `lui $at` in flow, $gp in delay slots. row++ falls
+ *    after the y rounding at the 220 site (`lw $v0,0x48($sp)` follows mfc1). Per-panel sprite locals are harmless.
  *
- * What still differs, all one cause: retail ends a basic block after each scale-and-round, and the boundary
- * survives sched2. Same family as func_L04_00416E38, func_0033A520, func_0033C028, func_002900B8.
- * Read from retail and measured here (compile with cc1 -dS -dR and read the scheduling tables):
- * - Boundary is after the fix, before (f32)y. In panels 2 and 4 the D_001A7B90 load sits between mfc1 $v1,$f1 and
- *   mtc1 $v1,$f13; in panels 1 and 3 li.s 0.92 takes the memory slot first, so y and the load can share $v0.
- *   Placing the test before the fix is worse (load moves ahead of the fix). Nothing bounds the start of a
- *   rounding: 194.0, 0.5, 2 and 0x8710 float above the calls, so it is not do/while (LOOP_BEG would stop them).
- * - Do/while note barrier (not admissible): an empty do { } while (0) in an inline helper after the fix gives
- *   3740 bytes and 270 diff lines, but the note makes (f32)y the first insn after it, and retail has 0.92 and
- *   the D_001A7B90 load before (f32)y, so a note is the wrong mechanism; it is a label.
- * - NEW, the test compares with the constant 1. A compare against a small constant leaves nothing: sched1 floats
- *   the constant above the call, so it takes a saved register, and flow2 deletes it with the test. With
- *     #define HUD_Y(v) ({ s32 r_ = (s32)((v) + 0.5f); if (r_ == 1) fy = 0.0f; r_; })
- *   in the arm and panels and a PLAIN D_L04_001B0A38 = 1, retail's addiu $s3,1 and sw $s3 appear with no extra
- *   local (cse reuses that pseudo for the store), and lap moves to $s4 as in retail. This also explains why $s3
- *   is skipped in the arm, and is one more candidate for the saved-but-unused registers of the sibling near
- *   misses. A placeholder test and dead store: a shape probe only, 295 diff lines, 3720 bytes. Do not land it.
- * - Tested value: not y. Testing y gives y three references, so y takes $s0 and x $s1; retail has x in $s0, y
- *   in $s1, and sra $s0,$v1,1. Testing the $s3 local itself fails: cse knows it is 1 and folds the test.
- * - Single-set arms become movn at jump1 and leave no block; a float set keeps the branch. An if/else (measured
- *   with func_002D3D88's helper, mode = D_L04_001B2D40, an assumed address) gives 3976: the cse table flushes, so
- *   0.92 and the scale constants rematerialize, and the load stays. It does give retail's sprite in $a2.
- * - What is missing: the probe's arm is dead at flow1, so the jump is at .+1 in flow2 and is gone before sched2,
- *   which then hoists 0.92 above the call and argument moves above the chain (loop rows). With the arm on all
- *   sites: 318 lines, 3724 bytes, and sd $a2,0x58($sp) already right. Retail needs an arm with a real insn at
- *   flow2's CFG build that dies in flow2's life analysis or at jump2. No natural construct found. Sprite stays
- *   in $a0 in the probes (retail $a2): perhaps the fix's scratch:SI (local-alloc) when $v0 and $v1 are both busy.
- * Next: an arm live at flow1 and dead only after reload, on a compare with 1 of something other than y.
+ * WHAT STILL DIFFERS (loop only, 43 rows):
+ * - Retail hoists `li $s6,60` to the preheader and never reads $s6: the signature of `li $s3,1`, so a test comparing
+ *   with 60 probably lives in the loop until jump2. At site 175 it took $s3 and shifted racer and y (inferred: cse
+ *   merges it with the seconds block's 60); at site 220 loop.c did not hoist it. Not yet placed. Without it loop.c
+ *   hoists 3600 into $fp, where retail has 60 in $s6, 10 in $s7 and 6 in $fp; 216000 stays in $s3 in both.
+ * - state/row reloads differ ($v1/$a0/$a2 against ours): reload's round-robin, one rotation off, probably from the above.
+ * - `lw $s4` / `lw $s2` swap at rs->0x1A4 and 0x1A0: probably the same cause.
+ * Next: find the real source of the three tests. Candidates are a screen-y helper (compare with mode 1) and a
+ * compare with 60; keep the ordering rules above when trying them. Do not retry placeholders: none of this is proof
+ * of the original wording, only of the shape it compiles to.
+ *
+ * Corrections from opus-1 that still hold: 64-byte record rows with times at +8 indexed by lap - 1; time / 60 % 60 is
+ * a block local reused by sprintf; alpha is one expression over (f32)bottom; the fix's arguments are direct.
  */
 #include "common.h"
 
@@ -57,12 +60,43 @@ extern s32 D_L04_001B0A2C __attribute__((sda));
 extern s32 D_L04_001B0A38 __attribute__((sda));
 extern f32 D_L04_001B0A30 __attribute__((sda));
 extern f32 D_L04_001B0A34 __attribute__((sda));
-extern f32 D_L04_001B2D44;
-extern f32 D_L04_001B2D44_gp SDATA(D_L04_001B2D44);
-extern s32 D_L04_001A8FE8;
-extern s32 D_L04_001A8FE8_gp SDATA(D_L04_001A8FE8);
+extern f32 D_L04_001B2D44 MACRO_ADDR;
+extern s32 D_L04_001A8FE8 MACRO_ADDR;
 extern s32 D_001A7340, D_001A7B90;
 extern u8 D_001A7A0A;
+extern s32 D_L04_001B2D40 __attribute__((sda));
+static __inline__ s32 hud_y(f32 v, f32 *dead, s32 one) {
+    s32 r = (s32)(v + 0.5f);
+    if (D_L04_001B2D40 == one) *dead = 0.0f;
+    {
+        s32 t = 0;
+        if (r != 0) { t = 2; *dead = 1.0f; }
+        if (t != 0) *dead = 0.0f;
+    }
+    return r;
+}
+static __inline__ s32 hud_l(f32 v, f32 *dead) {
+    s32 r = (s32)(v + 0.5f);
+    {
+        s32 t = 0;
+        if (r != 0) { t = 2; *dead = 1.0f; }
+        if (t != 0) *dead = 0.0f;
+    }
+    return r;
+}
+static __inline__ s32 hud_yx(f32 v, f32 *dead, s32 one, s32 k) {
+    s32 r = (s32)(v + 0.5f);
+    if (D_L04_001B2D40 == one) *dead = 0.0f;
+    {
+        s32 t = 0;
+        if (k != 0) { t = 2; *dead = 1.0f; }
+        if (t != 0) *dead = 0.0f;
+    }
+    return r;
+}
+#define HUD_Y(v) hud_y(v, &angle, flag)
+#define HUD_L(v) hud_l(v, &angle)
+#define TXT(v, c, s_, n_) ({ s32 x_ = D_001A7340 / 2; func_0027FAA8(x_, hud_yx(v, &angle, flag, x_), c, s_, n_); })
 extern u8 *D_L04_001A904C;
 typedef struct { u8 pad[0xB0]; f32 tangent; } HudCamera;
 extern HudCamera D_L04_001BDB80;
@@ -97,7 +131,6 @@ s32 func_L04_00411298(void) {
     u8 *racer;
     f32 alpha, fy, angle, fade;
     char *str, *str2, *str3;
-    void *sprite;
     f32 fbottom;
     s32 color1, color2;
     s32 color;
@@ -134,14 +167,18 @@ tick:
     if (flag == 1) {
         lap = func_L04_0040A1D0(D_L04_001B090C);
         if (lap > 2) lap = 2;
-        sprite = func_00336D50(D_L04_001A904C + 0x8710, 0x39);
-        func_00300A00(sprite, 0x60442D00, (f32)(D_001A7340 / 2), (f32)(s32)(D_L04_001B2D44 * 194.0f + 0.5f), 0.92f, D_001A7B90 ? 0.9f : 0.92f, 0.0f);
-        sprite = func_00336D50(D_L04_001A904C + 0x8710, 0x38);
-        func_00300A00(sprite, 0x55F0C070, (f32)(D_001A7340 / 2), (f32)(s32)(D_L04_001B2D44 * 194.0f + 0.5f), 0.92f, D_001A7B90 ? 0.9f : 0.92f, 0.0f);
+        {
+            void *panel = func_00336D50(D_L04_001A904C + 0x8710, 0x39);
+            func_00300A00(panel, 0x60442D00, (f32)(D_001A7340 / 2), (f32)HUD_Y(D_L04_001B2D44 * 194.0f), 0.92f, D_001A7B90 ? 0.9f : 0.92f, 0.0f);
+        }
+        {
+            void *panel = func_00336D50(D_L04_001A904C + 0x8710, 0x38);
+            func_00300A00(panel, 0x55F0C070, (f32)(D_001A7340 / 2), (f32)HUD_Y(D_L04_001B2D44 * 194.0f), 0.92f, D_001A7B90 ? 0.9f : 0.92f, 0.0f);
+        }
         str = func_00288FB8(0x2F93);
-        func_0027FAA8(D_001A7340 / 2, (s32)(D_L04_001B2D44 * 32.0f + 0.5f), 0x80F0F0F0ULL, str, func_001157AC(str));
+        TXT(D_L04_001B2D44 * 32.0f, 0x80F0F0F0ULL, str, func_001157AC(str));
         if (D_L04_001B093C > 0) {
-            func_0027FAA8(D_001A7340 / 2, (s32)(D_L04_001B2D44_gp * 65.0f + 0.5f), 0x80F0F0F0ULL, func_00288FB8(0x1233), -1);
+            TXT(D_L04_001B2D44 * 65.0f, 0x80F0F0F0ULL, func_00288FB8(0x1233), -1);
             D_L04_001B093C--;
         } else if (D_L04_002C63C0[D_L04_001B090C].times[lap - 1]) {
             s32 recordTime;
@@ -149,7 +186,7 @@ tick:
             recordTime = D_L04_002C63C0[D_L04_001B090C].times[lap - 1];
             if (D_001A7A0A) recordTime *= 10;
             func_00115DA8(text, recordFormat, recordTime);
-            func_0027FAA8(D_001A7340 / 2, (s32)(D_L04_001B2D44 * 65.0f + 0.5f), 0x80F0F0F0ULL, text, func_001157AC(text));
+            TXT(D_L04_001B2D44 * 65.0f, 0x80F0F0F0ULL, text, func_001157AC(text));
         }
     }
     bottom = 315 - (s32)D_L04_001B0A34;
@@ -158,14 +195,18 @@ tick:
     flag = 1;
     fbottom = (f32)bottom;
     alpha = (1.0f - (315.0f - fbottom) * 0.006329114f) * 0.72f + 0.08f;
-    sprite = func_00336D50(D_L04_001A904C + 0x8710, 0x47);
-    func_00300A00(sprite, 0x60442D00, (f32)(D_001A7340 / 2), (f32)(s32)(D_L04_001B2D44 * 196.0f + 0.5f), 0.92f, D_001A7B90 ? 0.9f : 0.92f, alpha);
-    sprite = func_00336D50(D_L04_001A904C + 0x8710, 0x46);
-    func_00300A00(sprite, 0x55F0C070, (f32)(D_001A7340 / 2), (f32)(s32)(D_L04_001B2D44 * 196.0f + 0.5f), 0.92f, D_001A7B90 ? 0.9f : 0.92f, alpha);
+    {
+        void *panel = func_00336D50(D_L04_001A904C + 0x8710, 0x47);
+        func_00300A00(panel, 0x60442D00, (f32)(D_001A7340 / 2), (f32)HUD_Y(D_L04_001B2D44 * 196.0f), 0.92f, D_001A7B90 ? 0.9f : 0.92f, alpha);
+    }
+    {
+        void *panel = func_00336D50(D_L04_001A904C + 0x8710, 0x46);
+        func_00300A00(panel, 0x55F0C070, (f32)(D_001A7340 / 2), (f32)HUD_Y(D_L04_001B2D44 * 196.0f), 0.92f, D_001A7B90 ? 0.9f : 0.92f, alpha);
+    }
     func_00115DA8(text, D_L04_001B0A40, func_00288FB8(0x2F7F),
         func_00288FB8(D_L04_002CA1E0[*(s32 *)(state + 0x320) - 1]), func_00288FB8(0x2F80));
-    func_0027FAA8(D_001A7340 / 2, (s32)(D_L04_001B2D44 * 106.0f + 0.5f), 0x80F0F0F0ULL, text, func_001157AC(text));
-    func_0027F5B8(339, (s32)(fbottom * D_L04_001B2D44 + 0.5f), 0x80F0F0F0ULL, func_00288FB8(0x2F42), -1);
+    TXT(D_L04_001B2D44 * 106.0f, 0x80F0F0F0ULL, text, func_001157AC(text));
+    func_0027F5B8(339, HUD_Y(fbottom * D_L04_001B2D44), 0x80F0F0F0ULL, func_00288FB8(0x2F42), -1);
     y = 138;
     ahead = 0;
     racer = *(u8 **)(state + 0x39C);
@@ -189,7 +230,7 @@ tick:
             time = *(s32 *)(rs + 0x1A0);
             if (rank > 10) goto next;
             if (*(s32 *)(state + 0x320) < rank) {
-                s32 projected = D_L04_001A8FE8_gp + D_L04_001B08F8;
+                s32 projected = D_L04_001A8FE8 + D_L04_001B08F8;
                 if (projected < time) { D_L04_001B0A38 = 0; ahead++; }
                 if (time == projected) func_002E5CF8(22, 17, object);
             }
@@ -208,7 +249,7 @@ tick:
         else { color = color2; }
         fy = (f32)y;
         func_00115DA8(text, D_L04_001B0A50, func_00288FB8(D_L04_002CA1E0[rank - 1]), func_00288FB8(0x2F81));
-        func_0027FB40(175, (s32)(fy * D_L04_001B2D44 + 0.5f), (s64)color, text, -1);
+        func_0027FB40(175, HUD_L(fy * D_L04_001B2D44), (s64)color, text, -1);
         if (ahead > 0) {
             if (D_L04_001B0A24 == 3 || ahead >= 2) func_00115DA8(text, D_L04_001B0A58, func_00288FB8(0x2FB0));
             else if (D_L04_001B0A24 == 2) func_00115DA8(text, D_L04_001B0A70, func_00288FB8(0x2FB0));
@@ -221,23 +262,25 @@ tick:
             else
                 func_00115DA8(text, D_L04_001B0AC0, func_00288FB8(0x2F83), time / 216000, time / 3600 % 60, seconds, time / 6 % 10);
         }
-        row++;
-        func_0027F5B8(220, (s32)(fy * D_L04_001B2D44_gp + 0.5f), (s64)color, text, -1);
+        {
+            s32 rowY = HUD_L(fy * D_L04_001B2D44);
+            row++;
+            func_0027F5B8(220, rowY, (s64)color, text, -1);
+        }
 next:
         if (row >= 10) break;
     }
     if (*(s32 *)(state + 0x320) > 10 && !D_L04_001B0A28 && !playerSeen) {
         func_00115DA8(text, D_L04_001B0A50, func_00288FB8(D_L04_002CA1E0[*(s32 *)(state + 0x320) - 1]), func_00288FB8(0x2F81));
         y += 15;
-        func_0027FB40(175, (s32)((f32)y * D_L04_001B2D44 + 0.5f), 0x8000C0C0ULL, text, -1);
+        func_0027FB40(175, HUD_L((f32)y * D_L04_001B2D44), 0x8000C0C0ULL, text, -1);
         if (D_L04_001A8FE8 / 60 % 60 < 10)
             func_00115DA8(text, D_L04_001B0AA8, func_00288FB8(0x2F83), D_L04_001A8FE8 / 216000, D_L04_001A8FE8 / 3600 % 60, D_L04_001A8FE8 / 60 % 60, D_L04_001A8FE8 / 6 % 10);
         else
             func_00115DA8(text, D_L04_001B0AC0, func_00288FB8(0x2F83), D_L04_001A8FE8 / 216000, D_L04_001A8FE8 / 3600 % 60, D_L04_001A8FE8 / 60 % 60, D_L04_001A8FE8 / 6 % 10);
-        func_0027F5B8(220, (s32)((f32)y * D_L04_001B2D44 + 0.5f), 0x8000C0C0ULL, text, -1);
+        func_0027F5B8(220, HUD_L((f32)y * D_L04_001B2D44), 0x8000C0C0ULL, text, -1);
     }
     if (*(u8 *)(object + 0x20) != 3) {
-        f32 angle;
         angle = *(f32 *)(state + 0x28C) * 0.008726647f;
         D_L04_001BDB80.tangent = func_00283198(angle) / func_00283180(angle);
         func_0027AB40();
