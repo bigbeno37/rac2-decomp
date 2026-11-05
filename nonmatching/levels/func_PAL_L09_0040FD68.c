@@ -1,24 +1,36 @@
 /* func_PAL_L09_0040FD68, the PAL copy of func_L09_0040AC48.
-   Tier: opus-1 (task v2773). Unit flags: -O2 -G8 -ffunction-sections (a -g8.c name gives -G8).
-   Best check.py result: 984/984 bytes, 0/1 places, first difference at +0x1e4; 8 real instructions differ.
-   Same as USA except: 0.000277777785f becomes 0.00040000002f (0x39D1B718, which is the USA constant * 1.44f),
-   240 becomes 200, and (a+b)*60.0f becomes ((a+b)*300.0f + 2.0f) * 0.16666667f.
+   Tier: opus-2 (task v2782; opus-1 v2773 before it). Unit flags: -O2 -G8 -ffunction-sections (a -g8.c name gives -G8).
+   Best check.py result: 984/984 bytes, 0/1 places, 7 real instructions differ, all in case 3, same order.
+   Same as USA except: 0.000277777785f becomes 0.00040000002f, 240 becomes 200, and (a+b)*60.0f becomes
+   ((a+b)*300.0f + 2.0f) * 0.16666667f.
 
-   What still differs: all in case 3, two swapped register pairs, instruction order identical.
-     retail: ticks in $v0, ticks+1 in $v1, 2.0f in $f4, (float)ticks in $f3.
-     this C: ticks in $v1, ticks+1 in $v0, 2.0f in $f3, (float)ticks in $f4.
-   local-alloc, from x.i.lreg with this C (sched1 order lhu, 300.0, addiu, 2.0, sh, float, 1/6, ...):
-     ticks: 3 refs, 6 insns, priority 1/2; ticks+1: 2 refs, 3 insns, priority 2/3, so ticks+1 picks first.
-     (float)ticks and 2.0f tie at 2 refs, 9 insns, and the earlier-born 2.0f picks first.
-   Retail needs ticks over ticks+1 AND (float)ticks over 2.0f. No single move in the sched1 order gives both,
-   so a source difference outside this statement (one more ref on ticks and on its float, or a different block
-   shape) looks likely. That is an inference, not measured.
+   This body reuses `next` for ticks+1, which makes it a global pseudo so ticks gets $v0; ticks+1 lands in $s2 ($a1 if
+   `sound` is reused; retail $v1), and 2.0f and (float)ticks stay swapped in f3/f4. Plain `*p = ticks + 1` is 8 rows.
 
-   Tried, all the same 8 instructions: `X < (float)ticks`, limit or float in named locals, 0.16666667f written
-   first, ticks+1 in a pointer local, ticks = X + 1 then ticks - 1, float set before the store,
-   -ffast-math with (a+b)*60.0f*5 + 2) / 6 (this folds to the same RTL, so 300.0f and the 1/6 product come from
-   either form), -g, -frac2-keep-block-order. Worse: `(*p)++` (988 bytes), a subtraction test (992 bytes),
-   ticks+1 in a named local, limit computed before the load, or before the store.
+   Cause, measured (cc1 -fsched-verbose-5 in the scratch dir). `ticks = (*p)++`, with `int ticks`, compiles to every
+   register retail has: $v0, $v1, $f2, $f3, $f4, $f5. It is 988 bytes only because it keeps `andi $2,$2,0xffff`, which
+   also pushes the mtc1/cvt.s.w after the 1/6 load. That andi is the zero_extend of the HImode temporary:
+       r158:HI = lhu; r159 = r158#0 + 1; sh; r89 = zxn(r158); float(r89)
+   So retail has one more ALU insn on the ticks path at sched1 (clock 4, beside the sh), tied to ticks, gone by sched2:
+   it adds refs to ticks (priority over ticks+1), delays the float to clock 5 behind the 1/6 load, and so ranks
+   1/6 (2/8) > float (2/8, later born) > 2.0f (2/10) > 300.0f (2/11), which gives f2, f3, f4, f5. sched2 without it
+   then gives retail's order, as sched2's priorities settle every tie here. So the missing insn must be a no-code copy.
+
+   The pass that makes that copy is regmove.c optimize_reg_copy_3: it folds a zero_extend of a dying HI pseudo into its
+   load, leaving an SImode copy for local-alloc to tie. Here it backs out, because the increment between load and extend
+   is (plus:SI (subreg:SI H 0) 1): replacing H with (subreg:HI H' 0) nests two subregs and recog rejects it. A HI
+   add on this target always takes that paradoxical-subreg path (expand_binop, widen_operand), so `(*p)++` cannot pass.
+   A use in a HI context (a store of H, a zero_extend) would pass, but retail has neither. What could unblock it: a
+   wording where nothing uses H in a SUBREG between load and extend, or a compiler question for the maintainers: does
+   retail's optimize_reg_copy_3 succeed here? Inferred from the bytes, not proved. Never tested on a changed compiler.
+
+   Plain copies cannot do it: cse replaces x by T unless T is set again, and combine merges (set x T) into the float.
+   Tried, all the 8-row result: (float)(unsigned short)ticks, (float)(ticks & 0xFFFF), unsigned short ticks,
+   old = ticks++ on an unsigned short local, unsigned short old = ticks, `(float)count++` after the store; earlier:
+   X < (float)ticks, named limit or float locals, 1/6 written first, ticks+1 in a pointer local, ticks = X+1 then
+   ticks - 1, float before the store, -ffast-math (same RTL), -g, -frac2-keep-block-order.
+   Worse: unsigned int ticks (1024, keeps the sign test), (float)(short)ticks (992), `(*p)++` in any place (988),
+   int or unsigned c = x, old = c++ (988, a real move and an in-place addiu), `next` as the only tick local (s2/v0).
 */
 #include "common.h"
 extern void func_002A7750(void *, int, int);
@@ -70,7 +82,8 @@ void func_PAL_L09_0040FD68(char *obj) {
     case 3:
         if (func_002B3868(obj)) *(int *)(data+0x18) = 200;
         ticks = *(unsigned short *)(obj+0x96);
-        *(unsigned short *)(obj+0x96) = ticks + 1;
+        next = ticks + 1;
+        *(unsigned short *)(obj+0x96) = next;
         if ((float)ticks > ((*(float *)(data+0x20)+*(float *)(data+0x24))*300.0f + 2.0f) * 0.16666667f)
             func_002A7750(obj,4,-1);
         func_L09_0040B0C8(obj);
