@@ -3292,3 +3292,4 @@ src/pal/levels/12_todano/L12_002B8478-hero.c	-O2 -G0 -ffunction-sections -g -ffa
 src/pal/levels/18_damosel/L18_002D7598-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
 src/pal/levels/shared/L13_002C56D8-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
 src/pal/levels/shared/L00_002BA480-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
+src/pal/levels/20_yeedil/L20_002C5C68-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
