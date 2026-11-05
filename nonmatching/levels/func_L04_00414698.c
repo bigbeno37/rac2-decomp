@@ -1,3 +1,14 @@
+/* Opus 5.5 xhigh (task v2609), 5 November 2026: COMPILER BLOCKER, the C below is unchanged from v2567.
+ * Stock cc1: 6032/6032 bytes, 0 of 2 places, the one bnel below. Private cc1 (flow.c's three
+ * HARD_FRAME_POINTER exclusions removed, mark_set_1 and the REG and SET cases of mark_used_regs, the copy
+ * from func_L07_0040EC08's v2577 test: cc1 file offsets 0xDA2EF, 0xDAF39, 0xDB03B, 6-byte je to nops):
+ * check.py says 2 of 2 places (04, 11) for USA v1.01 and for us2 (function not in the PAL catalogue).
+ * Ran with build/compiler/tools pointed at that copy; the linked build was not run with it.
+ * So the "Remaining bnel" analysis further down is superseded: bne needs no PRE move and no $fp set
+ * before the branch, only flow reporting $fp deaths. Do not work the PRE insert lead; a real fix is a
+ * compiler transformer, gated as v2577 suggests (! reload_completed || frame_pointer_needed), which a
+ * worker may not add. Same one-opcode shape as func_L07_0040EC08.
+ */
 /* Opus 5.5 xhigh (task v2567), 5 November 2026: 6032/6032 bytes, 0 of 2 places (04 and 11); one opcode
  * differs and every register, slot and order is otherwise retail's: ours `bnel $v1,$v0` at 004147A8,
  * retail `bne`, same target and same slot (`addiu $fp,$s7,0x10`). Previous draft: 6020 bytes, 15 hunks.
@@ -20,7 +31,8 @@
  * NOTE REVIEW: `if (x > 1.2217306f) height = 0.0f;` is the one dead store (flow1 deletes it, the empty
  *   branch dies at jump2, the c.lt.s stays). The block-scope `extern int D_001A7CC0;` is a second decl
  *   with no sda flag, which gives the absolute read in that arm.
- * Remaining bnel: reorg can only give a plain bne here if the $fp set stands BEFORE the branch.
+ * Remaining bnel (superseded by the v2609 result above): within this compiler, reorg can only give a plain
+ *   bne here if the $fp set stands BEFORE the branch.
  *  - flow forces $30 live in every block (mark_regs_live_at_end; mark_set_1 ignores it), and
  *    find_dead_or_set_registers follows one conditional branch, so a set stolen from the target has
  *    $fp in opposite_needed and must annul. try_merge needs a copy on the fall-through, which flow1 deletes.
