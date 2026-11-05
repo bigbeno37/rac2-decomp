@@ -3606,3 +3606,4 @@ src/pal/game/00343690-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/12_todano/L12_00418BD8-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/pal/levels/12_todano/L12_00417F48-por.c	-O2 -G0 -ffunction-sections -frac2-zero-ti-por -mno-split-addresses
 src/pal/game/002CECF8-g8.c	-O2 -G8 -fno-expensive-optimizations -ffunction-sections -fno-builtin
+src/pal/levels/shared/L00_00417ED0-g8.c	-O2 -G8 -ffunction-sections
