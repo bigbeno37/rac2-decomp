@@ -3679,3 +3679,4 @@ src/us2/game/002CC908-g8.c	-O2 -G8 -mastra-r5900-extern-buffer -ffunction-sectio
 src/us2/game/002F95E8-g16.c	-O2 -G16 -ffunction-sections -Wa,-G16
 src/us2/levels/10_hrugis_cloud/L10_00426260-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/us2/levels/05_feltzin_system/L05_00422838-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
+src/us2/game/002D1F28-cc-g8.c	-O2 -G8 -ffunction-sections
