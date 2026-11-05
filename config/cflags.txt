@@ -3252,3 +3252,30 @@ src/pal/levels/shared/L07_0040E120-rc2-g8.c	-O2 -G8 -ffunction-sections -fno-bui
 src/pal/levels/01_oozla/L01_003C45C8-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/shared/L12_0041DF18-rc2-g8.c	-O2 -G8 -ffunction-sections -fno-builtin
 src/pal/game/002AF6C0-flags.c	-O2 -G0 -ffunction-sections -g -ffast-math
+src/pal/game/003096D0-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/00_aranos_tutorial/L00_00396350-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/01_oozla/L01_003864B0-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/02_maktar_nebula/L02_0039AED0-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/03_endako/L03_00396A58-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/04_barlow/L04_003B6250-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/05_feltzin_system/L05_003A6EA8-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/shared/L06_003D3C28-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/07_siberius/L07_003873C8-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/08_tabora/L08_003A0D28-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/09_dobbo/L09_0038E768-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/10_hrugis_cloud/L10_003A95E8-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/11_joba/L11_0039B240-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/12_todano/L12_0038C940-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/14_aranos_prison/L14_0039CF70-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/15_gorn/L15_003B2BE8-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/16_snivelak/L16_0034F000-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/17_smolg/L17_00388C38-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/18_damosel/L18_003A39A8-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/19_grelbin/L19_0038E3B0-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/20_yeedil/L20_003A28D8-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/22_dobbo_orbit/L22_00388CB8-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/23_damosel_orbit/L23_00397268-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/24_ship_shack/L24_0037C748-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/25_wupash_nebula/L25_0039FA98-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/26_jamming_array/L26_0038ECA0-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
+src/pal/levels/30_insomniac_museum/L30_003890DC-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
