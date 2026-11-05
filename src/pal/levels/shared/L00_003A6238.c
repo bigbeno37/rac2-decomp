@@ -81,9 +81,7 @@ void func_PAL_L00_003A77D8(char *moby)
 }
 
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L00_003A7A68);
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L00_003A7ED8);
 
 extern char D_L00_001A8F20[] __attribute__((sda));
 extern void func_0029FCC0_1(int a, int b, void *c);
