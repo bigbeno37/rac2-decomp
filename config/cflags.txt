@@ -3793,3 +3793,4 @@ src/pal/levels/09_dobbo/L09_0039EEE0-flags.c	-O2 -G0 -ffunction-sections -g
 src/pal/game/00331948-rc2.c	-O2 -G4 -ffunction-sections -fno-builtin
 src/us2/levels/15_gorn/L15_00316058-effects-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/pal/game/00317768-g8.c	-O2 -G8 -ffunction-sections
+src/us2/levels/01_oozla/L01_002F3140-g8.c	-O2 -G8 -ffunction-sections -Wa,-G8 -g -frac2-zero-ti-por
