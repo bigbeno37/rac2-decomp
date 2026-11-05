@@ -971,5 +971,6 @@
 #define UpdateHoverbikeMovement          func_L04_00414698
 #define UpdateDamoselTimedExplosions     func_L18_003170F8
 #define UpdateEffectSlots                func_003166C8
+#define DrawRotatingObjectGroupEffects   func_L02_003E80F8
 
 #endif /* NAMES_H */
