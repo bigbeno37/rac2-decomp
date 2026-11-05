@@ -3343,3 +3343,4 @@ src/pal/game/002BE9A8-qcopy.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qc
 src/pal/levels/02_maktar_nebula/L02_003ED450-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/pal/levels/02_maktar_nebula/L02_003EDCE8-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/pal/levels/06_notak/L06_00380B10-flags.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
+src/pal/game/0027FB48-g8.c	-O2 -G8 -ffunction-sections -Wa,-G32
