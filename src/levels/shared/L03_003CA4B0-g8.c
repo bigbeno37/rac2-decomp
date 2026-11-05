@@ -22,7 +22,10 @@ typedef struct {char pad[0x140];float pos[4];} ReflectCamera;
 extern ReflectCamera D_L03_001B9840;
 
 /* Transform src by the matrix into dst (RAC1 TransformPoint). */
-static inline void TransformPoint(float *dst,void *src,void *m){func_002830C0(dst,src,m);}
+static inline void TransformPoint(float *dst,void *src,void *m)
+{
+    func_002830C0(dst,src,m);
+}
 
 /* Draws the reflective container moby: 57 vertices, 42 faces (RAC1 draw_gadgebot_spawn_container). */
 void func_L03_003CA4B0(char *m){
