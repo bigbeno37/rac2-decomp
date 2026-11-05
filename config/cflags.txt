@@ -3321,3 +3321,4 @@ src/pal/levels/shared/L00_00408110.c	-O2 -G0 -ffunction-sections -frac2-hazard-l
 src/pal/game/0033AF68-g16.c	-O2 -G16 -ffunction-sections -Wa,-G16
 src/pal/levels/shared/L00_0040D328.c	-O2 -G0 -ffunction-sections -frac2-hazard-labels
 src/pal/levels/shared/L00_0040D990-g8.c	-O2 -G8 -ffunction-sections -g
+src/pal/levels/shared/L06_004046D8-g8.c	-O2 -G8 -Wa,-G64 -ffunction-sections
