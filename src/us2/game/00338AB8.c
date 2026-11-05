@@ -78,7 +78,24 @@ void func_US2_00338AB8(char *obj, void *pool)
 }
 
 
-INCLUDE_ASM("asm/us2/game", func_US2_00338CD8);
+extern int func_0027F178(unsigned char *text, int length); /* text width */
+
+/* func_US2_00338CD8, the v2.00 copy of func_00337E30, which also stores its second argument at
+   +0x1C4. */
+void func_US2_00338CD8(unsigned char *p, int a1, int a2, float f12, float f13)
+{
+    unsigned char *q = p + 168;
+
+    *(int *)(p + 452) = a1;
+    *(float *)(*(int *)p) = f12;
+    *(float *)(*(int *)p + 4) = f13;
+    p[423] = 0;
+    *(int *)(p + 440) = a2;
+    *(int *)(p + 472) = (int)q;
+    *(int *)(p + 468) = func_0027F178(q, -1);
+    *(int *)(p + 432) = 1;
+    *(float *)(*(int *)(p + 4)) = 1.0f;
+}
 
 INCLUDE_ASM("asm/us2/game", func_US2_00338D48);
 
