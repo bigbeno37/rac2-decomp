@@ -583,7 +583,6 @@ void func_L04_0040CE30(char *a0)
 
 INCLUDE_ASM("asm/levels", func_L04_0040DCA8);
 
-INCLUDE_ASM("asm/levels", func_L04_0040DF90);
 
 extern BatchA_A04_u8 D_00188660[];
 
