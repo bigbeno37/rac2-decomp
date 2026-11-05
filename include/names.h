@@ -956,5 +956,6 @@
 #define UpdateBouncingBlastProjectile    func_L00_004096B0
 #define UpdateWaveLineEffect             func_L00_00413358
 #define DrawCameraFacingTwoLayerRibbon   func_L00_00418230
+#define DrawShrinkingMobyRings           func_L01_00398B50
 
 #endif /* NAMES_H */

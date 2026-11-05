@@ -1,23 +1,4 @@
-/* opus-1 retained attempt (v2297), USA v1.01, pinned game compiler, -G8 file.
- * check.py: 1352 bytes versus 1352, frame 0x360; 0 of 5 places match;
- * 51 of 338 rows differ, all of them relocations or spill-slot offsets.
- * Code, allocation, scheduling and frame now match retail; only the order of
- * the eight 4-byte spill slots differs. Retail: 0x2C0 d, 0x2C4 j<2, 0x2C8 rot,
- * 0x2CC sp+0x40, 0x2D0 next, 0x2D4 sp+0x50, 0x2D8 sp+0x54, 0x2DC transform.
- * Ours: d, next, j<2, transform, sp+0x50, sp+0x54, rot, sp+0x40 (reload assigns
- * slots in pseudo order: the PRE base pseudos and next/j<2 come out in a
- * different order; see the PRE hash-order notes in the compiler docs).
- * Keys found: 16-byte aligned RingVec (blocks the expand_expr bitpos fold),
- * q[j] inside every switch case (one fixed-row IV at sp+0x1B0), indexed
- * for (j) first loop with g[2] before g[3] (separate end pointer, constant
- * order), index-form UV loads with the v table as MACRO_ADDR (unsplit la, so
- * loop.c reduces it into s7), g = D_00189F20 - 0x100 assigned after the call.
- * Declarations: all below (D_L01_001AF5F0/5F8 via SDATA, D_L01_001AF5FC as
- * MACRO_ADDR, D_L01_001AF5D8..5E8/618/620 sda). No linked-build claim.
- * Related RAC1 source: GPL-3.0 gold_bolts_and_teleporters.c,
- * draw_moby_radius_ring; RAC2 constructs four quads for a batched draw.
- */
-extern char D_00189EA0[];
+#include "common.h"
 extern void func_00282CF0(void *, void *, void *);
 #define I(p,o) (*(int *)((char *)(p)+(o)))
 #define F(p,o) (*(float *)((char *)(p)+(o)))
@@ -36,7 +17,6 @@ extern float D_L01_001AF618 __attribute__((sda));
 extern float D_L01_001AF620 __attribute__((sda));
 extern float D_L01_001AF5FC[] MACRO_ADDR;
 extern char D_00189F20[];
-extern char D_00189E20[];
 extern float D_L01_001B1FA4;
 extern void func_00283658(void *,void *);
 extern long func_0027C878(int);
@@ -45,6 +25,9 @@ extern unsigned func_00283D38(unsigned,unsigned,float);
 extern void func_00282C90(void *);
 extern void func_002833F0(void *,void *);
 extern void func_L01_002E1510(void *,int,void *,int,void *);
+/* Draws the moby's fading ring: four quads, one per row, repeated 32 times around it by the
+ * batched draw, fading and growing as the radius in its vars shrinks. Row 0 takes the first
+ * colour and the others the second. Adapted from RAC1 draw_moby_radius_ring (GPL-3.0). */
 void func_L01_00398B50(char *m)
 {
     RingQuad q[4];
@@ -60,8 +43,7 @@ void func_L01_00398B50(char *m)
     for(j=0;j<4;j++) {
         q[j].g[1]=func_0027C878(D_L01_001AF5E8);
         q[j].g[2]=0xFF9000000260L;
-        q[j].g[3]=(long)D_L01_001AF5D8;
-        q[j].g[3]|=(long)D_L01_001AF5DC<<2;
+        q[j].g[3]=(long)D_L01_001AF5D8|((long)D_L01_001AF5DC<<2);
         q[j].g[3]|=(long)D_L01_001AF5E0<<4;
         q[j].g[3]|=(long)D_L01_001AF5E4<<6;
         q[j].g[3]|=0x8000L<<24;
@@ -89,34 +71,38 @@ void func_L01_00398B50(char *m)
             } else *(short *)(g+0x2500)=0;
         }
     }
-    for(j=0;j<4;) {
-        int next=j+1;
+    {
+    float scale=0.8f;
+    int i;
+    RingQuad *row;
+    for(i=0;i<4;i++) {
         for(k=0;k<4;k++) {
             unsigned c;
-            q[j].uv[k][0]=D_L01_001AF5F8[k*2];
-            q[j].uv[k][1]=D_L01_001AF5FC[k*2];
-            c=D_L01_001AF5F0[j!=0];
-            q[j].c[k]=c;
-            q[j].c[k]=func_00283D38(c&0xffffff,c,alpha);
-            func_00282C90(q[j].v[k]);
-            {float radius=F(d,0x34); if(j)radius+=0.01f; q[j].v[k][0]=radius;}
+            q[i].uv[k][0]=D_L01_001AF5F8[k*2];
+            q[i].uv[k][1]=D_L01_001AF5FC[k*2];
+            c=D_L01_001AF5F0[i!=0];
+            q[i].c[k]=c;
+            q[i].c[k]=func_00283D38(c&0xffffff,c,alpha);
+            func_00282C90(q[i].v[k]);
+            row=(RingQuad *)q[0].v[k];
+            {float radius=F(d,0x34); if(i)radius+=0.01f; q[i].v[k][0]=radius;}
             if(k&1) {
-                switch(j) {
-                case 0:q[j].v[k][2]+=D_L01_001AF618+h;break;
-                case 1:q[j].v[k][2]+=D_L01_001AF618+D_L01_001AF620;break;
-                case 2:q[j].v[k][2]+=(D_L01_001AF618-h*0.8f)+D_L01_001AF620;break;
-                case 3:q[j].v[k][2]+=(D_L01_001AF618+h*0.8f)+D_L01_001AF620;break;
+                switch(i) {
+                case 0:row[i].v[0][2]+=D_L01_001AF618+h;break;
+                case 1:row[i].v[0][2]+=D_L01_001AF618+D_L01_001AF620;break;
+                case 2:row[i].v[0][2]+=(D_L01_001AF618-h*scale)+D_L01_001AF620;break;
+                case 3:row[i].v[0][2]+=(D_L01_001AF618+h*scale)+D_L01_001AF620;break;
                 }
             } else {
-                switch(j) {
-                case 0:q[j].v[k][2]+=D_L01_001AF618-h;break;
-                case 1:q[j].v[k][2]+=D_L01_001AF618-D_L01_001AF620;break;
-                case 2:q[j].v[k][2]+=(D_L01_001AF618-h*0.8f)-D_L01_001AF620;break;
-                case 3:q[j].v[k][2]+=(D_L01_001AF618+h*0.8f)-D_L01_001AF620;break;
+                switch(i) {
+                case 0:row[i].v[0][2]+=D_L01_001AF618-h;break;
+                case 1:row[i].v[0][2]+=D_L01_001AF618-D_L01_001AF620;break;
+                case 2:row[i].v[0][2]+=(D_L01_001AF618-h*scale)-D_L01_001AF620;break;
+                case 3:row[i].v[0][2]+=(D_L01_001AF618+h*scale)-D_L01_001AF620;break;
                 }
             }
         }
-        j=next;
+    }
     }
     *(TI *)rot=0;rot[2]=0.19634954631328583f;
     func_002833F0(transform,rot);
