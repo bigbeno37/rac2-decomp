@@ -1,6 +1,6 @@
 /*
  * func_L20_0039BEC8 -- non-matching draft
- * Tier: Claude Opus 5.5, xhigh effort, task v2484 (opus-2); builds on v2204 (opus-1).
+ * Tier: Claude Opus 5.5, xhigh effort, task v2484 (opus-2); builds on v2204 (opus-1); notes extended by v2624.
  * Target file: src/levels/20_yeedil/L20_002DEBE0-g8.c (-G8), replacing
  *   INCLUDE_ASM("asm/levels", func_L20_0039BEC8);
  * Best check.py: "20_yeedil: instruction at +0x8c differs" /
@@ -22,6 +22,27 @@
  *   (plus 85 16) and the two halves stop sharing the PRE register. An
  *   inline helper for everything after loop 1 (pointer args) gave 1196
  *   bytes and drops several sp+X PRE regs; not the original shape.
+ * v2624 (opus-3, last attempt): C unchanged, still 1252/1252. The "31 rows"
+ *   above counted relocations: 24 rows really differ, all spill slots.
+ *   S: 269 RTL insns enter gcse, retail needs 256..259. Every insn was
+ *   accounted for and none is removable: Vec *p walks in loops 1/2 keep 135
+ *   and put the position increment last; default-then-override width fixes
+ *   S at 133 but breaks loop 2's PRE'd (i & 1) copy and loop 3's $f0;
+ *   `float *world = matrix` (133) adds two instructions; an unsplit la for
+ *   D_L20_001B9FC0 (133) changes saved-register choices (42 rows), and
+ *   retail's lui and addiu for it are not adjacent, so it is split there.
+ *   R: pre_lcm reads only antloc/transp, so obj+0x10 is inserted at the end
+ *   of the block after loop 1 (retail's sw $s0,0x160) only if its base is
+ *   set in an earlier block and is upward-exposed there. A base set in that
+ *   block moves the insertion before loop 3 (218 rows). So the base must be
+ *   set in bb 0 with pseudo 113..128 (bb 0 ends near 95). Only ADDRESSOF
+ *   could number it 241..257, but its block-local copies are hashed instead
+ *   of the base and add insns (reasoned, not compiled here). A chain
+ *   `base = object; owner = base;` in
+ *   bb 0 compiles to the same bytes but cse1 collapses it to the parameter.
+ *   Also tried in slot terms: only S 129 fits; 135/139 need tangent and obj
+ *   both out of bucket order. Retail's source shape must differ more than
+ *   wording (perhaps inline-heavy bb 0).
  * Needs from the g8 file: u32/u64, qcopy, SDATA/NOT_SDA, and the existing
  *   externs func_002A7878(float,float) and func_002A7940(void).
  * FastTweenColor (func_00283D38) prototype (int from, int to, float t) is
