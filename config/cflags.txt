@@ -3237,3 +3237,4 @@ src/game/002FC8D0-start.c	-O2 -G0 -ffunction-sections -g
 src/levels/20_yeedil/L20_0039F268-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -frac2-zero-ti-por
 src/levels/shared/L00_003A1580-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy
 src/levels/shared/L04_00402D90-sound.c	-O2 -G0 -ffunction-sections -g
+src/levels/shared/L03_003CA4B0-g8.c	-O2 -G8 -ffunction-sections -g
