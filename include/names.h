@@ -972,5 +972,6 @@
 #define UpdateDamoselTimedExplosions     func_L18_003170F8
 #define UpdateEffectSlots                func_003166C8
 #define DrawRotatingObjectGroupEffects   func_L02_003E80F8
+#define FindHeroOrMobyTarget             func_L04_003429F8
 
 #endif /* NAMES_H */
