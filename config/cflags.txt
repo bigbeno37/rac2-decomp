@@ -3319,3 +3319,5 @@ src/pal/game/002D1EB0-menu-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/01_oozla/L01_003D2900-g.c	-O2 -G0 -ffunction-sections -g
 src/pal/levels/shared/L00_00408110.c	-O2 -G0 -ffunction-sections -frac2-hazard-labels
 src/pal/game/0033AF68-g16.c	-O2 -G16 -ffunction-sections -Wa,-G16
+src/pal/levels/shared/L00_0040D328.c	-O2 -G0 -ffunction-sections -frac2-hazard-labels
+src/pal/levels/shared/L00_0040D990-g8.c	-O2 -G8 -ffunction-sections -g
