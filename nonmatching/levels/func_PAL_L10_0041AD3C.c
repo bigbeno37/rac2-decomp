@@ -1,14 +1,20 @@
 /* func_PAL_L10_0041AD3C (10:0041AD3C, 15:00424804), the PAL copy of func_L05_004170C8.
-   Tier: Opus 5.5. NEVER COMPILED: the toolchain pin 92fa28086 could not build while this ran, so there
-   is no check.py result, and everything below about bytes comes from reading retail, not from a build.
-   Blocker: the catalogue row. It starts on the padding nop after func_PAL_L10_0041A730 (retail's prologue
-   is at +4, 10:0041AD40 and 15:00424808), so it says 928 bytes for a 924-byte body, and check.py needs the
-   section size to equal the catalogue size. No C emits that leading word.
-   Retail, realigned by that one word: the same as func_PAL_L05_0041BD98 but for 8 data-reference words, all
-   per-level symbols; every call has the same catalogue name. This file is that sibling's C unchanged and
-   should match once the row is 924 bytes at +4 (unverified).
-   If it lands: unit src/pal/levels/shared/L10_0041AD3C-g8.c, flags -O2 -G8 -ffunction-sections
-   (the -g8 name gives -G8). Needs only what is declared below. */
+   Tier: Opus 5.5. Best check.py: 0 of 2 places, "924 bytes, expected 928". The C is exact; the row is wrong.
+   Blocker: the catalogue row starts on the padding nop after func_PAL_L10_0041A730, whose return's delay slot
+   is the word before it. Retail's prologue (addiu $sp,$sp,-0x70) is at +4, 10:0041AD40 and 15:00424808, the
+   8-byte aligned addresses, so the row says 928 bytes for a 924-byte body. No C emits that leading word.
+   Measured: build.Placement.derive(), the comparison check.py runs, on this file compiled as the -g8 unit
+   below returns no difference at row+4 in both levels, and "instruction at +0x0 differs" at +0 and +8.
+   The linked build has not been run: it cannot place this C until the row is fixed.
+   Repair, in tools/levels.py (not done here, workers may not edit it): add
+       "func_PAL_L10_0041AD3C": (928, 4),
+   to FUNCTION_ENTRY_OFFSETS, next to "func_PAL_L10_0041A730": (1548, 8), then run
+   python3 tools/carry.py --version pal --entries. That gives 924 bytes at 10:0041AD40, 15:00424808.
+   If it lands: unit src/pal/levels/shared/L10_0041AD3C-g8.c, flags -O2 -G8 -ffunction-sections (the -g8 name
+   gives them, no cflags.txt line is needed), and delete the INCLUDE_ASM line from L10_0041AD3C.c.
+   This is func_PAL_L05_0041BD98's C unchanged but for the function's name. Its names resolve per program:
+   D_L05_001B0F50 0x1B0F18/0x1B1018, D_L05_00221D48 0x221D38/0x221EB8, D_L05_001FE380 0x1FE340/0x1FE4C0,
+   D_L05_001B251C 0x1B251C/0x1B261C, D_00188660 0x1886E0 in both (level 10/level 15). */
 #include "common.h"
 typedef union { int q __attribute__((mode(TI))); float f[4]; } Vector;
 extern int func_L00_00367720(void);
