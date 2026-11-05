@@ -36,6 +36,48 @@
  * every odd T 51..899).  Likely the second run got slots in a later reload
  * round (spilled from hard regs by finish_spills) rather than by global; i+1
  * inside run one needs regno(i) 119..133 at T=175 (here 96).
+ *
+ * opus-2 (Claude Opus 5.5, xhigh), task v2628, third and last attempt, 5 November
+ * 2026.  Result: 1524/1524 bytes, 0/27 places, 101 of 381 rows differ: 43 only by
+ * relocation, 26 by slot number, 15 by s2/s5/s6 name, and 17 really (11 strip FPU,
+ * 6 phase axis inits).
+ * Fixed in this draft, and supersedes the notes above:
+ *  - colour into $s1 and retail's `sll v1,v0,24`: `tmp = f(...) << 24; inner = D;
+ *    color = tmp | inner;` (the load must follow the call; `(tmp << 24) | inner`
+ *    keeps `sll v0,v0,24`, and a load before the call grows the body);
+ *  - phase 2 `inner = D_..77C` goes before func_00282CF0, which puts it in the jal
+ *    delay slot as in retail;
+ *  - phase colours store color[3] first.  bb 2 now schedules exactly as retail.
+ * Spill slots (x.i.gcse).  Retail's slot order is one PRE bucket sweep only if ALL
+ * stack addresses hash on a pseudo base instead of $at: (plus R X) = 14029+R+X.
+ * Solutions: T=171 (max_cuid 342..345) R=116..126, T=173 R=113..121, T=169 R=119..127,
+ * T=167 R=118..124, each with a window for regno(i); T=171 R=117 i=96 fits exactly.
+ * No T fits with $at (checked 101..321), and no hard register fits.  Measured here:
+ * a pointer to one struct holding every local does rotate the sweep to retail's
+ * sp30,sp490,..,sp4A0,..,sp10,spC0,sp20 at T=175.  What is missing is a natural
+ * base that leaves no trace:
+ *  - base at frame offset 0 has no REG_EQUAL (cse refuses a bare $at as src_const),
+ *    so it takes a saved register (pushes segments off $fp) or a slot;
+ *  - set in bb 2 with all uses there, loop.c still hoists it (measured life 48), so
+ *    cse2 cannot fold it and it gets `sw $sp,slot`.  Keeping it un-hoisted needs a
+ *    short life (docs give threshold 55), which the PRE inserts after it exceed;
+ *  - a base at a nonzero offset (work.matrix, K=0x90, R about 89..99) may be the
+ *    shape that rematerialises, but it needs packet at negative offsets.  Tried once
+ *    with rings through a cast: no store of the base, but i moved to 0x4B4 and the
+ *    body grew to 383 rows.  Not pursued, because of the negative offsets;
+ *  - static inline with the locals in it: hashes stay on $at (integrate.c substitutes
+ *    its frame pseudo), T drops to 165 and the i*0x60 for s4 moves after the call.
+ * Phase axis inits: retail `addu v1,fp,v0; addu s2,v0,fp; addiu s0,v1,0x10`.
+ * `for (j = 1; j < 3; j++)` with axis[j] gives the upper form (addu then addiu 0x10,
+ * seen with segments spilled); axis[j - 1] adds a -0x10 to the lower one.  The
+ * variant `for (j = 1, k = 0; j < 3; j++, k++)` with axis[k] may fix the lower one,
+ * but it was not seen, because both variants lose $fp: with k, segments has 15 refs
+ * (about 19 before), so by the priority estimate the spD0 reaching register (about
+ * .27) beats segments (about .17).  Retail would need that loop with more refs on
+ * segments, or a lower priority on spD0.
+ * Strip FPU: seven more wordings (local for u+k, v updated early, separate stores)
+ * did not beat this one, a tie at 12 strip rows at best.  Here next is in $f1 and
+ * u+k in $f0; retail has them the other way round.
  */
 #include "common.h"
 
@@ -90,6 +132,7 @@ void func_L00_003A91A0(char *object)
     RingSegment *segments = (RingSegment *)(base + *func_L00_0032A0B8(0x5CB, *(short *)(state + 0x1A)));
     int i, j, k;
     unsigned int color, inner;
+    int tmp;
     float alpha, v, u, next, scroll;
 
     func_00281DE8(&packet, 0x15, 0, 0x80);
@@ -100,7 +143,9 @@ void func_L00_003A91A0(char *object)
         qcopy(matrix[2], segments[i].end);
         func_00282DD8(matrix[1], matrix[0], matrix[2]);
         alpha = segments[i].alpha * segments[i].alphaScale;
-        color = (func_00283CF0(alpha * D_L00_001AF76C) << 24) | D_L00_001AF764;
+        tmp = func_00283CF0(alpha * D_L00_001AF76C) << 24;
+        inner = D_L00_001AF764;
+        color = tmp | inner;
         packet.color[0] = packet.color[1] = packet.color[2] = packet.color[3] = color;
         for (j = 0; j < 3; j++) {
             qcopy(matrix[3], segments[i].axis[j]);
@@ -131,7 +176,9 @@ void func_L00_003A91A0(char *object)
         }
 
         func_00281DE8(&packet, 0xE, 1, 0x80);
-        color = (func_00283CF0(alpha * D_L00_001AF784) << 24) | D_L00_001AF780;
+        tmp = func_00283CF0(alpha * D_L00_001AF784) << 24;
+        inner = D_L00_001AF780;
+        color = tmp | inner;
         packet.uv[0] = 0.0f;
         packet.uv[1] = 0.0f;
         packet.uv[2] = 0.0f;
@@ -142,8 +189,8 @@ void func_L00_003A91A0(char *object)
         packet.uv[7] = 1.0f;
         packet.color[0] = packet.color[1] = packet.color[2] = packet.color[3] = color;
         packet.uv[4] = packet.uv[6] = 0.5f;
-        func_00282CF0(temp, D_L00_001B8DC0, segments[i].axis[0]);
         inner = D_L00_001AF77C;
+        func_00282CF0(temp, D_L00_001B8DC0, segments[i].axis[0]);
         func_00282DD8(matrix[1], matrix[0], temp);
         func_00282F20(width, matrix[1], D_L00_001AF778);
         for (j = 0; j < 2; j++) {
@@ -151,7 +198,7 @@ void func_L00_003A91A0(char *object)
             func_00282CF0(packet.vertex[1], segments[i].axis[j + 1], width);
             func_00282CC0(packet.vertex[2], segments[i].axis[j], width);
             func_00282CF0(packet.vertex[3], segments[i].axis[j], width);
-            packet.color[2] = packet.color[3] = inner;
+            packet.color[3] = packet.color[2] = inner;
             func_00280B90(&packet, 0, 0);
             inner = color;
             packet.uv[0] = packet.uv[2] = packet.uv[4];
@@ -159,7 +206,9 @@ void func_L00_003A91A0(char *object)
         }
 
         func_00281DE8(&packet, 0x17, 1, 0x80);
-        color = (func_00283CF0(alpha * D_L00_001AF794) << 24) | D_L00_001AF790;
+        tmp = func_00283CF0(alpha * D_L00_001AF794) << 24;
+        inner = D_L00_001AF790;
+        color = tmp | inner;
         packet.color[0] = packet.color[1] = packet.color[2] = packet.color[3] = color;
         packet.uv[0] = 0.0f;
         packet.uv[1] = 0.0f;
@@ -178,7 +227,7 @@ void func_L00_003A91A0(char *object)
             func_00282CF0(packet.vertex[1], segments[i].axis[j + 1], width);
             func_00282CC0(packet.vertex[2], segments[i].axis[j], width);
             func_00282CF0(packet.vertex[3], segments[i].axis[j], width);
-            packet.color[2] = packet.color[3] = inner;
+            packet.color[3] = packet.color[2] = inner;
             func_00280B90(&packet, 0, 0);
             inner = color;
             packet.uv[0] = packet.uv[2] = packet.uv[4];
