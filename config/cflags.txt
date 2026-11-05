@@ -3695,3 +3695,4 @@ src/us2/game/002D5D10-g8.c	-O2 -G8 -fno-expensive-optimizations -ffunction-secti
 src/us2/levels/11_joba/L11_00433090-g8.c	-O2 -G8 -ffunction-sections
 src/us2/game/002CBED0-g8.c	-O2 -G8 -ffunction-sections
 src/us2/levels/shared/L00_00345740-g8.c	-O2 -G8 -ffunction-sections
+src/us2/levels/shared/L04_0040CF60-g8.c	-O2 -G8 -ffunction-sections
