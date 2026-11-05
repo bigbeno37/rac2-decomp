@@ -64,7 +64,6 @@ the placement rules are in `tools/fcheck.py`'s docstring; its tests are
 
 | Function | Size | Status and remaining differences |
 | --- | ---: | ---: |
-| [`func_00327038`](game/func_00327038-g8.c) | 840 | 840/840 bytes as its own -G8 unit, 0/28 places. Frame and control flow match; local-register allocation differs. |
 | [`func_00330150`](game/func_00330150-g8.c) | 904 | 904/904 bytes as its own -G8 unit, 0/28 places. The 0x150 frame and local-register allocation differ from retail's 0x160 frame. |
 | [`func_L00_003A98E8`](levels/func_L00_003A98E8.c) | 876 | 748/876 bytes, 0/27 places. The twelve-argument constructor call and its float/stack argument shape remain unresolved. See source. |
 | [`func_L06_003E5D30`](levels/func_L06_003E5D30.c) | 976 | 1 November 2026 USA v1.01: 968/976 bytes, no match. The strand grid update: control flow and calls follow retail; allocation swaps the state pointer and the strand offset between $fp and the stack. See source. |

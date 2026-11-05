@@ -122,7 +122,7 @@ extern void func_00280B90(char *pkt, float *matrix, int mode);
 
 /* Finds the first matching object in the thirty resident records. */
 
-INCLUDE_ASM("asm/game", func_00327038);
+/* func_00327038 is in 00327038-probe-g8.c. */
 
 /* func_00327380 is in 00327038-ground-g8.c. */
 
