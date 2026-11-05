@@ -1,3 +1,42 @@
+/* opus-2 (Claude Opus 5.5, xhigh), v2554, 5 November 2026: about 15 compiles, no closer. The body below is
+ * still opus-1's: it recompiles to 3356/3388 bytes, 0 of 2 places, and no variant beat it (opus-2's own scorer
+ * gives it 596 of 843; do not compare that with opus-1's 616 of 847, which masked differently).
+ *
+ * Why the boundary needs both properties (read from the gcc tree and measured here):
+ * - Sched1 and sched2 both see a REAL block end after each conversion. Calls do not end blocks here, so a constant
+ *   hoists to the start of its block; retail's 286.0, table %hi and shift 5 stop right after a row's mfc1.
+ *   Sched2's mfc1->mtc1 latency is absent in retail ($v1 is ready at once), so sched2 sees a block, not a barrier.
+ * - Cse does NOT see a join there: $f22 (0.5) lives from sprite 3 through row 110, eight conversions, and $f24
+ *   (200.0) spans both first sprites. So the test is a single arm with a once-used label (cse-skip-blocks);
+ *   every two-arm form flushes the table at its join, which is the measured 3508 bytes.
+ * - A single arm emptied by flow1 gives the sched1 block only: flow2's find_basic_blocks merges b and c
+ *   (one successor, one predecessor, deletable label) before sched2. Reload_cse_regs also runs before that pass.
+ *   Needed: an arm non-empty at flow2's find_basic_blocks that dies later, in flow2's life pass, jump2 or reorg.
+ *
+ * Compiled, none landable, helper placed on all coordinates (scores from opus-2's scorer):
+ * - if (mode) y = 0.0f; (dead arm), 3356 bytes, 590: sprite 1 has retail's order except li.s $f15, which sched2
+ *   hoists ahead of the mul.s. Sprites 3-4 may need their icon and Y in locals first, or the argument constants
+ *   land ahead of the Y, but the block-end mismatch still hides that in this form.
+ * - The same with do { } while (0) after the arm (forbidden), 3376 bytes, 613: li.s is still ahead of the mtc1;
+ *   the note is a barrier and keeps mfc1's latency. Without the arm, 3368 bytes, 613: the insn after the note is
+ *   forced first, so the float conversion precedes the D_001A7B90 load, which is not retail's order.
+ * - if (mode) r = (int)y; and r2 = t; if (mode) r2 = (int)y; hoped to survive to reorg (redundant_insn, then
+ *   relax_delay_slots drops the branch). Cse folds both: apply_change_group strips the fix pattern's trailing
+ *   clobbers, so 21 fixes remain before gcse, no arms. An arm reaching reorg must hide its equality from cse.
+ * - A goto to a named label: this compiler's can_delete_label_p ignores LABEL_NAME, so the block merges as before.
+ *   Only forced, value-list, EH or preserved labels block the merge, and those add uses, which ends cse's skip.
+ *
+ * Read from cse.c, flow.c and jump.c, not compiled:
+ * - if (a || b) and adjacent-label shapes should keep the jumps through flow2 (the join has two predecessors), but
+ *   the second label ends cse's path (it stops at any CODE_LABEL), so the constants would flush as with two arms.
+ * - BRANCH_COST is 1, so jump.c's t = exp rewrite never fires; delete_computation leaves loads behind after sched2.
+ *
+ * Sprite constants: an inline wrapper with a literal 1.0f gives retail's direct li.s $f14 in sprite 1, but it makes
+ * 0.0f direct too (retail keeps it in $f23), and a separate 1.0 for sprite 2 then loads too early. Still open: why
+ * retail has one 0.0 for sprites 1-2 yet two 1.0 loads. The second is before the D_001A7B90 branch, so it is a
+ * source statement ahead of that test, and $f20 is reused by the 1.0f - t arm.
+ * Boot's real helper is menu_screen_y (src/game/002CE5D0-g8.c), with arms on D_001B23A0; retail here has no such load.
+ */
 /* opus-1 (Claude Opus 5.5, xhigh) retained attempt, 31 October 2026, USA v1.01.
  * Profile: -O2 -G8 -ffunction-sections -g, in a separate -g8.c unit.
  * check.py: 3356/3388 bytes, 0 of 2 places (Barlow and Joba). No linked build.
