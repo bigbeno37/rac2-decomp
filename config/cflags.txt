@@ -3821,3 +3821,4 @@ src/pal/levels/shared/L09_00415440-cc-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/16_snivelak/L16_002F7B18-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -frac2-zero-ti-por
 src/pal/levels/shared/L04_003F2028-cc-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/14_aranos_prison/L14_0042ED80-g8.c	-O2 -G8 -ffunction-sections
+src/us2/levels/shared/L00_004239D0-main-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy
