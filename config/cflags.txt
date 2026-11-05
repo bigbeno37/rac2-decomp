@@ -3773,3 +3773,4 @@ src/us2/levels/02_maktar_nebula/L02_003FF768-cc.c	-O2 -G0 -ffunction-sections
 src/us2/levels/11_joba/L11_00445548-cc.c	-O2 -G0 -ffunction-sections
 src/us2/game/00349728-cc-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels -frac2-gcse-unsplit-edges -fmove-all-movables
 src/us2/levels/00_aranos_tutorial/L00_002FD818-state-g8.c	-O2 -G8 -ffunction-sections -g
+src/pal/levels/shared/L05_0039A808-g8.c	-O2 -G8 -ffunction-sections -g
