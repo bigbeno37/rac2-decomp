@@ -10,4 +10,3 @@ int func_PAL_00299518(void) {
 
 INCLUDE_ASM("asm/pal/game", func_PAL_00299520);
 
-INCLUDE_ASM("asm/pal/game", func_PAL_00299538);

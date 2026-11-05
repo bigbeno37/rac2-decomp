@@ -19,5 +19,4 @@ extern int ref_L01_00397A28_01 __attribute__((sda));
 extern int ref_L01_00397A28_02 __attribute__((sda));
 extern int ref_L01_00397A28_03 __attribute__((sda));
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L01_0041C0D8);
 

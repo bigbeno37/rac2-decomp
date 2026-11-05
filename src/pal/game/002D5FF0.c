@@ -342,7 +342,6 @@ void func_PAL_002D6A48(char *object, int *result) {
 
 INCLUDE_ASM("asm/pal/game", func_PAL_002D6A98);
 
-INCLUDE_ASM("asm/pal/game", func_PAL_002D6E30);
 
 INCLUDE_ASM("asm/pal/game", func_PAL_002D74D8);
 
@@ -350,4 +349,3 @@ INCLUDE_ASM("asm/pal/game", func_PAL_002D74D8);
 
 
 
-INCLUDE_ASM("asm/pal/game", func_PAL_002D82D8);

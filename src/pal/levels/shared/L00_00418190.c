@@ -30,4 +30,3 @@ void func_PAL_L00_00418190(char *object)
 }
 
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L00_00418250);

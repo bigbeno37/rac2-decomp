@@ -53,4 +53,3 @@ void func_PAL_L18_0042BD70(u8 *object)
 
 INCLUDE_ASM("asm/pal/levels", func_PAL_L18_0042BF58);
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L18_0042C210);

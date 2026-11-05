@@ -23,15 +23,10 @@ u8 *func_PAL_00345268(u8 *a0) {
 
 INCLUDE_ASM("asm/pal/game", func_PAL_003452C8);
 
-INCLUDE_ASM("asm/pal/game", func_PAL_003455B0);
 
-INCLUDE_ASM("asm/pal/game", func_PAL_003455D8);
 
-INCLUDE_ASM("asm/pal/game", func_PAL_003455F8);
 
-INCLUDE_ASM("asm/pal/game", func_PAL_00345618);
 
-INCLUDE_ASM("asm/pal/game", func_PAL_00345620);
 
 typedef int s32;
 typedef unsigned int u32;
