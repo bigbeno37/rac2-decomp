@@ -3317,3 +3317,4 @@ src/pal/game/002CC7B8-flags.c	-O2 -G8 -mastra-r5900-extern-buffer -ffunction-sec
 src/pal/levels/02_maktar_nebula/L02_00401EC8-g8.c	-O2 -G8 -ffunction-sections -frac2-gcse-unsplit-edges -frac2-keep-block-order
 src/pal/game/002D1EB0-menu-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/01_oozla/L01_003D2900-g.c	-O2 -G0 -ffunction-sections -g
+src/pal/levels/shared/L00_00408110.c	-O2 -G0 -ffunction-sections -frac2-hazard-labels
