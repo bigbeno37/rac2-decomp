@@ -18,6 +18,19 @@
  * hoisted the `i = next` copy above func_L00_002E2C30 and the counter took s0) and an
  * explicit `next = j + 1` that crosses the call while `j` stays in a1; that also put
  * the cached high half/state base in a2/a3 and the upload arguments in retail order.
+ * Third Opus attempt (v2588): C unchanged, no wording found; the blocker is now proven.
+ * Passing this file's unchanged cc1 output (no -g; -g gives the same result) through SN's
+ * toolchain/sn-prodg-2.0/ee/bin/Ps2EeAs.exe gives 608 bytes with 0 of 152 words different
+ * from retail L00 (relocated fields masked): that assembler emits the nop, ours does not.
+ * Why C cannot reach it: rac2_mtc1_nop_ok only keeps the nop if prev_prev_insn is a real
+ * opcode, and a reorder-mode branch leaves &dummy_opcode, so a real nop in the slot would
+ * need a filled SEQUENCE, which cc1 never makes (no RTL nop exists before dbr at -O2).
+ * Retail census: the a0/cvt.s.w exemption has one no-nop witness, func_00283CE0's first
+ * instruction, and the zero/c.lt.s role has three, none right after a branch group;
+ * the only sites after a branch and its nop are this function's 27, all with the nop.
+ * Caveat: Ps2EeAs also emits the nop in func_00283CE0, where retail has none, so it is not
+ * a complete model of the exemption. Untested fix: skip the exemption right after a
+ * gas-filled branch slot.
  * Declarations needed are below (catalogue names of the boot helpers placed in
  * every level: func_0027C540, func_002FCB00, func_0027C660, func_00283CF0,
  * func_0027DDC0).
