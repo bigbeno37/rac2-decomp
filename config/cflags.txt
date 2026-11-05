@@ -3337,3 +3337,4 @@ src/pal/levels/20_yeedil/L20_00448428-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/shared/L00_003AC5A8-por-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/pal/game/00300130-start.c	-O2 -G0 -ffunction-sections -g
 src/pal/levels/shared/L00_003FA3D0-por-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
+src/pal/levels/shared/L00_003AB208-cfg-g8.c	-O2 -G8 -ffunction-sections -mno-split-addresses
