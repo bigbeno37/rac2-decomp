@@ -3599,3 +3599,6 @@ src/pal/levels/shared/L02_003DAEE0-helpers-g8.c	-O2 -G8 -ffunction-sections -fra
 src/pal/levels/09_dobbo/L09_003E76B0-scan.c	-O2 -G0 -ffunction-sections -frac2-gcse-unsplit-edges
 src/pal/levels/17_smolg/L17_003D0990-cc-g8.c	-O2 -G8 -ffunction-sections
 src/pal/game/002CBD80-g8.c	-O2 -G8 -ffunction-sections
+src/pal/levels/shared/L18_0042D330-sw-g8.c	-O2 -G8 -ffunction-sections -frac2-keep-block-order
+src/pal/levels/shared/L18_0042D3B8-g8.c	-O2 -G8 -ffunction-sections
+src/pal/levels/shared/L18_0042D7E0-g8.c	-O2 -G8 -ffunction-sections
