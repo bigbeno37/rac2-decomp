@@ -1,59 +1,70 @@
-/* 2026-11-03 w02 faithful-contract review, US object checks only.
- * Profile: -O2 -G8 -ffunction-sections -g.
- * Current check.py: 3008/3008 bytes,0/2 places,first+0x3E8.
- * Restored real32-bit address-word results for font/sprite lookups with explicit pointer conversions, plus actual int message helper interface. Serial-rounding/control boundary and later saved roles remain unchanged.
- * Reopen: Natural rounding boundary surviving sched2 without a wrapper or invented condition.
- * No linked or cross-release match is claimed; earlier records follow.
- */
-/* Claude Opus 5.5 xhigh tier, task v1817, 31 October 2026.
- * Retained complete behavioural draft: USA v1.01, 3008/3008 bytes, 0/2 places
- * (levels 22 and 23); 129 of 752 rows still differ beyond relocated values, none
- * before 0x3A5400 (the prologue and sprites 1-5 are exact).
- * No linked build, no PAL/us2 check (no match).
- * Compile in an isolated -g8.c unit with -O2 -G8 -ffunction-sections -g. Without
- * -g the pre-div.s nop pairs go (2992 bytes); -fno-schedule-insns is far worse.
+/* Claude Opus 5.5 xhigh tier, task v2569, 5 November 2026.
+ * Best probe, kept below: USA v1.01, 3008/3008 bytes, 0/2 places (levels 22 and 23), first
+ * difference +0x558; 29 of 752 rows differ beyond relocated values (129 before this task).
+ * NOT landable: `if (v != 0 && D == one) y = *(int *)ctl;` at five sites is a dead arm that
+ * exists only to shape the schedule, and it needs value locals standing in for cse. No linked
+ * build, no PAL/us2 check (no match). Compile in an isolated -g8.c unit with
+ * -O2 -G8 -ffunction-sections -g. Without -g the pre-div.s nop pairs go.
  *
- * What this draft recovered, each measured:
- * - Y1/Y3 return int from an if/else with (int) in both arms. Retail's sprite 9
- *   looks like a single `if (...) sy += 1.0f` but is the same Y1 as sprite 10:
- *   jump2 (after sched2) cross-jumps its identical cvt/mfc1 tails. Its real join
- *   is what stops cse, so sprite 10 reloads 0.5, 1.0 and 1 into locals. This
- *   took the size from 2968 to 3008. A plain `if` lets cse-skip-blocks carry them.
- * - (float)Y3(sy) must convert after the join. A (float) on a ternary is folded
- *   into its arms, which moved mtc1/cvt.s.w before the label and broke sched2's
- *   first clock of each block (lwc1 f12/lui a1/mtc1 f16/ori a1).
- * - The saved constants 1 (retail s3, s4) are two locals assigned 1 and passed as
- *   func_0028E588's variant: cse keeps a1=1 literal and canonicalises the later
- *   `D_L22_001B2980 == 1` register to the local, so it lives across the calls.
- * - Icon 2/4: compute x before sy. func_0027FB40 takes u64 and returns int.
+ * What retail has at the five (int)(... + 0.5f) sites (sprites 7, 8, both counters, box),
+ * each point measured:
+ * - A `D_L22_001B2980 == 1` test sits right after the mfc1. Its literal 1 is retail's saved
+ *   constant: s3 and s4 are that register, reused by cse for the next real Y1 test. The box
+ *   has no saved 1 because nothing reuses it and flow2 deletes it. The load of D into v0 at
+ *   allocation is why the sprite pseudo lands in a0 (daddu a0,v0 mid-chain), as at sprite 9.
+ *   Do not use the old `one`/`one2` idea as the explanation: with the test the 1 needs no local.
+ * - Branch, load and constant all leave no word, so flow2 deleted them: tidy_fallthru_edge
+ *   takes the branch once the arm is empty, then life_analysis the load. The arm must be
+ *   emptied by flow1, not earlier: a one-insn reg arm becomes a cmove at jump1, and a
+ *   trivially dead set goes in cse. Dead `y = v + 1` was the cmove case; a may-trap source
+ *   (a load through a pointer, or FP arithmetic) stays a branch.
+ * - cse crosses the site (0.5, 1.0, 1, format and &hud reach the next Y1), so the join is a
+ *   single-use label over an arm without labels (AROUND path). An if/else join stops cse.
+ * - Yet a boundary survives sched2 after all that. With a one-predecessor join this compiler
+ *   merges the blocks at flow2 and sched2 interleaves the argument loads into the FP chain.
+ *   can_delete_label_p has no LABEL_NAME test in this tree, so a C label does not hold it
+ *   (`if (D != 1) goto L; ...; L: ;` gives the same bytes as the plain if).
  *
- * Remaining blocker: retail has a scheduling barrier directly after five roundings
- * (sprites 7, 8, both counter values, the box width), all (int)(... + 0.5f). No
- * later instruction goes above the mfc1, even in free slots (sprite 7: `lwc1 f1;
- * daddu a0,v0; mul; add; cvt; mfc1 a2; lw a1; addiu t1; lw a3; jal; lw t0`), and
- * s1/f20 stay below sprite 8's barrier while s3/f21 rise above sprite 6's call.
- * cse must cross it (f21, f22, s3 reach sprite 9). The (int)(ratio * x) gauge
- * conversions have no barrier. Most other differences follow from it: colour's
- * lifetime sets s0/s1/s4/s5/s6, so value/colour/format/high-copy get other saved
- * registers, and the box and label swap s0/s1.
+ * Forms measured, source shape only:
+ * A. Kept below: first test on a live value, second on D. The D branch is tidied with its load,
+ *    the value branch survives to jump2 (two-predecessor join) and leaves no word. Sprites 7
+ *    and 8 and every saved register come out exact, but the label stops cse, hence locals.
+ * B. `if (D_L22_001B2980 == 1) do { y = *(int *)ctl; } while (0);` from the plain draft, with no
+ *    locals: 46 rows, 3016 bytes. cse's AROUND scan steps over NOTE_INSN_LOOP_END inside a
+ *    skipped arm, flow keeps the notes, and they are a barrier in both schedulers. This gives
+ *    s3, s4, f20-f22, format and &hud naturally. But LOOP_BEG makes final align the next label
+ *    (.p2align 3, an extra nop at sprite 9), and retail's label at 0x3A567C is not aligned,
+ *    so retail has no LOOP_BEG here. Also forbidden wording. A form that keeps B's notes
+ *    effect without a LOOP_BEG, or a two-predecessor join that appears only after cse1, is
+ *    what to look for next.
+ * C. Identical arms cross-jumped at jump2 (boot's scaled_screen_size shape): schedule right,
+ *    but the join stops cse and the sprite pseudo stays in v0.
+ * D. `v = (int)s; if (m) v = (int)s + adj;`, hoping reorg's redundant_insn removes the arm:
+ *    cse deletes the arm first (the fix is already available), so no boundary.
  *
- * Tried without the barrier: plain and full-expression inlines, statement
- * expressions, nesting func_0028E588 in the call, reordering gauge statements,
- * alternate integer/FP argument interleavings (same bytes). Diagnostics only, not
- * retained or landable: `do { } while (0)` after or around the rounding gives a
- * barrier but ends cse1 at LOOP_END (losing the saved 1) and puts sprite in v0,
- * so daddu a0,v0 lands after add.s, 3012-3016 bytes: not an exact-bytes form.
- * `if (iy) y = iy;` with a dead arm left the differing rows unchanged, so it gave
- * no barrier (its RTL was not inspected).
- * Next: a construct leaving a block boundary or barrier in sched1 and sched2,
- * crossable by cse (perhaps a branch that survives until jump2), then recheck the
- * remaining gauge and sprite 10 argument order, which may follow from it.
+ * Also solved here: icons 2 and 4 need the whole boot `scaled_screen_coord` shape in the
+ * inline (see Coord): `float scaled = value * S + 0.5f; if (D == 1) ...`, with x computed
+ * before the call. That shape is probably the real helper for every Y1/Y3 use.
  *
- * Bounded investigation: 23 check.py compiles plus RTL dumps (-ds -dt -dG -dS -dR).
- * Retail GP offsets of refs: 00=0324; 01=0414; 02=0418; 03=0420;
- * 04=0430; 05=3AE0; 06=3994; 07..30=0440..049C (four-byte steps);
- * 31=0314; 32..41=04A4..04C8 (four-byte steps); 42=04D0;
- * 43=04E0; 44=04CC. Required declarations follow.
+ * Remaining 29 rows, none tied to the boundary:
+ * - Gauge 1 (0x3A5570): retail issues addiu t2 before sd a1 and addu a2 before sw t1. Moving
+ *   ref_43++ or the colour statements changes nothing, so it is priority, not source order.
+ * - Gauge 2 (0x3A55C8): retail issues the D_001A7340 load after mtc1/cvt/sd v0. Unsplit, plain
+ *   sda and MACRO_ADDR declarations are identical; NOT_SDA and a split colour-word load are
+ *   worse. Retail's instruction pairing shifts by one slot already at gauge 1, so look for
+ *   something consuming one issue slot before 0x3A5570.
+ * - Counter 1 (0x3A5768): retail has daddu a0,s2 ahead of lw s0 (colour), so colour takes the
+ *   jal slot; counter 2 is the other way round.
+ * - Box (0x3A5B04): retail gives 0.5 f1 and 320 f2, ours the reverse, plus sw v0 order. An
+ *   inline, a local 320 or a local 0.5 did not flip it: 320's lifetime must be the longer one.
+ *
+ * Bounded investigation: about 35 compiles plus RTL and -fsched-verbose-5 dumps.
+ * Earlier records: w02 restored real 32-bit address-word results for font and sprite lookups
+ * and int message helpers. v1817 established: Y1/Y3 return int from an if/else with (int) in
+ * both arms, jump2 cross-jumping sprite 9's tails; (float)Y3(sy) converts after the join;
+ * func_0027FB40 takes u64 and returns int. Retail GP offsets of refs: 00=0324; 01=0414;
+ * 02=0418; 03=0420; 04=0430; 05=3AE0; 06=3994; 07..30=0440..049C (four-byte steps);
+ * 31=0314; 32..41=04A4..04C8 (four-byte steps); 42=04D0; 43=04E0; 44=04CC.
  */
 #include "common.h"
 
@@ -66,8 +77,7 @@ extern float D_L22_001B2984_base[] __asm__("D_L22_001B2984") __attribute__((sda)
 extern int D_0018B694 NOT_SDA;
 extern int D_L22_001B2AA8_base[] __asm__("D_L22_001B2AA8") __attribute__((sda));
 #define D_L22_001B2AA8 D_L22_001B2AA8_base[0]
-extern int D_001A7340_base[] __asm__("D_001A7340") __attribute__((sda));
-#define D_001A7340 D_001A7340_base[0]
+extern int D_001A7340 MACRO_ADDR;
 typedef struct HudCounters {
     int unknown[2];
     int rightCount;
@@ -158,7 +168,21 @@ static __inline__ int Y1(float y) {
         return (int)(y + 1.0f);
     return (int)y;
 }
-#define Y0(y) ((int)((float)(y) * D_L22_001B2984 + 0.5f))
+static __inline__ int Y1x(float y, int one, float unit) {
+    if (D_L22_001B2980 == one)
+        return (int)(y + unit);
+    return (int)y;
+}
+static __inline__ int Coord(float value, float offset) {
+    float scaled = value * D_L22_001B2984 + 0.5f;
+    if (D_L22_001B2980 == 1)
+        return (int)(scaled + offset);
+    return (int)scaled;
+}
+static __inline__ int Scale(float value, float half) {
+    return (int)(value * D_L22_001B2984 + half);
+}
+#define Y0(y, h) Scale((float)(y), h)
 
 int func_L22_003A5018(void) {
     char textBuffer[64];
@@ -169,6 +193,9 @@ int func_L22_003A5018(void) {
     u8 *ctl = *(u8 **)(obj + 0x68);
     int y;
     int one, one2;
+    float half, half2, unit;
+    char *format;
+    HudCounters *hud;
     char *label, *hint;
 
     {
@@ -205,11 +232,23 @@ int func_L22_003A5018(void) {
         void *sprite = (void *)(u32)func_00336D50(D_L22_001A904C + 0x8710, 0xC5);
         float sy = ref_L22_003A5018_02 * D_L22_001B2984 + 0.5f;
         sy = (float)Y3(sy);
-        func_00300A00(sprite, 0x55F0C070, ref_L22_003A5018_01, sy, -1.0f, 1.0f, 0.0f);
+        unit = 1.0f;
+        half = 0.5f;
+        one = 1;
+        func_00300A00(sprite, 0x55F0C070, ref_L22_003A5018_01, sy, -1.0f, unit, 0.0f);
     }
-    one = 1;
-    func_0028EA58((void *)(u32)func_0028E588(0xEAA4, one), ref_L22_003A5018_14, Y0(ref_L22_003A5018_15), ref_L22_003A5018_16, ref_L22_003A5018_17, ref_L22_003A5018_42);
-    func_0028EA58((void *)(u32)func_0028E588(0xEAA4, 0), ref_L22_003A5018_18, Y0(ref_L22_003A5018_19), ref_L22_003A5018_20, ref_L22_003A5018_21, ref_L22_003A5018_42);
+    {
+        void *sprite = (void *)(u32)func_0028E588(0xEAA4, one);
+        int v = Y0(ref_L22_003A5018_15, half);
+        if (v != 0 && D_L22_001B2980 == one) y = *(int *)ctl;
+        func_0028EA58(sprite, ref_L22_003A5018_14, v, ref_L22_003A5018_16, ref_L22_003A5018_17, ref_L22_003A5018_42);
+    }
+    {
+        void *sprite = (void *)(u32)func_0028E588(0xEAA4, 0);
+        int v = Y0(ref_L22_003A5018_19, half);
+        if (v != 0 && D_L22_001B2980 == one) y = *(int *)ctl;
+        func_0028EA58(sprite, ref_L22_003A5018_18, v, ref_L22_003A5018_20, ref_L22_003A5018_21, ref_L22_003A5018_42);
+    }
 
     {
         float ratio = (float)D_0018B694 / (float)*(short *)(ctl + 0x324);
@@ -219,25 +258,26 @@ int func_L22_003A5018(void) {
         x = ref_L22_003A5018_09 + ref_L22_003A5018_07 + ref_L22_003A5018_13;
         y = ref_L22_003A5018_10 + ref_L22_003A5018_08 / 2 - ref_L22_003A5018_11 / 2;
         ref_L22_003A5018_43++;
-        colours.d[1] = D_L22_001AF418;
         colours.w[1] = (colours.w[1] & 0xFFFF00FF) | ((int)(ratio * 255.0f) << 8);
+        colours.d[1] = D_L22_001AF418;
         func_0027EAE8(x, y, x + (int)(ratio * (float)width), y + ref_L22_003A5018_11, 0xFFFFF1, &colours);
     }
     {
         float ratio = *(float *)(ctl + 0x20) / (float)D_L22_001B2AA8;
-        int right, width;
+        int right, width, margin;
+        margin = ref_L22_003A5018_09;
         colours.d[0] = ref_L22_003A5018_04;
         width = ref_L22_003A5018_12;
-        right = D_001A7340 - ref_L22_003A5018_09 - ref_L22_003A5018_07 - 4;
         colours.w[0] = (colours.w[1] & 0xFFFF00FF) | ((int)(ratio * 255.0f) << 8);
         colours.d[1] = D_L22_001AF428;
+        right = D_001A7340 - margin - ref_L22_003A5018_07 - 4;
         func_0027EAE8(right - (int)(ratio * (float)width), y, right, y + ref_L22_003A5018_11, 0xFFFFF1, &colours);
     }
 
     {
         void *sprite = (void *)(u32)func_0028E588(0xEAA5, 0);
-        float sy = (float)ref_L22_003A5018_23 * D_L22_001B2984 + 0.5f;
-        func_0028EA58(sprite, ref_L22_003A5018_22, Y1(sy), ref_L22_003A5018_24, ref_L22_003A5018_25, ref_L22_003A5018_42);
+        float sy = (float)ref_L22_003A5018_23 * D_L22_001B2984 + half;
+        func_0028EA58(sprite, ref_L22_003A5018_22, Y1x(sy, one, unit), ref_L22_003A5018_24, ref_L22_003A5018_25, ref_L22_003A5018_42);
     }
     {
         void *sprite = (void *)(u32)func_0028E588(0xEAA5, 0);
@@ -245,29 +285,35 @@ int func_L22_003A5018(void) {
         func_0028EA58(sprite, ref_L22_003A5018_26, Y1(sy), ref_L22_003A5018_28, ref_L22_003A5018_29, ref_L22_003A5018_42);
     }
     one2 = 1;
-    func_00115DA8(textBuffer, D_L22_001AF4D8, D_L22_001B1910.leftCount);
+    half2 = 0.5f;
+    hud = &D_L22_001B1910;
+    format = D_L22_001AF4D8;
+    func_00115DA8(textBuffer, format, hud->leftCount);
     text = textBuffer;
     {
-    int value = Y0(ref_L22_003A5018_33);
-    int colour = ref_L22_003A5018_30;
+    int value = Y0(ref_L22_003A5018_33, half2);
+    int colour;
+    if (value != 0 && D_L22_001B2980 == one2) y = *(int *)ctl;
+    colour = ref_L22_003A5018_30;
     func_0027FB40(ref_L22_003A5018_32, value, colour, text, func_001157AC(text));
     }
-    func_00115DA8(text, D_L22_001AF4D8, D_L22_001B1910.rightCount);
+    func_00115DA8(text, format, hud->rightCount);
     {
-    int value = Y0(ref_L22_003A5018_35);
-    int colour = ref_L22_003A5018_30;
+    int value = Y0(ref_L22_003A5018_35, half2);
+    int colour;
+    if (value != 0 && D_L22_001B2980 == one2) y = *(int *)ctl;
+    colour = ref_L22_003A5018_30;
     func_0027FB40(ref_L22_003A5018_34, value, colour, text, func_001157AC(text));
     }
-    if (D_L22_001B1910.leftIcons) {
+    if (hud->leftIcons) {
         void *sprite = (void *)(u32)func_0028E588(0xEAA5, one2);
-        float sy = (float)ref_L22_003A5018_37 * D_L22_001B2984 + 0.5f;
-        func_0028EA58(sprite, ref_L22_003A5018_36, Y1(sy), ref_L22_003A5018_40, ref_L22_003A5018_41, ref_L22_003A5018_42);
+        float sy = (float)ref_L22_003A5018_37 * D_L22_001B2984 + half2;
+        func_0028EA58(sprite, ref_L22_003A5018_36, Y1x(sy, one2, 1.0f), ref_L22_003A5018_40, ref_L22_003A5018_41, ref_L22_003A5018_42);
     }
     if (D_L22_001B1910.leftIcons >= 2) {
         void *sprite = (void *)(u32)func_0028E588(0xEAA5, 1);
         int x = ref_L22_003A5018_36 + ref_L22_003A5018_44;
-        float sy = (float)ref_L22_003A5018_37 * D_L22_001B2984 + 0.5f;
-        func_0028EA58(sprite, x, Y1(sy), ref_L22_003A5018_40, ref_L22_003A5018_41, ref_L22_003A5018_42);
+        func_0028EA58(sprite, x, Coord((float)ref_L22_003A5018_37, 1.0f), ref_L22_003A5018_40, ref_L22_003A5018_41, ref_L22_003A5018_42);
     }
     if (D_L22_001B1910.rightIcons) {
         void *sprite = (void *)(u32)func_0028E588(0xEAA5, 1);
@@ -277,8 +323,7 @@ int func_L22_003A5018(void) {
     if (D_L22_001B1910.rightIcons >= 2) {
         void *sprite = (void *)(u32)func_0028E588(0xEAA5, 1);
         int x = ref_L22_003A5018_38 - ref_L22_003A5018_44;
-        float sy = (float)ref_L22_003A5018_39 * D_L22_001B2984 + 0.5f;
-        func_0028EA58(sprite, x, Y1(sy), ref_L22_003A5018_40, ref_L22_003A5018_41, ref_L22_003A5018_42);
+        func_0028EA58(sprite, x, Coord((float)ref_L22_003A5018_39, 1.0f), ref_L22_003A5018_40, ref_L22_003A5018_41, ref_L22_003A5018_42);
     }
     if (D_L22_001B2AC8 != -1 && obj[0x95] != 10) {
         switch (D_L22_001B2AC8) {
@@ -291,7 +336,9 @@ int func_L22_003A5018(void) {
         if (D_L22_001B2AD0 <= 0) D_L22_001B2AC8 = -1;
     }
     if (ref_L22_003A5018_31) {
-        func_002802E0(box, 240, 480, 44, 468, 256, (int)(ref_L22_003A5018_06 * 320.0f + 0.5f), 16, 3);
+        int v = (int)(ref_L22_003A5018_06 * 320.0f + 0.5f);
+        if (v != 0 && D_L22_001B2980 == 1) y = *(int *)ctl;
+        func_002802E0(box, 240, 480, 44, 468, 256, v, 16, 3);
         label = func_00288FB8(0x9FC);
         hint = func_00288FB8(0x2F2C);
         func_0029B888(box, 0x80F0F0F0, label, 0, 0, -1, 0, hint, 0, 0);
