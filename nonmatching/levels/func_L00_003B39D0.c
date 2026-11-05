@@ -1,3 +1,31 @@
+/* Claude Opus 5.5 (xhigh), 2026-11-05. EXACT BYTES, NOT LANDED: needs a ruling on one statement.
+ * The code below, default -O2 -G0 -ffunction-sections in a unit of its own: 292/292 bytes,
+ * 27/27 places in each of us, pal and us2.
+ * The statement in question is `if (data) vertical = *(float *)(data+0x38);`. Reported FAILED
+ * because it does nothing at run time and is there only for its block boundary: retail has no
+ * test of data and dereferences it unchecked, so the condition is a placeholder under WORKER2's
+ * "forbidden for now" list. It is not the recovered source. Nothing else in the body is invented.
+ * How it works: flow1 deletes the dead store, the arm stays empty with its label, so sched1 still
+ * sees a block end after the data load; that puts the load before $a0 = position and object keeps
+ * $a0. No jump pass runs between flow1 and flow2. flow2's find_basic_blocks merges the blocks and
+ * deletes the jump (merge_blocks_nomove), so sched2 (which runs before jump2) sees one block.
+ * Measured variants: `if (data) collided = *(int *)data;`, and position assigned after the test,
+ * are exact too. `if (data) collided = 1;` is gone by sched1 (296 bytes), probably jump's
+ * store-flag conversion, so the arm needs a load or something else that stays a branch.
+ * Why a boundary is likely real (inference, not proof): -fno-schedule-insns gives the retail entry
+ * but 26 of 73 rows differ, including argument order at both func_00283028 calls, so retail ran
+ * sched1; a one-pass group gets the body right but its loop notes bind sched2 too, and retail's
+ * `a1 = 0` sits third in the entry, before any such note could fall.
+ * Sched1 at the entry, without the test: 25 ($f12) and 27 ($a2 load) take the one memory unit at
+ * t=3 and t=4, data load 11 waits for t=5 (priority 3), $a0 = position issues at t=3. 25 beating
+ * position 14 at t=2 would also fix it, but 14 has the lower LUID and an equal or lower weight.
+ * Tried, no help: inline accessor for object->data (296/292, 0/27). Reasoned, not compiled: a
+ * surviving `v = data` copy would give the load a true consumer, but cse/cprop rewrite its uses and
+ * flow1 deletes it, or combine folds it into the load.
+ * To land: new unit src/levels/shared/L00_003B39D0.c (default flags, no cflags line), because this
+ * D_00189E20 type conflicts with Hero in L00_003B3158.c, and remove the marker from that file.
+ * Reopen with: a ruling on this form, or a real statement with the same effect.
+ */
 /* 4 November 2026 current-RAC1 source-method trial; retained, not linked.
  * Grouping the actual data read or actual collision-result call gives 292/292 bytes, 0/27 USA
  * placements, first +0x4, with the default G0 profile. The entry schedule and subsequent
@@ -53,9 +81,9 @@ void func_L00_003B39D0(CollisionObject *object)
     char *data=object->data;
     void *position=&object->position;
     int collided;
-    do {
-        collided = func_00277258(position,0,0.25f,(void *)D_00189E20.mask);
-    } while (0);
+    float vertical;
+    if (data) vertical = *(float *)(data+0x38);
+    collided = func_00277258(position,0,0.25f,(void *)D_00189E20.mask);
     if (collided) {
         qcopy(position,D_L00_001BF230);
         if(D_L00_001A8FF0[0]) {
@@ -69,7 +97,7 @@ void func_L00_003B39D0(CollisionObject *object)
             func_00283028(data,remaining,&D_L00_001BF230[1]);
             func_00282CC0(data,data,projection);
         } else {
-            float vertical=*(float *)(data+0x38);
+            vertical=*(float *)(data+0x38);
             *(float *)(data+0x38)=0;
             func_00283028(data+0x30,data+0x30,&D_L00_001BF230[1]);
             *(float *)(data+0x38)=vertical;
