@@ -136,7 +136,8 @@ void func_L00_003C8A58(Rac2Native_9cdc323a4d0c2fbd_AnalysisOwner *owner)
 
 /* func_L00_003C94D8 is defined in L00_003C6298-burst-g8.c. */
 
-INCLUDE_ASM("asm/levels", func_L00_003C9978);
+/* func_L00_003C9978 is defined in L00_003C6298-seeker.c. */
+
 
 /* Clears one word of each of three hundred 80-byte records, from the last one down. */
 void func_L00_003CA470(void)

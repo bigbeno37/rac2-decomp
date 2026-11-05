@@ -3195,3 +3195,4 @@ src/levels/shared/L00_003FFA70-reaction-g8.c	-O2 -G8 -ffunction-sections -g
 src/levels/shared/L00_003C6298-arc-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/levels/shared/L00_003C6298-burst-g8.c	-O2 -G8 -ffunction-sections -fno-sched-interblock
 src/levels/shared/L00_004224D0-main-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy
+src/levels/shared/L00_003C6298-seeker.c	-O2 -G0 -ffunction-sections -ffast-math -frac2-zero-ti-por -frac2-hazard-labels
