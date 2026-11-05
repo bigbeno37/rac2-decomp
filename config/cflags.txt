@@ -3235,3 +3235,4 @@ src/levels/18_damosel/L18_002E68B0-movables.c	-O2 -G0 -ffunction-sections -fmove
 src/levels/16_snivelak/L16_00412560-g32.c	-O2 -G8 -ffunction-sections -Wa,-G32
 src/game/002FC8D0-start.c	-O2 -G0 -ffunction-sections -g
 src/levels/20_yeedil/L20_0039F268-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -frac2-zero-ti-por
+src/levels/shared/L00_003A1580-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy
