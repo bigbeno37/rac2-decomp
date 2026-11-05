@@ -1,3 +1,22 @@
+/* Tier opus-2 (Claude Opus 5.5, xhigh), task v2598, 5 November 2026, last attempt. Code below unchanged, best
+ * result still 1108/1108 bytes, 0/27, cdiff 64 of 277 rows, only spill slots differ. New measurements:
+ * - Retail's slots are two ascending runs of ours: obj, s80, s84, s208, idx, then s16, s48, s64. In the
+ *   T=119/121 buckets everything but obj is already in that cyclic order, so the difference is a rotation.
+ * - Solving frame-based order again over odd T 101..299: T = 111, 217, 235, 239 only. T=127 (252-255 insns)
+ *   is one swap off (s80 13, s208 14, s84 17, then s16 76, s48 108, s64 124; idx regno 85 fits, obj needs 130-142).
+ * - T=111 looks out of reach: counting the 242 insns, the natural savings are 3 (tex accumulator), 2 (pair
+ *   struct), and at most 8 more with pointer walkers and source countdowns, so about 229, not 220-223.
+ * - -funroll-loops with a for loop around the four func_00283098 calls gives T=117 and unrolls that loop
+ *   alone only if both inner loops exceed 50 insns at the second loop pass (ours 46 and 44, so they unroll
+ *   by 2). With them bumped, the copies stay in place via split biv `addiu`s, not retail's spilled pseudos.
+ *   -fno-rerun-loop-opt keeps 277 rows but loses the dbra countdowns and the f23 hoist (274 rows differ).
+ * - `q.colors[i] = c ? a : b` gives T=117 but cross-jumps the store (213 rows): the if/else is right.
+ * - No change at all: -g, -fno-sched-interblock, -frac2-gcse-unsplit-edges, -frac2-keep-block-order,
+ *   -frac2-no-null-pointer-checks. Worse: -fstrict-aliasing 87 rows, -fmove-all-movables 257,
+ *   -fno-expensive-optimizations 251.
+ * - Reload's later alter_reg paths (spilled pseudos, equiv failures) give a second ascending run in
+ *   principle, but these pseudos cross calls and never hold a hard reg, so no path was found.
+ */
 /* Tier opus-2 (Claude Opus 5.5, xhigh), task v2431, 4 November 2026. Code below unchanged; model notes.
  * Unit for testing: src/levels/shared/L00_003E3258-quad.c with "-O2 -G8 -ffunction-sections -ffast-math"
  * (the -g8.c sibling lacks -ffast-math). USA v1.01 and v2.00: 1108/1108 bytes, 0/27; cdiff 64 of 277 rows.
