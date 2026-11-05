@@ -28,11 +28,7 @@ void func_US2_00280380(int x, int y, u64 color, u8 *text, int length, float scal
 }
 
 
-INCLUDE_ASM("asm/us2/game", func_US2_00280440);
-
 INCLUDE_ASM("asm/us2/game", func_US2_002804C0);
-
-INCLUDE_ASM("asm/us2/game", func_US2_00280550);
 
 extern void func_US2_00280550(float);
 
