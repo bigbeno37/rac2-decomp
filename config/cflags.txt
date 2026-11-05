@@ -3813,3 +3813,4 @@ src/us2/levels/shared/L00_003AB8F8-effects-g.c	-O2 -G0 -g -ffunction-sections
 src/pal/levels/shared/L00_00410418-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/shared/L03_0042A1A8-cc-g8.c	-O2 -G8 -ffunction-sections -fno-gcse
 src/pal/game/0028C7C8-g8.c	-O2 -G8 -ffunction-sections -g
+src/pal/levels/shared/L00_0040A210-cc-g8.c	-O2 -G8 -ffunction-sections -g -frac2-zero-ti-por -frac2-hazard-labels
