@@ -3800,3 +3800,4 @@ src/pal/levels/shared/L00_003F4A00-cc.c	-O2 -G0 -ffunction-sections -fno-rerun-l
 src/pal/levels/shared/L00_003EAE90.c	-O2 -G0 -ffunction-sections -fno-rerun-loop-opt
 src/us2/game/002D7BA0-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/shared/L04_00417CB0-g8.c	-O2 -G8 -g -ffunction-sections -frac2-hazard-labels
+src/pal/levels/shared/L00_003CD388-burst-g8.c	-O2 -G8 -ffunction-sections -fno-sched-interblock
