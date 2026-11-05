@@ -3690,3 +3690,5 @@ src/us2/game/00280550-fpw-g8.c	-O2 -G8 -ffunction-sections -Wa,-G32 -mno-split-a
 src/us2/levels/shared/L08_003F7AB0-g8.c	-O2 -G8 -ffunction-sections
 src/us2/game/00348E70-menu.c	-O2 -G0 -ffunction-sections -fno-strength-reduce
 src/us2/game/0027FCB0-g8.c	-O2 -G8 -ffunction-sections -Wa,-G32
+src/us2/game/002D5C58-g8.c	-fno-builtin -O2 -G8 -ffunction-sections
+src/us2/game/002D5D10-g8.c	-O2 -G8 -fno-expensive-optimizations -ffunction-sections -fno-builtin
