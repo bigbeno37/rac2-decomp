@@ -3285,3 +3285,5 @@ src/pal/levels/11_joba/L11_002D22B8-hero.c	-O2 -G0 -ffunction-sections -g -ffast
 src/pal/levels/09_dobbo/L09_002BC480-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
 src/pal/levels/04_barlow/L04_002E04A0-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
 src/pal/levels/08_tabora/L08_002CB6E0-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
+src/pal/levels/19_grelbin/L19_002BC990-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
+src/pal/levels/12_todano/L12_002B8478-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
