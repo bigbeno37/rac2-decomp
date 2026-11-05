@@ -3250,3 +3250,4 @@ src/levels/shared/L00_003C3D90-g8.c	-O2 -G8 -ffunction-sections -g -frac2-hazard
 src/pal/levels/05_feltzin_system/L05_004262B0-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/pal/levels/shared/L07_0040E120-rc2-g8.c	-O2 -G8 -ffunction-sections -fno-builtin
 src/pal/levels/01_oozla/L01_003C45C8-g8.c	-O2 -G8 -ffunction-sections
+src/pal/levels/shared/L12_0041DF18-rc2-g8.c	-O2 -G8 -ffunction-sections -fno-builtin
