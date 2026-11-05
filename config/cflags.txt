@@ -3281,3 +3281,6 @@ src/pal/levels/26_jamming_array/L26_0038ECA0-tether-g8.c	-O2 -G8 -ffunction-sect
 src/pal/levels/30_insomniac_museum/L30_003890DC-tether-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier -frac2-hazard-labels
 src/pal/levels/01_oozla/L01_002B72D0-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
 src/pal/levels/07_siberius/L07_002B8608-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
+src/pal/levels/11_joba/L11_002D22B8-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
+src/pal/levels/16_snivelak/L16_002B9EE0-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-hazard-labels
+src/pal/levels/09_dobbo/L09_002BC480-hero.c	-O2 -G0 -ffunction-sections -g -ffast-math -frac2-zero-ti-por -frac2-keep-block-order -frac2-no-null-pointer-checks -frac2-hazard-labels
