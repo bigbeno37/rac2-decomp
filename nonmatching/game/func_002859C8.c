@@ -1,77 +1,53 @@
-/* Current retained result, 1 November 2026: 3436/3436 bytes, not exact. Restore func_0027FAA8's integer
- * return and the 64-bit colour argument of func_0028F410. The remaining panel-call scheduling still
- * differs.
- * Not a functional-port qualification or a complete matching-build result.
- * Profile: -O2 -G8 -ffunction-sections.
- * Earlier measurements below remain historical where superseded by this note.
- */
-/* Opus 5.5 xhigh (opus-1), 31 October 2026: 3436/3436 bytes, 0/28 USA v1.01 places, first difference
- * +0xA50. 32 instruction rows differ once relocated operands are masked (diagnostic count; cdiff.py
- * shows 182 of 859 rows, the rest relocations). PAL and v2.00 not checked; no linked build was run.
- * Replaces the 36-row draft: sharing `a` between case 11's inner cases 1 and 3 fixes its sprintf
- * argument order and text register. Every remaining row is the scheduling of the three panel calls.
- * Build it as its own unit, src/game/00285840-panel-g8.c: it needs -G8, its D_001BAC80 type differs from
- * 00285840-g8.c, and its two jump tables (0x26C590, 0x26C5C0) still need checking at link time.
+/* Opus 5.5 xhigh (opus-2), 5 November 2026: EXACT BYTES, NOT LANDABLE YET.
+ * tools/check.py: func_002859C8: 28 of 28 places match. linkcheck.py boot: "boot: OK: 2521763 loaded
+ * bytes equal; 2599 C functions" (run on the identical-arms wording, with both generated tables at
+ * their retail place; the adjust wording below then compiled to the same 28/28). PAL and v2.00:
+ * "in neither catalogue" (they carry func_PAL_00286288 and func_US2_00286378, 3472 bytes; PAL's case 9
+ * setup has the same instruction order).
+ *
+ * Why it is here and not in src/: `if (st != 0)` in cases 9, 10 and 11 is an always-true test on a known
+ * address, which WORKER2 forbids until the maintainers rule (report FAILED, record the exact form). The
+ * arms do differ in the source (adjust = 0) as func_002D3D88's do, and retail has no word for the test.
+ * The condition is the only objection. Upstream's func_0033C028 uses this shape with a real value,
+ * `if (w != 0)`; no real value is available here, see below.
+ *
+ * To build it: remove the marker from src/game/00285840.c and put this file at
+ * src/game/00285840-panel-g8.c (the name gives it -G8; its D_001BAC80 type differs from 00285840-g8.c).
+ *
+ * What retail needs in cases 9 to 11: a real block boundary between the float loads and mul.s.
+ *   9, 10: f1=100 v0=3 f0=D_001B23A4 f2=0.5 | mul.s sw &box a1 a0=&box a2 add.s a3 t0 t1 cvt jal
+ *   11:    f1=100 f0=D_001B23A4 | f2=0.5 &box | mul.s s1=3 sw a0=&box a1 a2 add.s a3 ... jal
+ * The test survives sched2, so each arm is scheduled from a fresh ready list, and jump2 cross-jumps the
+ * arms and deletes the jump. It leaves no word only on a register already live: a load stays behind
+ * (tried: `if (D_001B23A0 != 0)`, 3444 bytes).
+ *
+ * Why no real condition fits: at these points the only integer registers holding anything are $s1 (st),
+ * $s0 (its %hi) and, in 9 and 10, $v0 = 3. The switch value is gone: retail's $v0 and $a0 are reused for
+ * the table base and target (a `mode` local moves the switch head into $a1, 5 rows), and n = 3 folds in
+ * cse. Retail's own test was on one of those registers, so a pointer test is the likely original.
+ *
+ * Why a one-pass group cannot replace the test in 9 and 10: final.c's shorten_branches aligns the first
+ * CODE_LABEL after any NOTE_INSN_LOOP_BEG to 8, searching past LOOP_END. The next labels are 0x286474 and
+ * 0x28652C, both 4 mod 8, hence the old 3444-byte results. Case 11's next label, 0x2865E8, is 0 mod 8,
+ * so a group fits there. Keep its shape: the group holds the whole case body, because update_equiv_regs
+ * sinks a single-use constant past the test only at loop depth 0, and k must get the same loop weight
+ * as h or they swap $f1 and $f2. The case 11 arms are small because the 1 and 3 compares of the inner
+ * switch must stay in cse's reach of the call block. In 9 and 10 the arms hold the call and end in the
+ * load of `a`, since an arm ending in a call cannot cross-jump (flow's (use 0)).
+ * A fresh block also explains sw before a0 in case 11: a barrier instead of a block boundary lets the
+ * base pointer's birthing boost take the slot beside mul.s in sched1, swapping those two rows.
+ *
+ * Earlier findings that still hold:
+ *   - every case keeps its own block-scoped variables, except case 11's `a`, shared by inner cases 1, 3;
+ *   - memset (func_00115484) returns void *, strncpy (func_00115AC0) char *, sprintf (func_00115DA8) int;
+ *   - the SPR base is a register variable (`spr`), not a folded constant;
+ *   - `show = 1` precedes the f5C test in case 1;
+ *   - inner cases 2 and 21 assign id1 after the text call, 17/18/20 before it;
+ *   - D_001A8C8C is a plain small extern under -G8, D_001F29A0 must be non-small;
+ *   - case 11's {0, 1, 2, 3} switch reproduces retail's decision tree; case 3's tail is func_00280190's
+ *     body inlined.
  */
 #include "include_asm.h"
-
-/* Near miss: func_002859C8 (boot 0x2859C8, 3436 bytes, in every level too).
-
-   What still differs: cases 9, 10 and 11, the func_002802E0 setup only.
-     retail 9, 10: f1=100 v0=3 f0=D_001B23A4 f2=0.5 | mul.s sw &box a1 a0=&box a2 add.s a3 t0 t1 cvt jal
-     retail 11:    f1=100 f0=D_001B23A4 f2=0.5 &box | mul.s s1=3 sw a0=&box a1 a2 add.s a3 ...
-     this C:       &box and a0 are issued in the free ALU slots of the first cycles.
-
-   What the sched2 dump (x.i.sched2 from tools/regalloc.py) shows. The r5900 issues 2 insns per cycle;
-   a1..t1 are ready from cycle 1 and fill any free ALU slot, so retail's idle slots cannot come from
-   priorities or operand order. Something holds the ALU work back: either a scheduling barrier in the
-   block, or two insns that take issue slots and later vanish. add.s still has to follow mul.s by its
-   latency in the same block, so a real block boundary between them is ruled out. A helper whose return
-   value ends a block does not fit either: it moves cvt ahead of the arguments.
-
-   Measured, all with this C otherwise unchanged. Rows are the same masked count as above:
-   - Empty volatile asm (FORBIDDEN, diagnostic only): k = 100.0f; n = 3; sc = D_001B23A4; h = 0.5f;
-     then the asm, then f = sc * k + h; and (int)f as the argument. Cases 9 and 10 become exact. Case 11,
-     with k, sc, h, the asm, then enabled = 1 and (int)(sc * k + h), leaves 9 rows, first difference
-     +0xBB0, so the model holds but no exact-bytes form was reached. Moving case 11's asm between sc and
-     h gives 14 rows. Retail's order there fits a barrier between f0 and f2, which this source does not
-     reproduce.
-   - do { } while (0) around the same loads, or around the call (FORBIDDEN): 3444 bytes. The loop notes
-     add a padding nop at a later label that retail lacks, and around the call they also change
-     allocation across the function. A loop in these two positions does not fit retail.
-   - No change, 36 rows before the case 11 fix or 32 after: const or volatile on D_001B23A4; an inline
-     helper returning float; -fno-sched-interblock, -fno-sched-spec, -fno-rerun-loop-opt, -fno-force-mem,
-     -frac2-qcopy, -frac2-keep-block-order; a dead-arm test before the call (it folds or dies before
-     sched1).
-   - Worse: the whole call as an inline helper (frame 0x4C0, &box no longer kept in a register, as
-     FIXED_BASE_PLUS_P arguments are substituted); the (int) in a helper with a vanishing test (61 rows);
-     separate statements for the sprintf text calls (53 rows).
-   - Not found: a USE, CLOBBER or no-op move that survives to sched2 here. The dump has no no-op moves,
-     and its only USE insns are the scheduler's own, after calls that end a block. The compiler's USE and
-     CLOBBER emission sites were read; none was found to apply.
-
-   Next: find the original construct that gives a barrier without an instruction or a loop note. The
-   same rounding of D_001B23A4 needs a barrier in func_0033A520 too, so a shared macro is possible.
-
-   What made the difference while matching, for the next attempt:
-   - every case keeps its own block-scoped variables (one shared `id` or `text`
-     becomes one pseudo and drags every case into callee-saved registers), except
-     case 11's `a`, which retail does share between its inner cases 1 and 3;
-   - case 11's `enabled` gives the saved 1 in $s0 and the state-base ordering;
-   - memset (func_00115484) must return void *, strncpy (func_00115AC0) char *
-     and sprintf (func_00115DA8) int: the call setting $v0 steers the next value
-     to $v1 (local-alloc's anti-false-dependency rule), which fixed the box
-     builders, case 2's first byte test and several argument orders at once;
-   - the SPR base is a register variable (`spr`), not a folded constant;
-   - `show = 1` precedes the f5C test in case 1 (it lands in the blez delay slot);
-   - inner cases 2 and 21 assign id1 after the text call, 17/18/20 before it,
-     which is what decides retail's cross-jumped tails;
-   - the plain small extern D_001A8C8C under -G8 gives retail's $gp load in a
-     delay slot and lui/lw elsewhere; D_001F29A0 must be non-small (cc1 splits
-     it, so its lui can sit in a delay slot on its own);
-   - case 11's {0, 1, 2, 3} switch (0 and 2 just break) reproduces retail's
-     decision tree; case 3's tail is func_00280190's body inlined.
-*/
 
 typedef struct {
     short x;
@@ -156,6 +132,7 @@ void func_002859C8(void)
     MenuBox tmp;
     MenuBox tmp2;
     char buf2[0x100];
+    MenuState *st = &D_001BAC80;
 
     if (D_001BAC80.f7E == 0)
         func_0027DDC0(0, 0, 0, 0x30);
@@ -413,10 +390,25 @@ void func_002859C8(void)
     }
     case 9: {
         char *a, *b, *c;
+        float k = 100.0f;
+        int n = 3;
+        float sc = D_001B23A4;
+        float h = 0.5f;
+        float f;
+        int adjust = 0;
+        MenuBox *pb;
 
-        func_002802E0(&box, 0xF0, 0x1E0, 0x60, 0x1A0, 0x100,
-                      (int)(D_001B23A4 * 100.0f + 0.5f), 0x10, 3);
-        a = D_001A8A4C;
+        if (st != 0) {
+            pb = &box;
+            f = sc * k + h;
+            func_002802E0(pb, 0xF0, 0x1E0, 0x60, 0x1A0, 0x100, (int)f + adjust, 0x10, n);
+            a = D_001A8A4C;
+        } else {
+            pb = &box;
+            f = sc * k + h;
+            func_002802E0(pb, 0xF0, 0x1E0, 0x60, 0x1A0, 0x100, (int)f, 0x10, n);
+            a = D_001A8A4C;
+        }
         if (!a)
             a = func_00288FB8(0x113B);
         b = D_001A8A50;
@@ -425,52 +417,85 @@ void func_002859C8(void)
         c = D_001A8A54;
         if (!c)
             c = func_00288FB8(0x2DCD);
-        func_0029B888(&box, 0x80F0F0F0, c, 1, 1, -1, 0, a, b, D_001A8A58);
+        func_0029B888(pb, 0x80F0F0F0, c, 1, 1, -1, 0, a, b, D_001A8A58);
         break;
     }
     case 10: {
         char *a, *c;
+        float k = 100.0f;
+        int n = 3;
+        float sc = D_001B23A4;
+        float h = 0.5f;
+        float f;
+        int adjust = 0;
+        MenuBox *pb;
 
-        func_002802E0(&box, 0xF0, 0x1E0, 0x60, 0x1A0, 0x100,
-                      (int)(D_001B23A4 * 100.0f + 0.5f), 0x10, 3);
-        a = D_001A8A4C;
+        if (st != 0) {
+            pb = &box;
+            f = sc * k + h;
+            func_002802E0(pb, 0xF0, 0x1E0, 0x60, 0x1A0, 0x100, (int)f + adjust, 0x10, n);
+            a = D_001A8A4C;
+        } else {
+            pb = &box;
+            f = sc * k + h;
+            func_002802E0(pb, 0xF0, 0x1E0, 0x60, 0x1A0, 0x100, (int)f, 0x10, n);
+            a = D_001A8A4C;
+        }
         if (!a)
             a = func_00288FB8(0x113B);
         c = D_001A8A54;
         if (!c)
             c = func_00288FB8(0x2DCD);
-        func_0029B888(&box, 0x80F0F0F0, c, 1, 1, -1, 0, a, 0, D_001A8A58);
+        func_0029B888(pb, 0x80F0F0F0, c, 1, 1, -1, 0, a, 0, D_001A8A58);
         break;
     }
     case 11: {
-        int enabled = 1;
+        int enabled;
         char *a;
+        float k;
+        float sc;
+        float h;
+        float f;
+        int adjust = 0;
+        MenuBox *pb;
 
-        func_002802E0(&box, 0xF0, 0x1E0, 0x60, 0x1A0, 0x100,
-                      (int)(D_001B23A4 * 100.0f + 0.5f), 0x10, 3);
-        switch (D_001BAC80.f58) {
-        case 0:
-            break;
-        case 1: {
-            char *b;
+        do {
+            k = 100.0f;
+            sc = D_001B23A4;
+            if (st != 0) {
+                h = 0.5f;
+                pb = &box + adjust;
+            } else {
+                h = 0.5f;
+                pb = &box;
+            }
+            f = sc * k + h;
+            enabled = 1;
+            func_002802E0(pb, 0xF0, 0x1E0, 0x60, 0x1A0, 0x100, (int)f, 0x10, 3);
+            switch (D_001BAC80.f58) {
+            case 0:
+                break;
+            case 1: {
+                char *b;
 
-            a = func_00288FB8(0x1137);
-            b = func_00288FB8(0x2805);
-            func_00115DA8(buf2, func_00288FB8(0x31E6), 15);
-            func_0029B888(&box, 0x80F0F0F0, buf2, enabled, enabled, -1, 0, a, b, 0);
-            break;
-        }
-        case 2:
-            break;
-        case 3:
-            D_001BAC80.f60 = D_001BAC80.f5C / 60 + 1;
-            func_00115DA8(buf2, D_001A8AD0, func_00288FB8(0x31ED), func_00288FB8(0x31EE),
-                          D_001BAC80.f60, func_00288FB8(0x31EF));
-            a = func_00288FB8(0x113B);
-            func_0029B888(&box, 0x80F0F0F0, buf2, enabled, enabled, -1, 0, a,
-                          func_00288FB8(0x1138), 0);
-            break;
-        }
+                a = func_00288FB8(0x1137);
+                b = func_00288FB8(0x2805);
+                func_00115DA8(buf2, func_00288FB8(0x31E6), 15);
+                func_0029B888(pb, 0x80F0F0F0, buf2, enabled, enabled, -1, 0, a, b, 0);
+                break;
+            }
+            case 2:
+                break;
+            case 3:
+                D_001BAC80.f60 = D_001BAC80.f5C / 60 + 1;
+                func_00115DA8(buf2, D_001A8AD0, func_00288FB8(0x31ED), func_00288FB8(0x31EE),
+                              D_001BAC80.f60, func_00288FB8(0x31EF));
+                a = func_00288FB8(0x113B);
+                func_0029B888(pb, 0x80F0F0F0, buf2, enabled, enabled, -1, 0, a,
+                              func_00288FB8(0x1138), 0);
+                break;
+            }
+        } while (0);
         break;
     }
     }
