@@ -3806,3 +3806,4 @@ src/pal/levels/02_maktar_nebula/L02_003D4458-g8.c	-O2 -G8 -ffunction-sections -f
 src/pal/levels/01_oozla/L01_003DF4D8.c	-O2 -G0 -ffunction-sections -fno-expensive-optimizations
 src/pal/levels/shared/L04_003F2BD0-g16.c	-O2 -G16 -Wa,-G16 -ffunction-sections -g
 src/pal/levels/shared/L00_003B0230-particles-g.c	-O2 -G0 -g -ffunction-sections
+src/pal/levels/shared/L00_00403780-g8.c	-O2 -G8 -ffunction-sections -g -frac2-hazard-labels
