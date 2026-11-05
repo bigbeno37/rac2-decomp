@@ -3673,3 +3673,4 @@ src/pal/game/00304D90-cc-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/11_joba/L11_0039A270-cc-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/23_damosel_orbit/L23_0041EDC8-cc-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por -g
 src/pal/levels/00_aranos_tutorial/L00_002FE768-state-g8.c	-O2 -G8 -ffunction-sections -g
+src/us2/game/002D5C08-g8.c	-O2 -G8 -ffunction-sections -fno-builtin
