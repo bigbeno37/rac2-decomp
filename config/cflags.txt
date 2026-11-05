@@ -3409,7 +3409,6 @@ src/pal/game/002ED320-cc-g8.c	-O2 -G8 -ffunction-sections
 src/pal/game/00274928-cc.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/pal/game/002FEC30-cc-g8.c	-O2 -G8 -ffunction-sections
 src/pal/game/0032DB00-cc-g8.c	-O2 -G8 -ffunction-sections -g
-src/pal/levels/01_oozla/L01_0041C0D8-cc-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/shared/L00_00394148-cc-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/09_dobbo/L09_004005A8-cc.c	-O2 -G0 -ffunction-sections -g
 src/pal/levels/shared/L01_00404E70-cc.c	-O2 -G0 -ffunction-sections
