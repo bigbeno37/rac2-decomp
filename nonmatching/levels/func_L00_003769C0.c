@@ -1,21 +1,31 @@
 #include "common.h"
-/* Claude Opus 5.5 (opus-2, task v2514), 5 November 2026; USA v1.01, -O2 -G0 -ffunction-sections (default profile),
- * built as its own unit (src/levels/shared/L00_003769C0.c; L00_00358D98.c declares D_L00_001B25E0 and
- * D_L00_0022F7C0 with other types).
- * Best check: 1216/1216 bytes, 0 of 27 places; 22 rows differ, all register choices (relocations aside).
- * New since opus-1: natural D_L00_0028E9F0[j].key / [j].color accesses with j++ on the back path
- * ({ j++; goto top; }) give retail's separate base-first colour address (addu v0,a1,a0; lw 4(v0)) and the
- * 1216-byte layout (sched1 interblock moves j++ into the beqz delay slot); the text block writing
- * colors[3]/[1] (b|color) before colors[2]/[0] fixes its or/store order.
- * Left: (1) idx s3 / colour s2, retail s2/s3: global priorities colour 4*19/176 = 0.432 > idx 3*10/71 = 0.423.
- * (2) inner loop j a1 / base a3, retail a3/a1 (j 3*8/24 = 1.0 ties rowkey 1.0, base 2*6/16 = 0.75).
- * (3) y's load temp v1, retail v0: loop.c hoists D_L00_0022F900 HIGH/LO_SUM (later rematerialized) into the
- * outer preheader, and its 2-insn temp takes v0 inside the temp's span.
- * (1) and (2) both follow if the search is a natural loop (flow weights refs by loop depth: idx 11 refs beats
- * colour, base/rowkey 1.5 beat j 1.375); a for loop with a top test gives exactly retail's a0/a1/a2/a3 and
- * colour-address forms but is rotated and its test duplicated (1268 B, loop.c ignores it: multiple entry
- * points). for(;;)/do-while with goto exits are valid loops, so loop.c hoists the rowkey address and walks a
- * pointer (103 rows). Next: a natural loop that loop.c rejects without a peeled test.
+/* Claude Opus 5.5 (opus-2, task v2599, third and last Opus pass), 5 November 2026; USA v1.01, -O2 -G0
+ * -ffunction-sections (default profile), built as its own unit (src/levels/shared/L00_003769C0.c; L00_00358D98.c
+ * declares D_L00_001B25E0 and D_L00_0022F7C0 with other types).
+ * Best check: 1216/1216 bytes, 0 of 27 places, 2 rows differ, one register: y's load temp is v1, retail v0
+ * (lw $v0,0x6C($s0); addiu $s1,$v0,-0x2F). Every other instruction equals retail, relocations aside.
+ *
+ * What was solved: retail's search IS a loop with notes, and loop.c skips it as "phony". for(;;j++) with a stable
+ * label in the rolled exit code keeps jump.c from duplicating the test (duplicate_loop_exit_test refuses a
+ * CODE_LABEL), so the entry `goto start` stays right after NOTE_INSN_LOOP_BEG; gcse PRE then inserts lui %hi(table)
+ * in front of that jump, i.e. after the note, the first real insn of the loop is no label and no jump, and
+ * scan_loop prints "Loop from .. is phony". Sched1 hoists j++ out of the leftover block, jump2 deletes the entry
+ * jump. Flow's loop depth then gives idx s2/colour s3 and j a3/base a1. The label needs real code after it that
+ * survives jump1: `n=1` (a local holding the argument, gone at cse1). `if(key==0 || key==row){if(key)color=..;break;}`
+ * gives the same loop but `bne key,row` (retail row,key); with row first cse2 loses key!=0 and the test stays.
+ *
+ * Left, y's temp: loop.c hoists D_L00_0022F900 into the outer preheader; its HIGH temp cannot cross the last call
+ * (no calls crossed), so it sits beside y's load and local-alloc gives it v0 first.
+ * One-step variant 1: make rows a member, typedef struct { int words[0x50]; MenuRow rows[55]; } Menu705;
+ * (rows at +0x140; rows[54].words[6] is MW(0x740)), row accesses D_L00_0022F7C0[0].rows[idx]. Cse2 then derives the
+ * hoists from the MW base, they float away and y gets v0, no row pointer needed, but colour's sched1 live length
+ * drops 176->171: 4*20/171=4678 > idx 3*11/71=4647, so idx/colour swap back (14 rows, s2/s3 only). It needs colour
+ * live >= 173 or idx <= 70; idx looks fixed by retail's bytes. Colour's reset is the likely lever: lui r88 sits at
+ * t=11 in sched1, behind $7=0x28 and $9=sp, a tie at priority 2 lost on luid.
+ * One-step variant 2: variant 1 with color=0xf0f0b0 before the func_0028EA58 call: idx/colour right, y right, 4 rows
+ * differ, only ori $s3 too early (a set before the call gets a call dependency, prio 3 in sched2).
+ * Same bytes, tried: label-block arguments in locals, colors statement order, locals for the text-draw arguments.
+ * Not tried: why retail's outer hoists differ, a local that survives combine in the text block (+2 colour live).
  */
 extern float D_L00_001B25E0[] __attribute__((sda));
 extern int D_001A7B90[] __attribute__((sda));
@@ -75,13 +85,17 @@ void func_L00_003769C0(void)
             int j=0;
             char *label;
             int key;
-        top:
-            key=D_L00_0028E9F0[j].key;
-            if(key) {
-                if(D_L00_0022F900[idx].words[6]!=key) { j++; goto top; }
-                color=D_L00_0028E9F0[j].color;
+            int n;
+            for(;;j++) {
+                key=D_L00_0028E9F0[j].key;
+                if(key) {
+                    if(D_L00_0022F900[idx].words[6]!=key) continue;
+                    color=D_L00_0028E9F0[j].color;
+                }
+                n=1;
+                break;
             }
-            label=func_0028E588(0xea97,1);
+            label=func_0028E588(0xea97,n);
             colors[2]=colors[0]=a|color;
             colors[3]=colors[1]=b|color;
             func_0028EA58(label,y+2,MY(332.0f),40,(int)(D_L00_001B25E0[0]*40.0f+0.5f),colors);
