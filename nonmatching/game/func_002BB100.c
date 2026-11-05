@@ -1,3 +1,36 @@
+/* Claude Opus 5.5 (xhigh), task v2594, third and last Opus attempt; USA v1.01, default game profile.
+ * Body below unchanged (legal best): 1684/1684 bytes, 0/28 places, first rejection +0xA4,
+ * 14 real positions differ. Reported FAILED: every exact form found is forbidden.
+ * Exact bytes (check.py: 28 of 28 places) with BOTH of these changes, measured in this attempt.
+ * Neither is landable: (A) tests an unset local with identical arms, (B) is a null test on
+ * dereferenced pointers around a dead store.
+ * (A) the RAC1 else arm, unchanged, see the header below.
+ * (B) new form of the 65535/255 fix: no combine-folded test needed.
+ *       c65 = 65535.0f;
+ *       if (p && q) c255 = 0.0f;
+ *       c255 = 255.0f;      then the seven conversions use c65/c255.
+ *     flow1 empties the arm (c255 is overwritten), a two-predecessor join keeps both branches
+ *     through sched2, jump2 deletes them with no word left, as they test live registers.
+ *     65535 is then global and 255 local, so 255 takes f20 first.
+ * What rules out a legal form:
+ * (A) The sched2 issue pairs (lwc1 f0,lui s0)(lwc1 f1,addiu s0)(lwc1 f2,addiu a0) fit retail;
+ *     lui outranks addiu a0 by two chain steps, so the slot is reorg's choice: $s0 really is live
+ *     at the else target. A missing block is not the cause: resource.c would then assume every
+ *     register live and its scan stops after two conditional jumps, so a0 would be rejected too
+ *     (read from the source, not measured). Every $s0 read in retail follows a set on its path,
+ *     so only a no-code read of a value never set on that path can do it. No real value exists.
+ * (B) 65535 needs a reference in a second block at sched1 time. A reused local does not work:
+ *     t = (float)...; g = conv(t)...; t = 65535.0f; combine removes the first life, and sched1
+ *     recomputes REG_BASIC_BLOCK and reports it local to one block (t*255 assigned to a local is
+ *     removed even earlier). Priority cannot flip: 65535 8/16, 255 10/42. Flipping needs
+ *     65535 at 3 refs or 255 at 8; no real wording gives either.
+ * Tried, no change from the 14 positions: t reused for the spin product; t reused for the
+ * (float) argument; nested tests with duplicated copy arms (cross-jump keeps a block head where
+ * $s0 is dead). if (x) t = K; else t = K; goes too: jump1 hoists one set and cse removes the test.
+ * if (n && p) c = 0.0f; on the hit pointer fixes 65535/255 but moves that pointer to global
+ * (s2, offset s0, position s1), and it would read an unset local on the else path. Retail's hit
+ * pointer is local to the hit block: it outranks offset for s0 in local-alloc.
+ */
 /* Claude Opus 5.5 (xhigh), task v2092; USA v1.01, default game profile.
  * Body below unchanged (legal best, recompiled here): 1684/1684 bytes, 0/28 places,
  * first rejection +0xA4, 14 real positions differ. Both remaining differences are
