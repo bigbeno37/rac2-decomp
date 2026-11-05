@@ -23,15 +23,10 @@ u8 *func_US2_00344110(u8 *a0) {
 
 INCLUDE_ASM("asm/us2/game", func_US2_00344170);
 
-INCLUDE_ASM("asm/us2/game", func_US2_00344458);
 
-INCLUDE_ASM("asm/us2/game", func_US2_00344480);
 
-INCLUDE_ASM("asm/us2/game", func_US2_003444A0);
 
-INCLUDE_ASM("asm/us2/game", func_US2_003444C0);
 
-INCLUDE_ASM("asm/us2/game", func_US2_003444C8);
 
 typedef int s32;
 typedef unsigned int u32;

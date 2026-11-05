@@ -115,11 +115,9 @@ void func_US2_00338F18(int object, int value, int count)
 
 INCLUDE_ASM("asm/us2/game", func_US2_00338F80);
 
-INCLUDE_ASM("asm/us2/game", func_US2_00338F88);
 
 INCLUDE_ASM("asm/us2/game", func_US2_00339398);
 
-INCLUDE_ASM("asm/us2/game", func_US2_003395F0);
 
 /* clamps a caller-supplied terminator value (-1 meaning unset) to 180, then runs two callees on two sub-objects of one handle, the second with a float pair */
 void func_US2_00339678(int object, int value, int count)

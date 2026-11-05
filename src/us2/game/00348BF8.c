@@ -59,7 +59,6 @@ void func_US2_00348DA0(u8 *a0,f32 *a1) {
 void func_US2_00348E10(u8 *a0, s32 a1, s32 a2) { *(s32 *)(a0 + 0xB8) = a1; *(s32 *)(a0 + 0xBC) = a2; }
 
 
-INCLUDE_ASM("asm/us2/game", func_US2_00348E20);
 
 void func_US2_00348E28(u8 *a0,f32 f0,f32 f1) {
  (*(f32 **)(a0+0x5C))[0]=f0;
@@ -69,13 +68,9 @@ void func_US2_00348E28(u8 *a0,f32 f0,f32 f1) {
 }
 
 
-INCLUDE_ASM("asm/us2/game", func_US2_00348E50);
 
-INCLUDE_ASM("asm/us2/game", func_US2_00348E58);
 
-INCLUDE_ASM("asm/us2/game", func_US2_00348E60);
 
-INCLUDE_ASM("asm/us2/game", func_US2_00348E68);
 
 /* func_US2_00348E70 is built from 00348E70-menu.c. */
 
@@ -105,6 +100,4 @@ char *func_US2_00349200(char *a0)
 }
 
 
-INCLUDE_ASM("asm/us2/game", func_US2_003492A8);
 
-INCLUDE_ASM("asm/us2/game", func_US2_003492B0);
