@@ -941,7 +941,6 @@ void func_L18_003FE020(BatchA_A18_u8 *s) {
     *(BatchA_A18_s32 *)((char *)p + 0x74) = 0;
 }
 
-INCLUDE_ASM("asm/levels", func_L18_00426AB0);
 
 extern void func_0033A0B0(BatchA_A18_u8 *a0, BatchA_A18_u8 *a1);
 extern void func_0032D118(BatchA_A18_u8 *a0, BatchA_A18_s32 a1, BatchA_A18_s32 a2,
