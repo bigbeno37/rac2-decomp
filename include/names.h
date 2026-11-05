@@ -227,6 +227,7 @@
 #define SpawnDecoy                       func_L00_00398810
 #define RenderLocalizedUiEntryList       func_002D6230
 #define FadeMenuColor                    func_002D68D8
+#define render_water_grids               func_L04_003A21F8
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
@@ -959,5 +960,6 @@
 #define DrawShrinkingMobyRings           func_L01_00398B50
 #define DrawAnimatedEffectQuads          func_L02_00410F68
 #define UpdateSpreadWeapon               func_L00_003D1D28
+#define EaseOutQuad                      func_002A7798
 
 #endif /* NAMES_H */

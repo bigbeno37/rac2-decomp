@@ -1278,7 +1278,7 @@ void func_L04_003A1FA0(u8 *self) {
 
 /* func_L04_003A1FE0 is matched in L04_002CC748-g8.c (built with -G8). */
 
-INCLUDE_ASM("asm/levels", func_L04_003A21F8);
+/* func_L04_003A21F8 is matched in L04_002CC748-water-g8.c (built with -G8). */
 
 typedef struct {
     u32 value;
