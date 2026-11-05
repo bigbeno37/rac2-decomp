@@ -1,4 +1,23 @@
 /*
+ * v2573 (opus-2, third and last Opus attempt, 2026-11-05): body below unchanged,
+ * still the best acceptable form (944/964 bytes, 0/1 places, recompiled here).
+ * Same mechanism as func_L02_003FF6E8, whose draft header has the exact-bytes form
+ * and the evidence: each y conversion is followed by a real block that sched2 sees
+ * and that leaves no word. Diagnostic (NOT acceptable: invented dead test, forced
+ * label table): after each conversion
+ *   if (D_L02_001B3E00 == 1) y = 1.0f;
+ *   lab: ;
+ * with static void *labs[] = { &&l1, &&l2, &&l3, &&l4 }, and half, one, zero and
+ * k = 0x8710 as explicit locals, because a forced label ends cse's path. Result:
+ * sections 1 and 2 schedule as retail (label in a2, 0.5/1.0/0.0 in f22/f20/f21).
+ * Not exact, two ways: with gcse, cprop puts the constants one and zero back at
+ * each call (940 bytes, 158/241 words); with -fno-gcse the loop part loses its
+ * hoists and s4-s6 (956 bytes, 167/241). Retail shares 1.0/0.0 from section 1 to 2
+ * through cse, so its boundary has a one-use label flow2 cannot merge; this
+ * compiler has no source form for that. Needs the compiler question in the
+ * func_L02_003FF6E8 header settled first.
+ */
+/*
  * Opus 5.5 (xhigh), task v2169, 2026-11-03: body below unchanged (944/964 bytes
  * recompiled in its own -G8 unit here). Measured probe (NOT acceptable
  * source): replacing each of the four y conversions with

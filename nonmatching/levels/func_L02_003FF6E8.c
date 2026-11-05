@@ -1,3 +1,91 @@
+/* v2573 (opus-2, third and last Opus attempt, 5 November 2026): EXACT BYTES, NOT LANDABLE.
+   The form below gives "func_L02_003FF6E8: 1 of 1 places match" from check.py with the checkout's
+   own compiler and `-O2 -G8 -ffunction-sections` in a -g8 unit (not linked; pal and us2 say "in neither
+   catalogue").  It is recorded here, not used, because it breaks the rules: seven dead stores under
+   invented tests, and a label-address table retail does not have, there only so flow cannot merge the
+   blocks.  The body at the end of this file is still the best acceptable one (700/696 bytes).
+
+   Declarations: as below, plus `extern int D_L02_001B3E00;` and one prototype change (a permitted
+   typed interleaving, the same registers, it moves the colour load after the y chain):
+       extern void func_0027F640(float, float, long long, char *, float, int, long long, char *);
+
+#define SC(dst, val, lab) \
+    y = (float)(val) * s + half; \
+    dst = (int)y; \
+    if (D_L02_001B3E00 == one) y = 1.0f; \
+    lab: ;
+
+void func_L02_003FF6E8(char *a0) {
+    static void *labs[] = { &&l1, &&l2, &&l3, &&l4, &&l5, &&l6, &&l7 };
+    char buf1[0x20];
+    char buf2[0x70];
+    char *state;
+    char *text;
+    char *msg;
+    float x, y, s, half;
+    int r0, r1, r2, r3, one;
+
+    func_L02_003FDDE8(a0, 0);
+    half = 0.5f;
+    state = *(char **)(a0 + 0x68);
+    text = func_00288FB8(0x2F45);
+    one = 1;
+    s = D_L02_001B3E04;
+    x = (float)D_L02_001B1440;
+    SC(r0, D_L02_001B1444, l1)
+    func_0027F640(x, (float)r0, D_L02_001B143C, text, D_L02_001B1438, -1,
+                  func_0027C878(1), D_L02_0028E990);
+    s = D_L02_001B3E04;
+    SC(r1, D_L02_001B1460, l2)
+    SC(r2, D_L02_001B1464, l3)
+    SC(r3, D_L02_001B1450, l4)
+    func_002802E0(buf1, r1, r2, D_L02_001B1468, D_L02_001B146C, D_L02_001B144C, r3,
+                  D_L02_001B1470, 3);
+    if (*(s16 *)(state + 0x118) == 0 && D_001395B8[func_L02_003F9B70(0)] < 2) {
+        text = func_00288FB8(0x2F46);
+        func_00280270(buf1, D_L02_001B1448, text, func_001157AC(text));
+    } else {
+        text = func_00288FB8(0x2F62);
+        msg = func_00288FB8(0x2F5E);
+        func_00115DA8(buf2, D_L02_001B1228, text, *(int *)(state + 0x110), msg);
+        func_00280270(buf1, D_L02_001B1448, buf2, func_001157AC(buf2));
+    }
+    text = func_00288FB8(0x2F47);
+    {
+    float half = 0.5f;
+    s = D_L02_001B3E04;
+    SC(r1, D_L02_001B1460, l5)
+    SC(r2, D_L02_001B1464, l6)
+    SC(r3, D_L02_001B145C, l7)
+    func_002802E0(buf1, r1, r2, D_L02_001B1468, D_L02_001B146C, D_L02_001B1458, r3,
+                  D_L02_001B1470, 3);
+    }
+    func_00280190(buf1, D_L02_001B1454, text, func_001157AC(text));
+}
+
+   What this shows, measured on this function:
+   - Retail's boundary after each (int) conversion is a real block that sched2 still sees and that
+     leaves no word.  With it the chains and argument moves come out as retail, including the first
+     block's `lw $s3` in the jal slot and the `lui $t0` / `lwc1 $f14` order that no earlier form reached.
+   - Every part is needed: a test at only the first two conversions gives 155/174 words, no tests give
+     688 bytes with no $s2 save (`one` is the saved-but-unused register).
+   - It is not loop notes.  final.c gives the first CODE_LABEL after any LOOP_BEG `.p2align 3`, and an
+     empty do/while(0) puts a nop before the else label ($L33, 700 bytes, 162/174 words at best).
+     Retail's label is at 0x3FF874, not 8-aligned, so retail has no loop note before it.
+   - A test on a live register (`if (r != 0 && mode == 1)`) gives retail's order too, but its label
+     has two uses, so cse stops there and reloads the scale and 0.5 at each chain (748 bytes).
+   - -g changes nothing.  -ffast-math with the real helper (`if (mode == 1) return (int)(y + offset);
+     return (int)y;`, offset 0.0f) empties the arms by jump2 but leaves each mode load (824 bytes).
+   Why no source form exists in this compiler: the boundary needs a jump to a label with one use (cse
+   only skips such a block) that flow2 cannot merge away.  flow.c's merge stops only at a label in
+   forced_labels, label_value_list, LABEL_PRESERVE_P or the EH list; each of those that source can
+   reach adds a use, so cse stops; that is why half, s and one above are explicit locals.
+   Hypothesis, not tested (it needs a compiler change): this tree's can_delete_label_p has no LABEL_NAME
+   test, and GCC 2.95's has, as recalled, "User declared labels must be preserved".  If retail's flow.c
+   keeps such labels, or does not merge after tidying a conditional jump (see
+   tools/compiler/transformers/tidy_condjump_fallthru.py), a helper with a test and a label gives all
+   of the above with no table and no explicit locals. */
+
 /* v2169 (opus-2, 3 November 2026): the saved-but-unused $s2 is explained; still no landable source.
    Level 2's display mode is D_L02_001B3E00 (the word before the scale D_L02_001B3E04; 66 loads in
    level 2, compared with a constant held in a saved register, e.g. `bne $v0,$fp` at 0x0034E6AC).
