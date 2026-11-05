@@ -3817,3 +3817,4 @@ src/pal/levels/shared/L00_0040A210-cc-g8.c	-O2 -G8 -ffunction-sections -g -frac2
 src/pal/levels/shared/L03_003A7720-switch-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/06_notak/L06_00407488-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels
 src/pal/levels/13_boldan/L13_0041F0C0-g8.c	-O2 -G8 -ffunction-sections
+src/pal/levels/shared/L09_00415440-cc-g8.c	-O2 -G8 -ffunction-sections
