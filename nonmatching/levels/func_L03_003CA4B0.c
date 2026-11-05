@@ -1,19 +1,34 @@
-/* Tier: Claude Opus 5.5 (opus-1, xhigh effort), v2145, 3 November 2026.
- * Best check.py: 1156/1156 bytes, 0/2 USA v1.01 places; cdiff 67 of 289 rows differ, all of them
- * register names (every instruction corresponds after relocation).
- * Profile: -O2 -G8 -ffunction-sections -g, dedicated unit src/levels/shared/L03_003CA4B0-g8.c.
+/* Tier: Claude Opus 5.5 (opus-2, xhigh effort), v2549, 5 November 2026.
+ * Best check.py: 1156/1156 bytes, 0/2 USA v1.01 places, first mismatch +0x24C. 10 rows really differ, all
+ * in the two preheaders (+0x104, +0x12C, +0x24C..+0x26C); cdiff prints 69 of 289 because it also lists
+ * unrelocated symbol rows. All reloads, the near-loop and face-loop bodies and the final bnel now match;
+ * the v2145 draft still spilled $v1 and missed the bnel.
+ * Profile: -O2 -G8 -ffunction-sections -g, dedicated unit src/levels/shared/L03_003CA4B0-g8.c. -g is
+ * required: without it the div.s hazard nops go and 261 rows differ.
  * RAC1 counterpart: draw_gadgebot_spawn_container (overlays/shared/gadgebot_containers_and_frog.c).
- * Fixed since v1009: the face loop now uses RAC1's static inline TransformPoint wrapper, a do/while
- * and a `center` pointer, so no sp+0x90 copy is hoisted into s4 (the face-table base is back in s4).
- * The far loop is RAC1's indexed for (i < 57) over the two tables, which fixes its preheader order.
- * An index form of the near loop is far worse (138 rows), so the near loop keeps its pointers.
- * Remaining: reload register choice. The spilled `near` (sp+0x110, pseudo 85) reloads into v1 where
- * retail uses v0. The .greg dump says "Spilling reg 2" for its test (insn 118), but choose_reload_regs
- * gives v1. The rematerialised in-loop HIGH parts alternate v1/v0 where retail uses v0 throughout
- * (a0 for the D_L03_00240CF0 high in both preheaders). The last one makes retail's loop-end branch a
- * bnel, because its slot sets the tested v0; ours is a bnez.
- * Next: trace reload's per-insn used_spill_regs and its last_spill_reg round-robin in the .greg dump.
- * Find what makes retail's first reload after the near=1 store (insn 1052, v0) land on v0 again.
+ * Fixed here: `float *src=D_L03_0029A920[i]` first in the far loop sets the table up before 240CF0, so
+ * its reload no longer overlaps the 240CF0 high. No second spill reg is needed, so reload stays on $v0.
+ *
+ * Remaining: retail's %hi(D_L03_00240CF0) is in $a0 in both preheaders, ours is $v1 (near) and $v0 (far).
+ * Measured cause: in retail that high is one GLOBAL pseudo, gcse's PRE reaching reg T, set in both
+ * preheaders and used only there. global.c then picks $a0; a local pseudo gets $v1, or $v0 here.
+ * T survives only if the near loop still uses it after the first loop pass. loop.c's move_insn path
+ * re-emits a hoisted lo_sum with a fresh HIGH, so if every use is hoisted in pass one then T is deleted by
+ * delete_trivially_dead_insns. Retail needs the near loop's lo_sum(T,240CF0) to stay in pass one and be
+ * hoisted in the rerun pass; cse2 then merges the fresh HIGHs back into T in both arms.
+ * Proof by probe: index-form near loop with `denom+=denom;` and `temp.f[2]+=1;` deleted (61 real insns):
+ * the lo_sum hoists in the rerun pass, the giv reduces to s5, and both preheaders come out exactly as in
+ * retail (lui v0; lui a0; ... addiu s5,a0 / addiu s1,v0; addiu s0,a0), no $v1 spill.
+ * The obstacle: threshold*savings*life >= insn_count with threshold 61 (1+60 non-fixed regs, moved at 61
+ * real insns, not at 63), life 1, savings 1. The RAC1 index-form near loop has 75 insns in pass one and 64
+ * in the rerun, so it stays. 64 looks minimal for these ten calls: 58 insns that reach the final code
+ * plus 6 copies from expand_call that coalesce later (2 x a1=sum, 2 x f12=x+x, 2 x pseudo=f0). The lo_sum must also stay first in the rerun list, and 149 must fail at threshold 58,
+ * so retail's count is 59..61.
+ * Ruled out: life>=2 hoists in pass one, killing T (a local base pointer set in the body gives this);
+ * D+i, &D[i][0], (float *)D+i*4, (float *)D+(i<<2), a struct-typed table and exact RAC1 wording all
+ * compile alike or leave 64; reload-only explanations; -g off.
+ * Unexplored: how retail reaches <=61 at all. Any fix must keep T alive to cse2 without a forbidden
+ * always-false test or a contrived dead self-update.
  */
 #include "common.h"
 #define F(p,o) (*(float *)((char *)(p)+(o)))
@@ -73,7 +88,7 @@ void func_L03_003CA4B0(char *m){
  (*uv)[1]=v+0.5f;(*uv)[0]=u+0.5f;}
  }
  }else{
- for(i=0;i<57;i++){float *world=D_L03_00240CF0[i];func_002830C0(world,D_L03_0029A920[i],&transform);}
+ for(i=0;i<57;i++){float *src=D_L03_0029A920[i];func_002830C0(D_L03_00240CF0[i],src,&transform);}
  }
  {u64 texture=func_0027C878(D_L03_001B0330);
  flags=(u64)D_L03_001B031C;
