@@ -3786,3 +3786,5 @@ src/pal/game/002EF2D8-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels
 src/us2/levels/16_snivelak/L16_002F6CE0-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -frac2-zero-ti-por
 src/pal/levels/17_smolg/L17_003C7908-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/17_smolg/L17_003C7A80-anchor-g8.c	-O2 -G8 -ffunction-sections -frac2-gcse-unsplit-edges
+src/pal/levels/shared/L00_003B88F8-g8.c	-O2 -G8 -ffunction-sections -mno-split-addresses
+src/pal/levels/shared/L00_003B7A10-g8.c	-O2 -G8 -ffunction-sections -g -fno-gcse
