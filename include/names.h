@@ -955,5 +955,6 @@
 #define DrawPositionRingTrail            func_L00_0041B1B8
 #define UpdateBouncingBlastProjectile    func_L00_004096B0
 #define UpdateWaveLineEffect             func_L00_00413358
+#define DrawCameraFacingTwoLayerRibbon   func_L00_00418230
 
 #endif /* NAMES_H */
