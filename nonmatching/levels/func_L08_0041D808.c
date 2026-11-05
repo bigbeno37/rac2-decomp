@@ -1,65 +1,50 @@
-/* 2 November 2026: retained nonmatching C; no linked matching credit.
- * Profile: -O2 -G8 -ffunction-sections -g.
- * USA v1.01 check: 3312/3308 bytes, 0/1 placements.
- * Remove all three forbidden do-while(0) wrappers and their overwritten dead locals; each real
- * rounded coordinate is assigned directly. Correct the int returns of 00300090, 003000C0 and
- * 002E5DA0 from their matched definitions. This meaningful natural draft is 3312/3308 bytes,
- * 0/1 US placement, with the complete 0xE0 frame. HUD coordinate/pack argument scheduling and
- * allocation remain; the earlier forbidden 3308-byte diagnostic is historical, not the current
- * source.
- */
-/* Earlier notes below describe superseded diagnostic variants. */
-/* Claude Opus 5.5 (xhigh effort), task v1821, USA v1.01, 31 October 2026.
- * Best check: 3308 bytes, the retail size, 0/1 places; first difference at +0x1cc. A scratch
- * alignment masking non-sp memory offsets, lui immediates and jal targets counts 53 of 827 rows,
- * about 20 of them .word display artefacts; opus-1's draft counts 65 on the same counter, at 3316
- * bytes with two padding nops. This form has no padding.
- * NOT a match and NOT landable: sites A, B and the last sprite still use a forbidden do/while(0)
- * wrapper and placeholder `dead` locals. No match is claimed. No linked build or PAL/US2 check was
- * run. About 30 check.py compiles, plus -da and -fsched-verbose dumps.
- * Profile: dedicated unit L08_0041D808-g8.c, -O2 -G8 -ffunction-sections -g. On the dead-arm form,
- * -frac2-keep-block-order, -frac2-gcse-unsplit-edges, -frac2-no-null-pointer-checks and
- * -frac2-hazard-labels did not change the row count.
+/* Claude Opus 5.5 (xhigh effort), task v2570, USA v1.01, 5 November 2026: third and last Opus attempt.
+ * Best check: EXACT BYTES. check.py prints `08_tabora: OK` and `func_L08_0041D808: 1 of 1 places
+ * match` for this file as a dedicated unit, but it is NOT landable as written, so the result is
+ * FAILED and the marker stays: the tests below are vanishing tests on placeholder conditions and
+ * their only effect is on scheduling and allocation. A maintainer has to rule on them.
+ * Not in the PAL or v2.00 catalogue. No linked build was run.
  *
- * The overseer's "vanished test" lead, site by site:
- * - WORKS at the height pair (0x41DBDC-0x41DC30): HudYM and HudSize share a `mode` local, as
- *   func_002D3D88 does, and HudSize tests `mode != 0`. Retail's t0/v1 and the v1 result follow with
- *   no extra word, and that wording is clean. `mode == 1` there leaves a stray `addiu v0,1` (3312).
- * - DOES NOT close A (0x41D98C), B (0x41DA30) or the last sprite (about 0x41E420): retail shows no
- *   mode value in a register there. HudSize(D_L08_001B3240, ...) leaves the lw and the constant
- *   behind: 3388 bytes absolute, 3376 through a $gp alias.
+ * To reproduce: copy everything from the #include down to src/levels/08_tabora/L08_0041D808-g8.c,
+ * add `src/levels/08_tabora/L08_0041D808-g8.c<TAB>-O2 -G8 -ffunction-sections -g` to
+ * config/cflags.txt and take the marker out of L08_003D8348.c. -g is required: without it the same
+ * C gives 3300 bytes.
  *
- * What A and B seem to need (the helper is still unknown):
- * - Measured: with a real branch merged at jump2, the sprite A group from the lw to the jal comes out
- *   in retail's order. With a loop note, the sched2 table shows the lw issuing alone as the barrier,
- *   which is the remaining order difference in both sprites. Inferred: retail has a real block
- *   boundary there, with lw and li a1 in one tick.
- * - That diagnostic was `tex == 1` with both arms (int)scaled, a placeholder condition, so it is not
- *   landable; it was also not exact. It lost the sharing of s1=1, f22=0.5f, f21=1.0f and f20=0.0f
- *   across A and B, so retail is probably one-armed at cse. Explicit constant locals did not restore it.
- * - Measured: tex is a2 when a0 holds the test's load or constant during allocation, and a0 otherwise,
- *   so retail's a0 was probably occupied. A dead-arm test gives a2 and 3308 bytes with no wrapper, but
- *   flow2 deletes the jump, so no boundary is left and the count is 95. A referenced user label is
- *   in the greg dump and gone from the flow2 dump, so it does not help.
- * Next idea: a one-armed test on a value already in a register, whose arm survives flow2's block
- * tidy and is empty by jump2. Which real value that is remains open. From memory of GCC 2.95, not
- * checked in this tree: flow2 deletes no-op moves after its tidy, and delete_computation skips the
- * operands' setters after reload when sched2 is on, which would explain why the load stays.
+ * Not landable, all kept here because they are what makes the bytes exact:
+ * - HudCoord (sprites A and B) and HudCoord2 (the size conversion, and the last sprite written
+ *   out): a real `mode == 1` test with a dead float arm, then a second test on a live register
+ *   whose arm only feeds a third test. The game-side meaning of `tex == 1`, `live != 0`,
+ *   `x != 0` and of the `+ 4.0f` arms is invented. None of it emits a word.
+ * - `player` as an int with a second set, in the last sprite's dead test: see 2 below.
  *
- * Remaining differences:
- * - Both sprites: H-group order, from the barrier described above.
- * - 0x41DB10: retail stores gradient.a after the div.s. Store order b,a swaps a0/a1 and v0/v1.
- * - 0x41DBD4-0x41DC34: h is v0 and the D_001A7344 copy a3; retail has a3 and t1. New with the real
- *   helper: the priority of h against gcse's copy flips. A shared `one` local swaps t0/v1 instead.
- * - 0x41DF40: arg order; retail is a1, a2, jal, a0 in the slot; here a1, a0, jal, a2. A local for the
- *   length argument swaps s0/s1 instead.
- * - 0x41E3E4: daddu s2,v0 comes earlier and lwc1 f12 later than retail.
+ * What the compiler needs, measured here against gcc/flow.c, jump.c, haifa-sched.c and alias.c:
+ * 1. The vanished boundary has three parts. At cse the test must be one-armed with a one-use label
+ *    and no label in the arm, or s1=1, f22=0.5f, f21=1.0f, f20=0.0f and s2=0x8710 stop being shared
+ *    (`&&` gives the label two uses). At allocation a block-local load of mode must sit at the end
+ *    of the first block: that is the pseudo in a0 that pushes tex to a2 and y to a3. At sched2 a
+ *    block boundary must still exist. A test whose arm flow1 emptied is deleted at flow2 and its
+ *    load dies with it, so it cannot supply that boundary; if it stayed, its load would stay too.
+ *    Hence a second test on a live register, whose arm is non-empty when flow2 builds the CFG and
+ *    empties during flow2: that jump survives sched2 and jump2 removes it with nothing left behind.
+ *    The arm only empties if its sole consumer is a third test that flow2 deletes. A single arm
+ *    insn is turned into a conditional move at jump1, so it needs two insns or a float.
+ * 2. The gradient stores: retail's order needs an anti-dependence from `lwc1 0x1840(player)` to the
+ *    two stack stores, which needs player to have no known alias base, and that needs a second set
+ *    of its pseudo that survives to sched1. Using it for the buffer pointer takes s0 from the
+ *    block-local pointer; the dead test after player's last use changes nothing else.
+ * 3. 0x41E3E4: with no sched2 boundary at the last sprite, `daddu s2,v0` wins the depend_count tie
+ *    against the lwc1. Its use in the next block must stop counting.
  *
- * Kept from earlier drafts: func_L08_003277C0 takes (int, float), retail passing 3 at 0x0041DCCC;
- * func_L08_004207D0 belongs inside the level-8/19 guard, the branch at 0x0041DC68 reaching 0x0041E474
- * past that call with a0=2 in the slot; PackHudFlag plus the interleaved flag/mode construction gives
- * the initial packing order; the incomplete sda view plus SDATA alias gives the frame counter's
- * absolute/GP mix. All declarations needed are below.
+ * Real wordings found on the way, valid whatever is ruled on the tests:
+ * - func_L08_0033CD18 is `void (s32, s32, ...)` (L08_002F2D10.c), not int: that fixes 0x41DF40.
+ * - `h=D_001A7344-h; h+=hz;` as two statements gives h the a3 preference.
+ * - gradient b is stored before a.
+ * - `text` is one local across the three text arms: splitting it loses 8 bytes.
+ *
+ * Still unknown: the real source of the live-register test. Its registers are tex/x at the sites
+ * tried here, and upstream's `do { } while (0)` after `(int)(S * v + 0.5f)` in 002D53F0.c and
+ * 002CD3C0.c probably stands in for the same construct. Lead: the matched `menu_vector_offset`
+ * in 002CEBD0-g8.c has the same `if (mode == 1) value += offset` shape.
  */
 #include "common.h"
 
@@ -132,7 +117,7 @@ extern float func_00283CE0(int), func_002A7798(float), func_L08_003277C0(int, fl
 extern int func_00283CF0(float);
 extern u8 *func_00288FB8(int);
 extern void func_L08_002F5CB8(int, int, u64, u8 *, int, float);
-extern int func_L08_0033CD18(u8 *, u8 *, int);
+extern void func_L08_0033CD18(u8 *, u8 *, ...);
 extern int func_001157AC(void *);
 extern void func_0027F5B8(int, int, u64, u8 *, int);
 extern float func_002ABB18(float), func_00283198(float), func_002A7790(float);
@@ -157,24 +142,30 @@ static __inline__ int HudY(float value, float adjustment)
     return (int)y;
 }
 
-static __inline__ int HudSize(int mode, float value, int adjust)
-{
-    float scaled = value * D_L08_001B3244 + 0.5f;
-    if (mode != 0)
-        return (int)scaled + adjust;
-    return (int)scaled;
-}
-
-static __inline__ int HudYM(int mode, float value, float adjustment)
+static __inline__ int HudCoord(float value, int tex)
 {
     float y = value * D_L08_001B3244 + 0.5f;
-    if (mode == 1) return (int)(y + adjustment);
-    return (int)y;
+    int r = (int)y;
+    int m = r + D_L08_001B3240;
+    if (tex == 1) m = D_001A79F0 + 8;
+    if (m) y += 4.0f;
+    return r;
+}
+
+static __inline__ int HudCoord2(float value, int live)
+{
+    float y = value * D_L08_001B3244 + 0.5f;
+    int r = (int)y;
+    float m = 0.0f;
+    if (D_L08_001B3240 == 1) y += 4.0f;
+    if (live != 0) m = D_L08_001B3244 * 2.0f;
+    if (m != 0.0f) y += 4.0f;
+    return r;
 }
 
 int func_L08_0041D808(void)
 {
-    u8 *player = D_00189E20;
+    int player = (int)D_00189E20;
     u8 *moby = *(u8 **)(player + 0x1830);
     u8 *state = *(u8 **)(moby + 0x68);
     int mask = -1;
@@ -210,13 +201,11 @@ int func_L08_0041D808(void)
         func_L08_00300100();
         tex = func_00336D50(D_L08_001A904C+0x8710,0xA8);
         sx = D_001A7340/2;
-        { int off = (int)(G(001B199C)*D_L08_001B3244+0.5f);
-          y = off; }
+        y = HudCoord(G(001B199C), tex);
         func_00300A00(tex,mask&0x60442D00,sx,(D_001A7344/2)+y,1.0f,1.0f,0.0f);
         tex = func_00336D50(D_L08_001A904C+0x8710,0xA9);
         sx = D_001A7340/2;
-        { int off = (int)(G(001B199C)*D_L08_001B3244+0.5f);
-          y = off; }
+        y = HudCoord(G(001B199C), tex);
         func_00300A00(tex,mask&0x55F0C070,sx,(D_001A7344/2)+y,1.0f,1.0f,0.0f);
         delta=FL(player,0x183C)-FL(state,0xA4);
         delta*=0.2f;
@@ -231,9 +220,10 @@ int func_L08_0041D808(void)
         x=(int)G(001B1AC4);
         y=D_001A7344-HudY(G(001B1AC8),-4.0f);
         w=(int)(G(001B1AC4)+G(001B1ACC)*fraction);
-        { int mode = D_L08_001B3240; h=HudYM(mode,G(001B1AC8),-4.0f);
-        hz=HudSize(mode,G(001B1AD0),0); }
-        h=D_001A7344-h+hz;
+        h=HudY(G(001B1AC8),-4.0f);
+        hz=HudCoord2(G(001B1AD0),x);
+        h=D_001A7344-h;
+        h+=hz;
         func_0027EAE8(x,y,w,h,0xFFFFF1,colors);
         func_L08_003000C0();
     }
@@ -307,8 +297,9 @@ int func_L08_0041D808(void)
                 { int c=alpha|0xF0F0B0; colors[0]=c; colors[1]=c; colors[2]=c; colors[3]=c; }
                 sprite=func_0028E588(0xEAA2,3);
                 x=func_00283CF0((float)D_001A7340-G(001B1A8C)-dy);
-                { int off = (int)((float)func_00283CF0(G(001B1A88)+(float)G(001B1A74)+(float)SH(state,0x8C)+rise)*D_L08_001B3244+0.5f);
-          y = off; }
+                { float v = (float)func_00283CF0(G(001B1A88)+(float)G(001B1A74)+(float)SH(state,0x8C)+rise)*D_L08_001B3244+0.5f;
+                  y = (int)v; player = D_L08_001B3240; if (player == 1) v += 4.0f;
+                  { float m = 0.0f; if (x != 0) m = G(001B1A84) * 2.0f; if (m != 0.0f) v += 4.0f; } }
                 w=func_00283CF0(height); h=func_00283CF0(height);
                 func_0028EA58(sprite,x,y,w,h,colors);
             }
