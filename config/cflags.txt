@@ -3251,3 +3251,4 @@ src/pal/levels/05_feltzin_system/L05_004262B0-g8.c	-O2 -G8 -ffunction-sections -
 src/pal/levels/shared/L07_0040E120-rc2-g8.c	-O2 -G8 -ffunction-sections -fno-builtin
 src/pal/levels/01_oozla/L01_003C45C8-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/shared/L12_0041DF18-rc2-g8.c	-O2 -G8 -ffunction-sections -fno-builtin
+src/pal/game/002AF6C0-flags.c	-O2 -G0 -ffunction-sections -g -ffast-math
