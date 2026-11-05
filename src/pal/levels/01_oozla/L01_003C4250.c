@@ -2,8 +2,6 @@
 #include "common.h"
 
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L01_003C4530);
-
 /* func_PAL_L01_003C4768, the PAL copy of func_L01_003C08A0: the same C, without the func_0026FEB8
  * call, with 8.0f for 10.0f and 0.080000006f for 0.06666667f (the 50 Hz scale). */
 extern char D_00189E20[];
