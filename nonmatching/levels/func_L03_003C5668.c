@@ -1,3 +1,20 @@
+/* Opus-3 (v2693), 5 November 2026: last attempt. The C below is unchanged and gives the same
+ * result: 644/644 bytes, 0/2 places, only the a1 spill misplaced. This pass measured why.
+ * sched2 ranks by priority, then dependent count, then LUID, and the prologue always has the
+ * lower LUIDs. The spill (insn 6) has priority 14 and 5 dependents: 54 (every insn), 36 (call
+ * flush), 34 (stale sched1 anti on hard a1), 28 and 14 (loads). The s0/s4/s6/s7/f21 saves have
+ * 54, 36, 28, 14 and their setter. -fno-gcse takes s7's setter out of block 0 and the spill then
+ * passes `sd s7`, which confirms the model. Retail therefore has a sixth dependent or priority
+ * 15. Ruled out: any retail word in block 0 reading the a1 pseudo; other hard a1 writers (anti
+ * links reach only the first writer per pass); memory links (/u saves mean a /u load would
+ * drop the spill's link, not theirs; s5 has no alias base); CLOBBER insns (reload deletes them);
+ * USE insns (only under obey_regdecls); a jump2-deleted test (setters 41 and 38 show block 0
+ * runs past the first call, and p is in memory there); loop notes (they link saves and spill
+ * alike); an empty asm reader, forbidden anyway (no output makes it a volatile barrier: 20 or
+ * more rows differ). Every flag in config/cflags.txt, tried singly: no effect on the spill except
+ * -fno-gcse (+0x18, 172 insns) and -fno-schedule-insns. To unblock: find a no-code insn that
+ * survives to sched2 in block 0 and reads the a1 pseudo or writes hard a1 before insn 28.
+ */
 /* Opus-2 (v2438), 4 November 2026: GNU game -O2 -G0 -ffunction-sections.
  * US: 644/644 bytes, 0/2 places, one instruction misplaced ("instruction at +0x4 differs").
  * On the current compiler the opus-1 draft below also swapped the 0x1C/0x20 spill slots:
