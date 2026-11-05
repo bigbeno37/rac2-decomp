@@ -981,5 +981,6 @@
 #define UpdateFadingMobyList             func_L00_003E7C88
 #define DrawSegmentRings                 func_L00_003A91A0
 #define SpawnProjectile                  func_L00_003A98E8
+#define SweepMobyArcProbe                func_00330150
 
 #endif /* NAMES_H */
