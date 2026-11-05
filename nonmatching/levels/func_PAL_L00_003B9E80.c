@@ -3,33 +3,45 @@
  * src/pal/levels/shared/L00_003B9E80-counter-g8.c with
  * -O2 -G8 -ffunction-sections -frac2-zero-ti-por.
  *
- * Tier: Opus (v2914). Best check.py: 1184/1184 bytes, 0/27 places.
- * Everything is settled except 9 instructions in the last arm, at +0x42C..+0x45C, and those
- * differ in registers only. Three values rotate: limit a1 (retail a2), the 6 v1 (retail a1),
- * the old timer a2 (retail v1). The new timer is a0 in both.
+ * Tier: Opus (v2941). Best check.py: 1184/1184 bytes, 0/27 places, 8 instructions differ.
+ * The order is exact and old is solved (lhu v1, slt with v1). Three values still rotate in
+ * the last arm, +0x42C..+0x450: limit a1 (retail a2), the 6 a0 (retail a1), new timer a2
+ * (retail a0). Everything before the last arm is settled.
  *
  * Values found: 91>76, 0.0666..>0.080000006f, 0.000277..>0.00040000002f, and the last arm's
- * test scales limit with (limit*5+2)/6. PAL has no daddu copy there: use old=U; U=old+1, not
- * the template's timer=U,old=timer++ (that form is one word too long).
+ * test scales limit with (limit*5+2)/6.
  *
- * Why the registers differ: local-alloc priority. With the wording below old has 3 refs,
- * life 8, priority 3/8, below the 6 (4 refs, priority 1) and limit (3/4). Retail needs old
- * ahead of the 6, so 5 refs or a tied qty.
- * `if(U(object,0x96)++<=(limit*5+2)/6)return;` gives retail's exact registers and order, but
- * one extra word: andi v1,v1,0xFFFF from the reg:HI post-increment value. That qty is tied
- * (182 HI + 184 SI, 5 refs). regmove's optimize_reg_copy_3 cannot drop the andi because
- * (plus (subreg:SI (reg:HI)) 1) sits between load and extend and a nested subreg fails
- * validate_replace.
- * Inferred, not reproduced: one source fits both releases if a plain SI copy x=P exists
- * after P=load; new=P+1; mem=new. sched1 moves it up in USA (daddu) and leaves it in PAL
- * (P dies at the copy, ties, no word). No wording kept that copy: cse replaces x by P unless
- * x outlives the block, and it retargets the load when the copy is adjacent to it.
- * Same 68-row bytes from: int/unsigned/unsigned short old, a promoted unsigned short timer,
- * (unsigned short)old (combine folds it into slt), timer=0 or timer++ after the store,
- * old=0 after the test, the load apart from the copy.
- * Worse: a function-scope old shared with case 0 goes global and takes a2 in case 0 as well.
- * Not tried: a bit-field for the 0x96 field; (long) operands, for the empty same-reg
- * extendsidi2 as the tied copy.
+ * What retail needs at local-alloc: P=load; new=P+1; store; x=P, the plain copy tied to P and
+ * issued after the store. That is 5 refs and one no-code insn in the 6's life, so the order
+ * is old 10/9, new 1, the 6 8/9, limit 3/4. Other ways to raise old were ruled out: a
+ * single-pseudo old has at most 3 refs, and a hard-reg suggestion has no source here.
+ *
+ * How the wording below keeps a plain copy in one block: combine merges x=P into slt unless
+ * P is set between them. timer=(unsigned short)next is that set, and combine then folds it
+ * into the store. It still leaves reg_last_set[P] on the deleted insn, so use_crosses_set_p
+ * rejects the x=P merge. regmove then ties x to P.
+ * Why it is one rotation short: the set has to come before the store, so the copy does too.
+ * sched1 ties copy and store (priority 3, weight 0, class 3, 2 dependents) and takes the
+ * lower LUID. The copy lands inside new's life, new drops to 2/3, and the order becomes
+ * old, the 6, limit, new, which gives a0, a1, a2.
+ *
+ * Tried with the copy after the store: old=timer; timer=(unsigned short)old with the test on
+ * timer. cse canonicalizes it away, and a dead `old=0` only makes old canonical when it sits
+ * past the extended block (`default: old=0; return;`). Then combine merges the copy into the
+ * set and the arm is back to 68 rows.
+ * Copy before the increment: regmove rewrites new=x+1, the chain load>copy>plus>store runs a
+ * cycle late, and the order is wrong (66 rows). Reading limit before the test is worse (71).
+ * `long` locals: slt_di takes the extension directly, the dest ties to old, slt v1 (67 rows).
+ * A local struct holding the timer (HImode pseudo) acts like U++, andi included.
+ *
+ * Likely true source, untested: `U(object,0x96)++` at both timer sites. U++ here gives
+ * retail's registers and order plus andi v1,v1,0xFFFF from the reg:HI value. regmove's
+ * optimize_reg_copy_3 would turn that zero_extend into the wanted copy, but
+ * (plus (subreg:SI (reg:HI)) 1) sits between load and extend and the nested SUBREG fails
+ * validate_replace. With that copy sched1 would hoist it in USA and PAL case 0 (the daddu)
+ * and leave it in this arm, so one source would fit all three. That points at a retail
+ * compiler difference, not a wording.
+ * The 0x96 field stays lhu/sh, so a real change there means a different field type.
  */
 #include "common.h"
 typedef unsigned int TI128 __attribute__((mode(TI)));
@@ -129,8 +141,8 @@ void func_PAL_L00_003B9E80(unsigned char *object)
             func_002A8C28(*(void **)(object+0xB8),spawn.v,0.1f,0x10000,1.0f,1.0f,0,1,0);
             func_00282CF0(&spawn,object+0x10,&offset);
             func_002A8C28(*(void **)(object+0xB8),spawn.v,0.1f,0x10000,1.0f,1.0f,0,1,0);
-            if(D_L00_001A8F00==7) {int limit=D_L00_001AFA4C; unsigned old=U(object,0x96);
-              U(object,0x96)=old+1; if((int)old<=((s32)(limit)*5+2)/6)return;}
+            if(D_L00_001A8F00==7) {int limit=D_L00_001AFA4C; unsigned timer=U(object,0x96),next=timer+1,old=timer;
+              timer=(unsigned short)next; U(object,0x96)=timer; if((int)old<=((s32)(limit)*5+2)/6)return;}
         }
     }
     break; default: return; }
