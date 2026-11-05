@@ -973,5 +973,6 @@
 #define UpdateEffectSlots                func_003166C8
 #define DrawRotatingObjectGroupEffects   func_L02_003E80F8
 #define FindHeroOrMobyTarget             func_L04_003429F8
+#define UpdateFadingMobyList             func_L00_003E7C88
 
 #endif /* NAMES_H */
