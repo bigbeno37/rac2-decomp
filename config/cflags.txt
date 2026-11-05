@@ -3810,3 +3810,4 @@ src/pal/levels/shared/L00_00403780-g8.c	-O2 -G8 -ffunction-sections -g -frac2-ha
 src/pal/game/0030F2B0-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/pal/game/0032C620-qcopy.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/us2/levels/shared/L00_003AB8F8-effects-g.c	-O2 -G0 -g -ffunction-sections
+src/pal/levels/shared/L00_00410418-g8.c	-O2 -G8 -ffunction-sections -g
