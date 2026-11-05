@@ -3671,3 +3671,4 @@ src/pal/levels/14_aranos_prison/L14_004364B0-cc.c	-O2 -G0 -ffunction-sections -f
 src/pal/levels/11_joba/L11_0041BA00-cc.c	-O2 -G16 -Wa,-G16 -ffunction-sections -fno-strength-reduce -frac2-qcopy
 src/pal/game/00304D90-cc-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/11_joba/L11_0039A270-cc-g8.c	-O2 -G8 -ffunction-sections -g
+src/pal/levels/23_damosel_orbit/L23_0041EDC8-cc-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por -g
