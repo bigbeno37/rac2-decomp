@@ -3790,3 +3790,4 @@ src/pal/levels/shared/L00_003B88F8-g8.c	-O2 -G8 -ffunction-sections -mno-split-a
 src/pal/levels/shared/L00_003B7A10-g8.c	-O2 -G8 -ffunction-sections -g -fno-gcse
 src/pal/levels/17_smolg/L17_003CB570-path-g8.c	-O2 -G8 -g -ffunction-sections -fno-gcse
 src/pal/levels/09_dobbo/L09_0039EEE0-flags.c	-O2 -G0 -ffunction-sections -g
+src/pal/game/00331948-rc2.c	-O2 -G4 -ffunction-sections -fno-builtin
