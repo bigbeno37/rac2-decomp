@@ -234,6 +234,7 @@
 #define FastVecLength                    func_00282DF0
 #define FastSin                          func_00283198
 #define FastCos                          func_00283180
+#define PopGameState                     func_002B4B70
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
