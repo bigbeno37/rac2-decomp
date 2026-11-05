@@ -961,5 +961,6 @@
 #define DrawAnimatedEffectQuads          func_L02_00410F68
 #define UpdateSpreadWeapon               func_L00_003D1D28
 #define EaseOutQuad                      func_002A7798
+#define UpdateNearestRoutePoint          func_L04_00410788
 
 #endif /* NAMES_H */
