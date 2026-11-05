@@ -5,8 +5,8 @@ void func_002A0468(unsigned long long *command_words, unsigned long long upper_f
 
 /* rac1-decomp src/game/mobyfunc.c: func_0020E340 */
 /* Adapted from Lombyte (MIT) for PAL by OpenRAC's tools/port.py: src/rendering/commands/pack_render_command_fields.c, PackRenderCommandFields. */
-void func_002A0468(unsigned long long *command_words, unsigned long long upper_field,
-                             unsigned long long middle_field, unsigned long long low_field, unsigned long long tail_field);
+void func_002A0468(unsigned long long *command_words, unsigned long long upper_field, unsigned long long middle_field, unsigned long long low_field, unsigned long long tail_field);
+
 
 /* Original assembly: RAC1 overlays/shared/moby_frame_packet.c, func_L00_00251328. */
 

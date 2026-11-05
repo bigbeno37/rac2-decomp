@@ -129,8 +129,8 @@ void func_L14_00426DE8(char *a0);
 float func_L14_00430898(float x);
 
 /* Builds a camera-facing quad and rotates its texture coordinates about their center. */
-void func_L14_004308D0(void *position, int texture, int color, int mode,
-                     float scale, float distance, float angle);
+void func_L14_004308D0(void *position, int texture, int color, int mode, float scale, float distance, float angle);
+
 
 /* func_L14_00430B70 is defined in L14_00430B70-visual.c. */
 
