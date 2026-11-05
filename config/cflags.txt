@@ -3304,3 +3304,11 @@ src/pal/levels/shared/L22_003A54A0-port.c	-O2 -G0 -ffunction-sections
 src/pal/game/00352000-port.c	-O2 -G0 -ffunction-sections
 src/pal/game/00338770-port.c	-O2 -G0 -ffunction-sections
 src/pal/levels/16_snivelak/L16_0041C1F0-port.c	-O2 -G0 -ffunction-sections
+src/pal/game/0032F0B8-port.c	-O2 -G0 -ffunction-sections
+src/pal/levels/shared/L04_003FD4F8-port.c	-O2 -G0 -ffunction-sections
+src/pal/levels/17_smolg/L17_003EB968-port.c	-O2 -G8 -ffunction-sections
+src/pal/levels/shared/L00_002A3988-port.c	-O2 -G8 -ffunction-sections
+src/pal/levels/15_gorn/L15_0043ABF0-port.c	-O2 -G0 -ffunction-sections
+src/pal/levels/shared/L00_00387088-port.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
+src/pal/game/003422D0-port.c	-O2 -G0 -ffunction-sections
+src/pal/game/002E91B0-port.c	-O2 -G8 -ffunction-sections
