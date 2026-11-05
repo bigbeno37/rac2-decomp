@@ -3682,3 +3682,4 @@ src/us2/levels/05_feltzin_system/L05_00422838-g8.c	-O2 -G8 -ffunction-sections -
 src/us2/game/002D1F28-cc-g8.c	-O2 -G8 -ffunction-sections
 src/us2/levels/shared/L00_00404C18-cc.c	-O2 -G0 -ffunction-sections -frac2-hazard-labels
 src/us2/levels/shared/L00_00409CF0.c	-O2 -G0 -ffunction-sections -frac2-hazard-labels
+src/us2/levels/shared/L00_0037F858-init-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por -Wa,-G8
