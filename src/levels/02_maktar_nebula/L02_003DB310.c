@@ -309,7 +309,7 @@ INCLUDE_ASM("asm/levels", func_L02_003E7B58);
 
 /* func_L02_003E7F28 is defined in L02_003DB310-g8.c (it reads D_L02_001B0A60 through $gp). */
 
-/* func_L02_003E80F8 moved to L02_003E80F8-g8.c */
+INCLUDE_ASM("asm/levels", func_L02_003E80F8);
 
 /* func_L02_003E87D8 is defined in L02_003E87D8-g8.c. */
 
