@@ -1,6 +1,6 @@
 #include "include_asm.h"
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L04_003FD4F8);
+/* func_PAL_L04_003FD4F8 is in L04_003FD4F8-shot.c. */
 
 /* func_PAL_L04_003FD8F0 is in L04_003FD4F8-homing.c. */
 
