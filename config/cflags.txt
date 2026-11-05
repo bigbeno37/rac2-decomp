@@ -3335,3 +3335,4 @@ src/game/002F0FA0-g8.c	-O2 -G8 -ffunction-sections
 src/core/001185E8.c	-O2 -G2 -ffunction-sections -mastra-quad-saves
 src/pal/levels/20_yeedil/L20_00448428-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/shared/L00_003AC5A8-por-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
+src/pal/game/00300130-start.c	-O2 -G0 -ffunction-sections -g
