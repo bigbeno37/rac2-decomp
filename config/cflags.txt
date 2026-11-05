@@ -3798,3 +3798,4 @@ src/pal/levels/shared/L05_0042CAA0-qcopy-dbg-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/02_maktar_nebula/L02_003FF858-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/shared/L00_003F4A00-cc.c	-O2 -G0 -ffunction-sections -fno-rerun-loop-opt
 src/pal/levels/shared/L00_003EAE90.c	-O2 -G0 -ffunction-sections -fno-rerun-loop-opt
+src/us2/game/002D7BA0-g8.c	-O2 -G8 -ffunction-sections
