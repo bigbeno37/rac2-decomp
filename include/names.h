@@ -965,5 +965,6 @@
 #define UpdateNearestRoutePoint          func_L04_00410788
 #define DrawRadarBlips                   func_L05_0037A5F8
 #define UpdateProjectile                 func_L05_00427238
+#define DrawSegmentedBeams               func_L18_003FAE50
 
 #endif /* NAMES_H */

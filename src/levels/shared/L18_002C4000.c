@@ -902,7 +902,7 @@ fail:
     return 0;
 }
 
-INCLUDE_ASM("asm/levels", func_L18_003FAE50);
+/* func_L18_003FAE50 lives in L18_003FAE50-beam.c. */
 
 /* func_L18_003FB500 lives in L18_003FB500.c. */
 

@@ -1,25 +1,3 @@
-/* Claude Opus 5.5 (xhigh), task v2315, 3 November 2026. Nonmatching.
- * Profile: -O2 -G32 -Wa,-G32 -ffunction-sections, in its own unit
- * (e.g. src/levels/shared/L18_003FAE50-beam.c with one cflags line).
- * USA v1.01: 1208/1208 bytes, 0 of 3 places; 58 rows differ, all of them
- * relocation placeholders except five accesses to two exchanged spill slots:
- * ours keeps &local.next at 0x114 and segment+1 at 0x110; retail is reversed.
- * Replaces the sol-high draft (73 rows). Declaration findings:
- * - D_L18_001B0560[] as an incomplete sda array read as [0]/[1]: [1] is a
- *   CONST sym+4, an unsplit two-insn load kept out of delay slots, which
- *   recovers the absolute f13 setup.
- * - D_L18_001B0534[] as an incomplete MACRO_ADDR array gives the la macro
- *   and fixes the UV cursors and the end-cap bc1fl.
- * Remaining cause (verified): gcse numbers PRE reaching regs in hash-bucket
- * order (127 buckets). &local.next = (plus fp 16) is bucket 76; segment+1 is
- * bucket (60 + segment's pseudo) % 127. Retail needs that bucket above 76,
- * i.e. segment's pseudo 144..193 (beam stays 92). Block-scoped segment below
- * gives 121; a diagnostic with 23 unused ints declared before segment (pseudo
- * 144, not acceptable) matched 3 of 3 places. Reopen with a natural construct
- * that creates about 23 more pseudos before the inner-loop counter is declared
- * without changing the frame layout or code. Dead initial values only change
- * the table size and cannot reach a feasible size.
- */
 #include "common.h"
 
 typedef int Vector128 __attribute__((mode(TI)));
@@ -44,6 +22,18 @@ extern void func_00282DD8(void *,void *,void *);
 extern void func_00282F20(void *,void *,float);
 extern void func_00281DE8(QuadPacket *,int,int,int);
 extern void func_00280B90(void *,void *,int);
+/* Gives the two outer vertices of the beam's first or last segment the
+ * alpha-free colour, which fades both ends of the beam out. */
+static __inline__ void BeamFadeEnds(BeamPacket *packet,unsigned int rgb,const int *segment)
+{
+    if(*segment==0) {
+        packet->view.colors[0]=rgb;
+        packet->view.colors[1]=rgb;
+    } else if((float)*segment==D_L18_001B0570-1.0f) {
+        packet->view.colors[2]=rgb;
+        packet->view.colors[3]=rgb;
+    }
+}
 void func_L18_003FAE50(char *object)
 {
     BeamWorkspace local;
@@ -78,13 +68,9 @@ void func_L18_003FAE50(char *object)
             local.packet.view.colors[2]=faded;
             local.packet.view.colors[1]=faded;
             local.packet.view.colors[0]=faded;
-            if(segment==0) {
-                local.packet.view.colors[0]=rgb;
-                local.packet.view.colors[1]=rgb;
-            } else if((float)segment==D_L18_001B0570-1.0f) {
-                local.packet.view.colors[2]=rgb;
-                local.packet.view.colors[3]=rgb;
-            }
+            {
+            int index=segment;
+            BeamFadeEnds(&local.packet,rgb,&segment);
             for(i=0;i<4;i++) {
                 local.packet.view.uv[i][0]=D_L18_001B0530[i][0]+*(float *)(state+0x8c);
                 local.packet.view.uv[i][1]=D_L18_001B0534[i*2];
@@ -121,7 +107,8 @@ void func_L18_003FAE50(char *object)
                 local.packet.view.colors[2]=endColor&0xffffffu;
                 local.packet.view.colors[3]=endColor&0xffffffu;
             }
-            segment++;
+            segment=index+1;
+            }
             func_00280B90(&local.packet.raw,0,0);
             qcopy(&local.start,&local.next);
             func_00282CC0(&local.next,&local.next,&local.step);
