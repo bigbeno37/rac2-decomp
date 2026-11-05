@@ -3808,3 +3808,4 @@ src/pal/levels/shared/L04_003F2BD0-g16.c	-O2 -G16 -Wa,-G16 -ffunction-sections -
 src/pal/levels/shared/L00_003B0230-particles-g.c	-O2 -G0 -g -ffunction-sections
 src/pal/levels/shared/L00_00403780-g8.c	-O2 -G8 -ffunction-sections -g -frac2-hazard-labels
 src/pal/game/0030F2B0-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
+src/pal/game/0032C620-qcopy.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
