@@ -1,3 +1,46 @@
+/* v2558, opus-2, Claude Opus 5.5, USA v1.01, 2026-11-05. FAILED: not a match.
+   Build it as -O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
+   -frac2-zero-ti-por. Body below (allowed C only): 1168/1168 bytes, 0/4 places,
+   72 real instruction rows differ (79 before), relocations aside. New wordings:
+   owner = D_225DD0[i] as its own statement; per-arm scale/size locals, because
+   expand_binop swaps `y = distance*y` when target == op1; per-site int c,
+   u64 color and int y. Each draw site then ties c to color in s0, and the
+   `daddu s0,s0,zero` in the jal slot is a same-reg extendsidi2: empty unless it
+   fills a delay slot.
+
+   Closest form, NOT allowed (uninitialised test, dead-store arm), 4 real rows:
+       #define SPLIT(v) if ((v) != 0 && xx != 0) y = 1.0f
+   with `int xx;` never assigned, and on the body below
+       entry: yi = (int)(...); SPLIT(yi); y = (float)yi;
+       sites: sy = (int)(...); SPLIT(sy); fy = (float)sy;
+   Left: mfc1/mtc1 at +0x3C/+0x70 use v0 (retail a1); por/sq at +0x18C/+0x190
+   use v1 (retail a0). No exact-bytes form was found.
+   This form gives the entry saves in retail order, s0=0 in the jal slot, the
+   draw sites exact, D_FB220 rematerialized and fp = D_225DD0.
+
+   Why (gcc 991111 flow.c and toplev.c): merge_blocks deletes a branch over an
+   empty arm only when the join has one predecessor, so
+   `if (x) dead;` is gone before sched2 and allocation changes but scheduling
+   does not. `if (a && b) dead;` joins with two predecessors, the branches
+   reach sched2 as a real block end, and jump2 removes them as jumps to .+1.
+   They leave no word if they compare live registers or zero. The test must use
+   the conversion result: testing other values moves `sd s6` before the cvt.w.s.
+   xx is live from entry through the loop, crosses every call, takes s6 (saved
+   and never referenced in retail) and pushes D_FB220 out of a register. Retail
+   sets s6 nowhere, so its pseudo has no set: no real value can fill that role.
+
+   Reopen with: a real construct that reads a variable with no set in the
+   function; and for the rest, why entry y-int avoids v0 and v1. That looks like
+   two more pseudos live at the fix insn (with v0/v1 busy reload's scratch would
+   be a0, and por equalled the scratch in the two dumps read, which is a hint,
+   not a rule). `if (yi != sy && nextList != 0)` on a shared site y gives 11
+   rows (alpha and the site y move); texture for nextList gives 7, both 13.
+
+   Ruled out: do { ... } while (0) around each draw gets the entry saves right
+   but is 1176 bytes and leaves i=0 after the second call, so it is not the
+   construct here (and the worker guide does not allow it). PAL and US2 not
+   rechecked on this draft.
+*/
 /* v2316, opus-1, Claude Opus 5.5, USA v1.01, 2026-11-03. Body below unchanged:
    still 1168/1168 bytes, 0/4 places, 126/292 rows differ with the -G8 profile.
    Diagnostic only (forbidden, not kept): an empty asm barrier right after each
@@ -71,15 +114,17 @@ void func_L05_0037A5F8(void)
 {
     float offset[4],rotation[4],rotate[12],view[12];
     float distance,x,y;
-    u64 texture,color;
-    u8 *object,*state;
+    u64 texture;
+    u8 *object,*state,*owner;
     u16 *list,*nextList;
-    int i,alpha,c;
-    y = (float)(int)(D_L05_001AC4E4*D_L05_001B2D84[0]+0.5f);
+    int i,alpha,yi;
+    yi = (int)(D_L05_001AC4E4*D_L05_001B2D84[0]+0.5f);
+    y = (float)yi;
     texture = func_0027C878(D_L05_001AC4FC);
     func_L05_003008C0(D_L05_001AC4E0,y,D_L05_001AC4E8,D_L05_001AC4EC,0,0,D_L05_001AC4F0,D_L05_001AC4F4,0x80808080ULL,texture);
     for (i=0;i<func_L00_004272A0();i++) {
-        nextList = D_L05_001FB220[D_L05_00225DD0[i][0x21]];
+        owner = D_L05_00225DD0[i];
+        nextList = D_L05_001FB220[owner[0x21]];
         if (!nextList) continue;
         list = nextList;
         do {
@@ -88,13 +133,15 @@ void func_L05_0037A5F8(void)
             if (*(int *)(state+0x110) && *(int *)(state+0x14C)) {
                 distance = func_00282E48(D_L05_001B96C0.position,object+0x10);
                 if (distance <= 128.0f) {
-                    y = D_L05_001AC4F8*0.0078125f;
+                    float scale = D_L05_001AC4F8;
+                    float size;
                     *(Quad *)rotation = 0;
+                    scale = scale*0.0078125f;
                     rotation[2] = 1.5707964f;
-                    y = distance*y;
+                    size = distance*scale;
                     func_002833F0(rotate,rotation);
                     func_00282CF0(offset,object+0x10,D_L05_001B96C0.position);
-                    func_00282F20(offset,offset,y);
+                    func_00282F20(offset,offset,size);
                     func_002836E8(view,D_L05_001B96C0.view);
                     func_00283098(offset,offset,view);
                     func_00283098(offset,offset,rotate);
@@ -104,18 +151,26 @@ void func_L05_0037A5F8(void)
                     if (distance > D_L05_001AC4E8+D_L05_001AC4E8) distance=D_L05_001AC4E8+D_L05_001AC4E8;
                     else if (distance < 0.0f) distance=0.0f;
                     x = offset[0]+D_L05_001AC4E0;
-                    y = (float)(int)((D_L05_001AC4E4-offset[1])*D_L05_001B2D84[0]+0.5f);
-                    c = *(s32 *)(state+0x150) | (alpha<<24);
+                    {
+                    int sy, c;
+                    float fy;
+                    u64 color;
+                    sy = (int)((D_L05_001AC4E4-offset[1])*D_L05_001B2D84[0]+0.5f);
+                    fy = (float)sy;
+                    c = *(s32 *)(state+0x150);
+                    c |= alpha<<24;
                     color = c;
                     texture = func_0027C878(D_L05_001AC4FC);
-                    func_L05_003008C0(x,y,distance,distance,0,0,D_L05_001AC4F0,D_L05_001AC4F4,color,texture);
+                    func_L05_003008C0(x,fy,distance,distance,0,0,D_L05_001AC4F0,D_L05_001AC4F4,color,texture);
+                    }
                 } else if (*(int *)(state+0x158)) {
+                    float size;
                     *(Quad *)rotation = 0;
                     rotation[2] = 1.5707964f;
-                    y = D_L05_001AC4F8;
+                    size = D_L05_001AC4F8;
                     func_002833F0(rotate,rotation);
                     func_00282CF0(offset,object+0x10,D_L05_001B96C0.position);
-                    func_00282F20(offset,offset,y);
+                    func_00282F20(offset,offset,size);
                     func_002836E8(view,D_L05_001B96C0.view);
                     func_00283098(offset,offset,view);
                     func_00283098(offset,offset,rotate);
@@ -124,11 +179,18 @@ void func_L05_0037A5F8(void)
                     if (distance > D_L05_001AC4E8+D_L05_001AC4E8) distance=D_L05_001AC4E8+D_L05_001AC4E8;
                     else if (distance < 0.0f) distance=0.0f;
                     x = offset[0]+D_L05_001AC4E0;
-                    y = (float)(int)((D_L05_001AC4E4-offset[1])*D_L05_001B2D84[0]+0.5f);
-                    c = *(s32 *)(state+0x150) | (alpha<<24);
+                    {
+                    int sy, c;
+                    float fy;
+                    u64 color;
+                    sy = (int)((D_L05_001AC4E4-offset[1])*D_L05_001B2D84[0]+0.5f);
+                    fy = (float)sy;
+                    c = *(s32 *)(state+0x150);
+                    c |= alpha<<24;
                     color = c;
                     texture = func_0027C878(D_L05_001AC4FC);
-                    func_L05_003008C0(x,y,distance,distance,0,0,D_L05_001AC4F0,D_L05_001AC4F4,color,texture);
+                    func_L05_003008C0(x,fy,distance,distance,0,0,D_L05_001AC4F0,D_L05_001AC4F4,color,texture);
+                    }
                 }
             }
         } while ((s16)*list++ >= 0);
