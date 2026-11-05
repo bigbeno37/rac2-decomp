@@ -3775,3 +3775,4 @@ src/us2/game/00349728-cc-g8.c	-O2 -G8 -ffunction-sections -frac2-hazard-labels -
 src/us2/levels/00_aranos_tutorial/L00_002FD818-state-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/shared/L05_0039A808-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/shared/L00_003A6238-cc-g8.c	-O2 -G8 -ffunction-sections
+src/pal/levels/shared/L00_003EE450-cc-g8.c	-O2 -G8 -ffunction-sections
