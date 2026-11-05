@@ -3593,3 +3593,4 @@ src/pal/game/002D5C20-g8.c	-fno-builtin -O2 -G8 -ffunction-sections
 src/pal/game/002D5CD8-g8.c	-O2 -G8 -fno-expensive-optimizations -ffunction-sections -fno-builtin
 src/pal/game/002C23B8-qcopy.c	-O2 -G0 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier -frac2-zero-ti-barrier
 src/pal/game/0030DEC0-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qcopy -frac2-qcopy-barrier
+src/pal/game/003456B0-g8.c	-O2 -G8 -ffunction-sections
