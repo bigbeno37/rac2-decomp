@@ -967,5 +967,6 @@
 #define UpdateProjectile                 func_L05_00427238
 #define DrawSegmentedBeams               func_L18_003FAE50
 #define DrawPulsingGlowSphere            func_L04_0040D148
+#define UpdateHoverbikeMovement          func_L04_00414698
 
 #endif /* NAMES_H */
