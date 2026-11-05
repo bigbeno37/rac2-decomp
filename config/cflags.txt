@@ -3246,3 +3246,4 @@ src/levels/08_tabora/L08_00429560-g8.c	-O2 -G8 -ffunction-sections -g -frac2-qco
 src/levels/shared/L00_003F8E08-glow-g8.c	-O2 -G8 -ffunction-sections -ffast-math -g
 src/pal/game/002F96D8-g16.c	-O2 -G16 -ffunction-sections -Wa,-G16
 src/pal/levels/shared/L04_003FD4F8-shot.c	-O2 -G0 -ffunction-sections -g
+src/levels/shared/L00_003C3D90-g8.c	-O2 -G8 -ffunction-sections -g -frac2-hazard-labels -frac2-qcopy -frac2-qcopy-barrier
