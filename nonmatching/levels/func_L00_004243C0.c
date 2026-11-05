@@ -1,42 +1,60 @@
 /*
- * Tier: opus-2 (Claude Opus 5.5, v2543), USA v1.01; based on opus-1 (v2290).
- * Profile: -O2 -G8 -ffunction-sections -g, separate -g8-dbg.c unit.
- * Best checked result: 1404/1404 bytes, 0/27 places, first mismatch +0x100,
- * 66 of 351 rows differ (was +0x64, 188 rows); most of the 66 are unresolved
- * relocations in the diff. Real differences: the hide block (9 rows) and the
- * $a0/$v0 reload rotation it causes at the scan-pointer reloads (6 rows).
- * Solved here: entry order (no target local: base+176 inline, base/pos/move/
- * state declared in that order); scan and hidden are loop.c givs of i and
- * numhidden (index form), which gives the slots goal 0x60, scan 0x64, hidden
- * 0x68; the first timer call is shared by flag!=0 and the range test, so
- * cse reuses &state->timer in s0 and interblock puts it in the bnez slot;
- * span local keeps the distance in $f12; m is a struct pointer.
- * Hide block facts, each measured:
- *  - The increment reuses $v1 with no second lw. reload never inherits into
- *    this in-out add: a load through the pointer only looked like it because
- *    reload_cse deletes the repeat, and a store between stops that (slot is
- *    not MEM_SCALAR_P, so anti_dependence always conflicts).
- *  - So retail must have (set 278 (plus Y 4)) with Y a pseudo in $v1. That
- *    needs a DEST_REG giv reduced with the store combined into it
- *    (combine_givs skips a DEST_REG giv used in exactly one insn of the
- *    loop), plus cse2 making Y the class leader (Y must outlive the block).
- *  - The dead copy `entry=hidden` in the loop tail below does both: it adds
- *    the use, and flow deletes it so Y stays block-local (it lands in $v0).
- *    `char **hidden=0` and this copy are placeholders for whatever retail
- *    really wrote; no natural second use was found (a re-read of *hidden is
- *    removed by cse1 first).
- *  - Mine schedules Y=copy, numhidden++, store, add, clear; the copy delays
- *    the store a cycle and numhidden++ takes the second issue slot.
- *  - Target: RTL store via the reduced reg, THEN Y=copy, add from Y. sched1
- *    should then issue copy+store together, reload reuse the loaded reg for
- *    the store address (find_equiv_reg), numhidden take $a0 with Y live, and
- *    sched2 raise the addiu. `D[n]=m; hidden=&D[n];` with the copy after the
- *    loop (zero loop uses) gives that RTL at loop.c, but cse2 did not rewrite
- *    the add from Y, so Y dies and the second lw returns (262 rows). Find why
- *    the leader swap fails there (make_regs_eqv in cse.c).
- *  - Do not use: `hidden=&D[n]; *hidden=m; n++; <use of hidden>` in one block
- *    with a biv update inside the lifetime: it emits sw s0,4(v1).
- * Requires the -g8-dbg unit flags above and the declarations below.
+ * Tier: opus-2 (Claude Opus 5.5, v2621), USA v1.01; based on v2543 and v2290.
+ * Profile: -O2 -G8 -ffunction-sections -g -fstrict-aliasing, a separate
+ * L00_004243C0-g8-dbg.c unit (same flags as its neighbour L00_004240D8-g8-dbg.c).
+ * Best checked result: 1404/1404 bytes, 0/27 places, first mismatch +0x154, 55 of
+ * 351 rows differ. 51 of the 55 are unresolved relocations in the diff. The only
+ * real difference is where `addiu $v1,$v1,4` sits (4 rows at +0x154):
+ *   mine:   lw v1,hidden; sw s0,0(v1); lw a0,n; addiu a0; addiu v1,4; sw a0,n; ...
+ *   retail: lw v1,hidden; sw s0,0(v1); addiu v1,4; lw a0,n; addiu a0; sw a0,n; ...
+ * This draft does NOT land as it stands: the do/while group and using `type` as a
+ * pointer are measured means to an end, not known retail source. They need review
+ * even if the last row closes.
+ *
+ * New in v2621 (compiled and read, unless marked as inferred):
+ *  - -fstrict-aliasing belongs on this unit: with the reused `type` it alone fixes the
+ *    camera test and the registers after it. The neighbouring unit has the same flag.
+ *  - scan and hidden can be plain pointers declared in the if block. With goal still
+ *    assigned inside the loop (declared at the top, so hoisted, low pseudo number) the
+ *    slots stay goal 0x60, scan 0x64, hidden 0x68. That drops the index givs, the dead
+ *    `entry=hidden` copy and `hidden=0` that v2543 needed.
+ *  - One `type` local read at the ladder, used for the pointer and read at the camera
+ *    test gives $v1 with no other help (inferred: a global pseudo that conflicts with
+ *    the ladder's $v0 constants). A block-local pointer lands in $v0.
+ *  - Plain `D[n++]=m` already gets every register and the rotation right (v1, a0, then
+ *    v0 for scan) and differs by one insn: a second `lw v1,hidden` before the add.
+ *    Reload never inherits into this in-out add. reload_cse deletes the repeat, but
+ *    only if no store through an unknown pointer intervenes (test: K=(int)p; p++ has
+ *    no second lw, *p=x; p++ and K=(int)p; *Q=1; p++ do). The slot's alias set is 0
+ *    and it is not MEM_SCALAR_P, so the store always conflicts and -fstrict-aliasing
+ *    cannot help. So plain D[n++]=m cannot match on this compiler.
+ *
+ * What retail needs (inferred from reload rotation and store dependences):
+ *  - sched1 output must have store < n++ < clear. At sched2 a store through an unknown
+ *    register conflicts with every slot access, so that order cannot change there.
+ *  - The pointer register must be busy at n++ (a0, not v1) or the rotation must already
+ *    have advanced. Either the add follows n++ with Y in v1, or (store via R) the store's
+ *    own address reload advances it.
+ * Why each route stops:
+ *  - store via R, Y=R, R=Y+4 (loop.c gives this order, cse2 rewrites the add, with a
+ *    local that outlives the block): combine folds the copy into the add, because the
+ *    add is Y's first use and Y dies there. Back to the in-out add and the second lw.
+ *  - Y=R, store via Y: no fold, but the store waits a cycle, so n++ takes the second
+ *    issue slot at t0 and goes first (with -fstrict-aliasing the clear can take it, and
+ *    then the clear goes first).
+ *  - A no-op copy `axis=(char *)m` (tied to s0, prints nothing) takes that slot, so the
+ *    store now precedes n++, but the add goes before n++ and n++ gets $v1 (inferred:
+ *    reg weight 0 vs +1, Y dies at the add).
+ *  - A do/while(0) group is a barrier at sched1 and also at sched2: it fixes sched1 but
+ *    keeps the add below it. Here combine folds the in-place `type+1` into
+ *    `hidden=type`, after the group (seen in the combine dump), so the add stays below
+ *    the barrier and behind `lw a0`.
+ * Untried leads: a barrier or dependence that exists at sched1 and is gone at sched2; a
+ * second use of the in-place add's result that survives combine and prints nothing.
+ * Not usable: `hidden=&D[n]; ...; *hidden=m` with the store after the biv update (giv
+ * init -4 or sw s0,-4(v1)); a reused local multi-set inside the loop as the giv itself
+ * (no reduction, 1396 bytes).
+ * Requires the unit flags above and the declarations below.
  */
 #include "include_asm.h"
 extern char D_L00_001B8E20[],D_L00_001BF220[];
@@ -82,22 +100,28 @@ void func_L00_004243C0(char *obj)
     float distance=move->distance-state->offset+1.5f;
     float dot,t;
     unsigned short timer;
-    char **hidden=0;
     Moby243 *entry;
     char *goal;
     func_00282D08(a,base+176,camera-96,0.5f);
     count=func_00277F48(a,1,D_L00_00189E20.owner,0,distance*0.5f);
     if(count>0) {
+        char **scan,**hidden;
+        scan=D_L00_001C3280;
+        hidden=D_L00_0025B9A0;
         for(i=0;i<count;i++) {
             goal=base+176;
-            m=(Moby243 *)D_L00_001C3280[i];
+            m=(Moby243 *)*scan;
             if(m->visible && (!func_L00_0031BE88(m)||m->type==2923)) {
                 type=m->type;
                 if(type!=2234 && type!=3335 && type!=4304 && type!=1143 && type!=11) {
-                    hidden=&D_L00_0025B9A0[numhidden];
-                    *hidden=(char *)m;
+                    do {
+                        type=(int)hidden;
+                        *(char **)type=(char *)m;
+                        type=(int)((char **)type+1);
+                    } while(0);
                     numhidden++;
                     m->visible=0;
+                    hidden=(char **)type;
                 } else {
                     func_00282CF0(b,m->pos,goal);
                     axis=camera+48;
@@ -120,7 +144,7 @@ void func_L00_004243C0(char *obj)
                     }
                 }
             }
-            entry=(Moby243 *)hidden;
+            scan++;
         }
     }
     if(!state->locked) {
@@ -138,7 +162,7 @@ void func_L00_004243C0(char *obj)
     }
     {
     char *active_camera=D_L00_001B8C80.active;
-    if(active_camera && (S(active_camera,134)==4 || S(active_camera,134)==81) && D_L00_001B8C80.counter<10) state->timer=1700;
+    if(active_camera && ((type=S(active_camera,134))==4 || type==81) && D_L00_001B8C80.counter<10) state->timer=1700;
     }
     if(!state->flag) {
         timer=(unsigned short)state->timer;
