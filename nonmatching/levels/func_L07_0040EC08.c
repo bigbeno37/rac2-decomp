@@ -22,7 +22,26 @@
  * un-annul it (the latch label stops it). Tried without effect: nested ifs, a Player
  * pointer, -g, -frac2-keep-block-order, -frac2-gcse-unsplit-edges,
  * -frac2-no-null-pointer-checks (all 1 diff), -fno-thread-jumps (2 diffs).
- * Next idea: a source shape that leaves the first mode branch unfilled in reorg pass 1.
+ * Last Opus pass (v2577): the C below is unchanged and the cause is now measured: the compiler,
+ * not this source. In a private copy of cc1, removing the three HARD_FRAME_POINTER exclusions
+ * in flow.c (mark_set_1, and the REG and SET cases of mark_used_regs) so that $fp behaves as an
+ * ordinary register after reload changes this function's assembly by exactly one line,
+ * `bnel` to `bne`, which is the only difference from retail. flow then writes a REG_DEAD note
+ * for the last use of i, mark_target_live_regs clears $fp at the next label, and the slot is
+ * not annulled. 40 other units using $fp compiled identically with both cc1s. check.py and
+ * the linked build were not run with that copy.
+ * Source shapes that leave the first branch unfilled in reorg pass 1 do work: jumping straight
+ * to the second bnez (first test `if(m!=0) goto check`, with `check:` before the second load
+ * and a user variable m to stop thread_jumps) gives retail's `bnez`, stolen in pass 2. They cost
+ * the rest of the function:
+ * - the first block needs `pl=&D_00189E20`, but retail's `lui v1; addiu v1,v1` there cannot be
+ *   that set: an input reload may not reuse the output's register (bad_spill_regs), so it is
+ *   the rematerialised spilled `la`, and no valid C defines pl on that path;
+ * - a label just before the second bnez stops cse reusing v1 for the health load (2 more words);
+ * - pl's two sets stop loop.c hoisting the `la D`, so HIGH(D+0x80) hoists instead and the reload
+ *   round-robin shifts by one (0x4C/0x54 and every later reload register);
+ * - a single-set `hero=&D_00189E20` is not movable across blocks and takes $s0.
+ * `D_00189EA0` for the position does stop cse's related-value rebuild from D+0x80.
  * Declarations needed by this standalone draft follow.
  */
 #include "common.h"
