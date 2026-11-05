@@ -18,7 +18,20 @@
  * the frag-distance path cannot see the label across the macro's frag_var.
  * A separate division statement gives two nops; MACRO_ADDR gives an absolute
  * two-word load; -mno-split-addresses is neutral. Fix: count only place == NULL
- * instructions (the emitted slot), then this draft should match as is.
+ * instructions (the emitted slot).
+ *
+ * Third Opus pass (v2584, 2026-11-05), recompiled unchanged: same 800/804. Proof that the
+ * nop is the only difference: in the unit above, replacing the rise statement with this
+ * one source line gives 1 of 1 places (forbidden asm, so not landable and not landed):
+ *   { float d=D_L30_001B185C; __asm__("nop"); riseLow=func_002A7878(rise/d,rise); }
+ * Ruled out: a float literal (the word is 4.0f, 0x40800000, a zero half, so gas builds it
+ * with lui/mtc1 instead of a one-word .lit4 load; the value also sits in a mixed int/float
+ * settings table, so it is data); a defined or struct-member symbol (same macro and frag);
+ * the branch floor (retail's preceding group is a jal, which starts no distance).
+ * Label placement alone gives 0 nops (label before the l.s) or 2 (label after it), never 1.
+ * Retail census, all levels: 5 functions have $gp lwc1; nop; div.s, all unmatched and all
+ * still INCLUDE_ASM: this one, func_L00_00424F98, func_L05_00419CC8, func_L08_0041E790 and
+ * func_L08_003C67B8. Drafts of the first three of those record this same missing nop.
  */
 #include "common.h"
 typedef struct { char pad[0xC0]; float matrix[4][4]; } ParticleOwner;
