@@ -2420,7 +2420,7 @@ void func_PAL_L20_002DF028(void) {
             func_PAL_L00_002D2668(0xD, 0, 1e1f);
         }
         if (FLD(D_00189E20, u8, 0x149A) != 0) {
-            func_PAL_L20_002D7920(0x1, 1);
+            func_PAL_L20_002D7920(0x94, 1);
             break;
         }
         if ((FLD(D_00138180, s32, 0x1A0) & 4) && (FLD(D_00189E20, s32, 0x1500) == 0) && (func_L00_004272A0() == 0)) {
