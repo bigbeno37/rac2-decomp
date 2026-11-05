@@ -970,5 +970,6 @@
 #define DrawPulsingGlowSphere            func_L04_0040D148
 #define UpdateHoverbikeMovement          func_L04_00414698
 #define UpdateDamoselTimedExplosions     func_L18_003170F8
+#define DrawRotatingObjectGroupEffects   func_L02_003E80F8
 
 #endif /* NAMES_H */
