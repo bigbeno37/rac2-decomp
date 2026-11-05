@@ -958,5 +958,6 @@
 #define DrawCameraFacingTwoLayerRibbon   func_L00_00418230
 #define DrawShrinkingMobyRings           func_L01_00398B50
 #define DrawAnimatedEffectQuads          func_L02_00410F68
+#define UpdateSpreadWeapon               func_L00_003D1D28
 
 #endif /* NAMES_H */
