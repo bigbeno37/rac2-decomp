@@ -258,7 +258,7 @@ extern void func_00291450(s32 a0);
 
 /* func_L08_004294A0 is isolated in L08_004294A0.c. */
 
-INCLUDE_ASM("asm/levels", func_L08_00429560);
+/* func_L08_00429560 is isolated in L08_00429560-g8.c. */
 
 /* func_L08_00429EE8 is isolated in L08_00429EE8.c. */
 

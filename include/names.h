@@ -230,6 +230,10 @@
 #define render_water_grids               func_L04_003A21F8
 #define volume_camera_swing_active       func_L06_0047A268
 #define DrawResidentEffectQuads          func_002E7338
+#define update_slot_panes_and_effects    func_L08_00429560
+#define FastVecLength                    func_00282DF0
+#define FastSin                          func_00283198
+#define FastCos                          func_00283180
 
 /* descriptive */
 #define QueueMobyImpact                  func_002A8E20
