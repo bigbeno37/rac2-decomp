@@ -1,42 +1,59 @@
-/* opus-1 attempt (Claude Opus 5.5 xhigh), USA v1.01, levels -O2 -G8 -ffunction-sections.
+/* opus-2 attempt (Claude Opus 5.5 xhigh), USA v1.01, levels -O2 -G8 -ffunction-sections.
  * Best check: 2060/2052 bytes, 0/2 places; first difference +0xC4.
- * cdiff: 401 of 515 rows differ by position, because two extra instructions
+ * cdiff: 378 of 515 rows differ by position, because two extra instructions
  * shift everything after +0x250. Aligned with difflib (addresses and symbols
- * normalised), 58 instructions differ. The Sol draft this replaces was
- * 2052/2052 bytes, 344 of 513 by position, 122 aligned: it is smaller and
- * lower by position, this one is lower aligned. Sol's is in git history.
+ * normalised), 34 instructions differ; the opus-1 draft this replaces is 48 on
+ * the same measure (its header's 58 used another normalisation).
  * To build: append after func_L04_003C3BA0 in L04-particle-emitter-g8.c, change
  * that file's extern to (char *), and drop the marker in L04_002CC748.c.
  * Everything needed follows (the g8 preamble, then this function).
  *
- * Still differs:
- * A. +0xC4..+0x184: retail sp+0x20 is s2 and sp+0x60 is s1; ours are swapped.
- *    gcse PRE inserts copies of both before the guard jump and cse2 keeps them
- *    as copies. Priorities are r127 0.48 vs r149 0.435; removing the copies
- *    would probably flip them (not shown).
- * B. Extra `sw $t2,0x148($sp)` at +0x250, with `addiu t2,sp,0x60` too early.
- *    regmove's backward pass pairs op3 with op0 and splits the cmove into a
- *    copy plus cmove, as the loop-invariant source has no REG_DEAD. Reload
- *    stores the copy and does not inherit it (reason not found), so
- *    delete_output_reload never runs; flow2 ignores sp stores. A 3-register
- *    cmove reaching reload would give retail's sequence directly. It needs a
- *    dying source whose set is past a label, jump or loop note; no wording
- *    tried produced one.
- * C. +0x2D0..+0x310 giftag setup: retail builds the constant in v1 and stores
- *    it after the three addiu; ours uses v0 and stores early. Also `lui t2`,
- *    `sw s4` and `addiu s7` order.
- * D. Cursor registers. Middle: retail u s1, v s2, colors s3; ours u s3, v s2,
- *    colors s1. Third: retail u s5, v s1, colors s2; ours u s2, v s1, colors
- *    s5. Post: retail u s1, v s2, colors s3, row s5; ours u s5, v s3, colors
- *    s2, row s1. Instruction order there already agrees.
- * E. Extra nop at +0x324.
+ * Diagnostic only, not for landing: with -fno-regmove, which no unit uses and
+ * which is not an approved option, this same C is 2052/2052 bytes with 29
+ * aligned / 40 positional differences, all of them items B and C below.
  *
- * Helped (aligned count 122 -> 58): shade temp stored after u/v, own u,v per
- * loop, each cursor bumped right after its store, MACRO_ADDR on D_L04_001AF38C
- * (retail's adjacent lui+addiu; SDATA gives the gp form).
- * No gain: explicit colors cursors 67, v-first init 76, giftag temp 58, cursor
- * declaration order 58, MACRO_ADDR on 388 as well 62, other forms of the
- * transform selection 60-69 (none removes the store), indexed packet.uv 182.
+ * Still differs:
+ * A. Extra `sw $t2,0x148($sp)` at +0x250, and `addiu t2,sp,0x60` too early. This
+ *    is the blocker. Measured: with -fno-regmove the block is exactly retail, so
+ *    retail's cmove reaches reload with three registers. regmove's backward pass
+ *    instead emits `transform = reach60`, because op3 (a hoisted PRE pseudo) has
+ *    no REG_DEAD. That copy is a main insn, not an output reload, so reload cannot
+ *    delete its store, and flow2 skips stores through sp. From regmove.c the only
+ *    ways to keep three registers are op3 dying with its set past a label, jump,
+ *    loop note or a mention of dst, or op3 not being a REG. A local op3 is not
+ *    the answer in that form: cse2 propagates reach60 into it, and a local would
+ *    get a low register, not retail's reload register t2. Not found.
+ * B. +0xC4..+0x184: retail sp+0x20 is s2 and sp+0x60 is s1, and in loop 3 retail
+ *    has u s1, v s2, colors s3, row s5 where ours has u s2, v s3, colors s5, row
+ *    s1. Measured: PRE inserts reach = fp+K at the end of bb0 and cse2 rewrites
+ *    them as copies of P20 and P60, so r127 scores 3*8/50 = .48 over r149
+ *    2*5/23 = .435, and the copy gives reach20 a hard-reg preference for s1 that
+ *    pushes loop 3 along by one. -fno-gcse fixes the order (and only that: frame
+ *    0x1F0). Inferred from these numbers, not proven: retail's P20 has no such
+ *    copy, or reach20 is not live in loop 3.
+ * C. +0x2CC..+0x30C, arm 1 giftag: retail builds the constant in v1 and stores
+ *    it after the three addiu; ours uses v0 and stores early. `addiu s7` and the
+ *    `addiu v1,2` / `sw s4` order follow. Arm 2 already agrees.
+ *
+ * Solved here, do not redo: the cursors. uv is `struct { float u,v; } uv[4]`
+ * written as packet.uv[k].u/.v plus packet.colors[k], no pointers. All of them
+ * are then loop.c givs, whose inits come out colors, v, u as in retail; loop 1
+ * and loop 2 now match. Loop 2 has no temporaries: it is u, v, colors in that
+ * order. Earlier drafts' "indexed packet.uv is worse" was a flat float uv[8].
+ * The nop at +0x324 is loop-head alignment and goes when item A does.
+ *
+ * Tried, no gain (bytes unchanged or worse): -fno-gcse (frame 0x1F0);
+ * -fno-expensive-optimizations, -fno-rerun-loop-opt, -fmove-all-movables,
+ * -fno-strength-reduce, -frac2-gcse-unsplit-edges, -frac2-keep-block-order,
+ * -fno-cse-follow-jumps, -fno-cse-skip-blocks (none removes the store for the
+ * spilled target); -frac2-qcopy with C assignments, all four or the last one,
+ * with or without the barrier (84 to 198 aligned on the no-regmove bench or
+ * real build); qcopy_nc on the last copy (identical, its $2 clobber keeps a
+ * PARALLEL); a clobber-free asm there (flushes cse, P60 lands in s1, but frame
+ * 0x210, and it leaves $v0 unprotected, so not a helper proposal); locals
+ * holding basis and other before the last copy (frame 0x210); a statement
+ * between the select and transform=chosen; inline selectors returning either
+ * arm, three wordings, a tie with the plain ternary.
  */
 #include "common.h"
 
@@ -106,7 +123,7 @@ void func_L04_003C4050(char *self) {
     EVec position,up,basis[4],other[4];
     struct {
         RPoint vertices[4];
-        u32 colors[4]; float uv[8]; u64 giftag[4];
+        u32 colors[4]; struct { float u,v; } uv[4]; u64 giftag[4];
     } packet;
     char *state=*(char **)(self+0x68);
     char *matrix=D_L04_001B25CC+EI(state,4)*128;
@@ -115,7 +132,7 @@ void func_L04_003C4050(char *self) {
     int end=EH(state,0)+EH(state,2)+EH(state,0x40);
     int i,j,k,index,opacity;
     RPoint *vertex;
-    float speed,size,age,du,dv; u32 shade;
+    float speed,size,age;
     qcopy(&position,self+0x10);
     up.q=0;
     position.f[3]=1.0f; up.f[2]=1.0f;
@@ -146,8 +163,6 @@ void func_L04_003C4050(char *self) {
         if(D_L04_0023D158[i]) {
             packet.giftag[3]=0x8000000044ULL;
             for(j=2;j<4;j++) {
-                float *u,*v;
-                u=(float *)((char *)&packet+0x50); v=(float *)((char *)&packet+0x54);
                 for(k=0;k<4;k++) {
                     vertex=&packet.vertices[k];
                     index=D_L04_002AB860[j][k];
@@ -156,16 +171,13 @@ void func_L04_003C4050(char *self) {
                     vertex->z=D_L04_002AB7A0[index].z*size;
                     vertex->w=1.0f;
                     func_002830C0(&packet.vertices[k],&packet.vertices[k],transform);
-                    *u=D_L04_002AB924[index*2]+D_L04_0023D220[i];
-                    u=(float *)((char *)u+8);
-                    *v=D_L04_002AB920[index*2];
-                    v=(float *)((char *)v+8);
+                    packet.uv[k].u=D_L04_002AB924[index*2]+D_L04_0023D220[i];
+                    packet.uv[k].v=D_L04_002AB920[index*2];
                     packet.colors[k]=alpha*D_L04_001AF3A8[index]|rgb;
                 }
                 func_00280B90(&packet,0,0);
             }
         } else {
-            float *u,*v;
             if(D_L04_0023D860[i]) {
                 func_00282978(&D_L04_0023D860[i]);
                 opacity=func_00283CF0((1.0f-func_00283CE0(D_L04_0023D860[i])*D_L04_001B2E78)*D_L04_001AF334);
@@ -180,19 +192,16 @@ void func_L04_003C4050(char *self) {
             }
             packet.giftag[3]=0x8000000048ULL;
             opacity=(u32)opacity<<24;
-            u=(float *)((char *)&packet+0x50); v=(float *)((char *)&packet+0x54);
             for(k=0;k<4;k++) {
                 vertex=&packet.vertices[k];
                 vertex->x=D_L04_001AF340[k].f[0];
                 vertex->y=D_L04_001AF340[k].f[1]*speed;
                 vertex->z=D_L04_001AF340[k].f[2]*size;
                 vertex->w=1.0f;
-                du=D_L04_001AF388[k*2]-D_L04_0023D220[i]; dv=D_L04_001AF38C[k*2];
-                shade=(u32)opacity*D_L04_001AF380[k];
-                *u=du; *v=dv;
-                packet.colors[k]=shade|EI(state,0x38);
+                packet.uv[k].u=D_L04_001AF388[k*2]-D_L04_0023D220[i];
+                packet.uv[k].v=D_L04_001AF38C[k*2];
+                packet.colors[k]=(u32)opacity*D_L04_001AF380[k]|EI(state,0x38);
                 func_002830C0(&packet.vertices[k],&packet.vertices[k],transform);
-                u=(float *)((char *)u+8); v=(float *)((char *)v+8);
             }
             func_00280B90(&packet,0,0);
         }
@@ -203,8 +212,6 @@ void func_L04_003C4050(char *self) {
     basis[3].f[2]-=EF(state,0x50);
     if(!EH(state,0x42)) {
         for(j=0;j<6;j++) {
-            float *u,*v;
-            u=(float *)((char *)&packet+0x50); v=(float *)((char *)&packet+0x54);
             for(k=0;k<4;k++) {
                 vertex=&packet.vertices[k];
                 index=D_L04_002AB860[j][k];
@@ -213,10 +220,8 @@ void func_L04_003C4050(char *self) {
                 vertex->z=D_L04_002AB6E0[index].z*EF(state,0x4C);
                 vertex->w=1.0f;
                 func_002830C0(&packet.vertices[k],&packet.vertices[k],basis);
-                *u=D_L04_002AB8C4[index*2]+D_L04_001AF548;
-                u=(float *)((char *)u+8);
-                *v=D_L04_002AB8C0[index*2];
-                v=(float *)((char *)v+8);
+                packet.uv[k].u=D_L04_002AB8C4[index*2]+D_L04_001AF548;
+                packet.uv[k].v=D_L04_002AB8C0[index*2];
                 packet.colors[k]=D_L04_001AF3A8[index]*0xFF000000|rgb;
             }
             func_00280B90(&packet,0,0);
