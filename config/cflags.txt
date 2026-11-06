@@ -3860,3 +3860,4 @@ src/pal/levels/shared/L22_00400420-particles-g8.c	-O2 -G8 -ffunction-sections -f
 src/pal/levels/shared/L00_003CB888-g8.c	-O2 -G8 -ffunction-sections -frac2-qcopy -frac2-qcopy-barrier
 src/pal/levels/shared/L05_0041E068-g8.c	-O2 -G8 -ffunction-sections
 src/pal/levels/shared/L05_0041EC50-g8.c	-O2 -G8 -ffunction-sections
+src/pal/levels/shared/L02_003D5FF0-g8.c	-O2 -G8 -ffunction-sections
