@@ -3839,3 +3839,4 @@ src/pal/levels/01_oozla/L01_003C3C80-g8.c	-O2 -G8 -ffunction-sections
 src/pal/game/002ABCB8-flags.c	-O2 -G0 -ffunction-sections -g -ffast-math
 src/us2/levels/15_gorn/L15_00432858-g8.c	-O2 -G8 -ffunction-sections
 src/us2/game/002A7AA8-g8.c	-O2 -G8 -ffunction-sections
+src/pal/levels/03_endako/L03_00424858-g8.c	-O2 -G8 -ffunction-sections -g
