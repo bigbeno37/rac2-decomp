@@ -3832,3 +3832,4 @@ src/pal/levels/20_yeedil/L20_003A1B00-qcopy.c	-O2 -G0 -ffunction-sections -g -fr
 src/pal/levels/shared/L00_003ABDC8-g8-dbg.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/shared/L22_004010B8-spin-g8.c	-O2 -G8 -ffunction-sections
 src/pal/game/00314678-g16.c	-O2 -G16 -ffunction-sections -Wa,-G16
+src/pal/levels/shared/L02_0038ECC0-rail-g8.c	-O2 -G8 -ffunction-sections -g
