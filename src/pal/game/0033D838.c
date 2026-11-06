@@ -23,9 +23,8 @@ char *func_PAL_0033E000(char *object)
     return object;
 }
 
+/* func_PAL_0033E160 is in 0033E160.c (-mno-split-addresses). */
 
-
-INCLUDE_ASM("asm/pal/game", func_PAL_0033E160);
 
 
 /* func_0033B540 is matched in 0033AE20-g8.c (-G8 small data). */
@@ -249,7 +248,35 @@ char *func_PAL_0033FC98(char *object)
 
 
 
-INCLUDE_ASM("asm/pal/game", func_PAL_0033FDF8);
+extern void func_PAL_0033CF78(void *, char *, char *, char *);
+extern void func_PAL_0033CD50(void *);
+extern void func_0033B018(void *, float, float);
+extern int func_002E5E58(int, int, int);
+extern volatile unsigned char D_001A7BB2 __attribute__((sda));
+
+/* func_PAL_0033FDF8, the PAL copy of func_0033DEE0: the same C, with the three-string setup added. */
+int func_PAL_0033FDF8(char *object, int flags)
+{
+    float *vec;
+    char *child;
+    char *text, *second;
+
+    child = object + 8;
+    text = func_00288FB8(0xB72);
+    second = func_00288FB8(0xB5F);
+    func_PAL_0033CF78(child, text, second, func_00288FB8(0xB60));
+    func_PAL_0033CD50(child);
+    vec = *(float **)(object + 0x2DC);
+    func_0033B018(child, vec[0], vec[1]);
+
+    if ((flags & 0x40) && *(int *)(object + 0x2D8) == 0) {
+        int discarded = func_002E5E58(4, 0, 0);
+        (void)discarded;
+        D_001A7BB2 = (D_001A7BB2 < 1);
+    }
+
+    return (flags >> 6) & 1;
+}
 
 /* func_0033B540 is matched in 0033AE20-g8.c (-G8 small data). */
 
@@ -262,7 +289,29 @@ char *func_PAL_0033FED8(char *object)
 
 
 
-INCLUDE_ASM("asm/pal/game", func_PAL_00340038);
+/* func_PAL_00340038, the PAL copy of func_0033E0D8: the same C, with the three-string setup added. */
+int func_PAL_00340038(char *object, int flags)
+{
+    float *vec;
+    char *child;
+    char *text, *second;
+
+    child = object + 8;
+    text = func_00288FB8(0xB72);
+    second = func_00288FB8(0xB5F);
+    func_PAL_0033CF78(child, text, second, func_00288FB8(0xB60));
+    func_PAL_0033CD50(child);
+    vec = *(float **)(object + 0x2DC);
+    func_0033B018(child, vec[0], vec[1]);
+
+    if ((flags & 0x40) && *(int *)(object + 0x2D8) == 0) {
+        int discarded = func_002E5E58(4, 0, 0);
+        (void)discarded;
+        D_001A7BB2 = (D_001A7BB2 < 1);
+    }
+
+    return (flags >> 6) & 1;
+}
 
 
 
@@ -278,7 +327,28 @@ int func_PAL_003402B8(int owner)
 
 
 
-INCLUDE_ASM("asm/pal/game", func_PAL_00340348);
+extern char *func_PAL_0034A148(char *, int);
+extern void func_PAL_0034A2B8(char *, float, float);
+
+/* func_PAL_00340348, the PAL copy of func_0033E3A0: the same C, with the three-string setup added and the second child moved. */
+int func_PAL_00340348(char *object, int flags)
+{
+    char *first = object + 8;
+    char *second;
+    float *position;
+    char *text, *label;
+
+    text = func_00288FB8(0xBB1);
+    label = func_00288FB8(0xB86);
+    func_PAL_0033CF78(first, text, label, func_00288FB8(0xB60));
+    func_PAL_0033CD50(first);
+    second = object + 0x2E0;
+    position = *(float **)(object + 0x3BC);
+    func_0033B018(first, position[0], position[1]);
+    func_PAL_0034A148(second, flags);
+    func_PAL_0034A2B8(second, (*(float **)(object + 0x3BC))[0], (*(float **)(object + 0x3BC))[1]);
+    return (flags >> 6) & 1;
+}
 
 
 
