@@ -3834,3 +3834,4 @@ src/pal/levels/shared/L22_004010B8-spin-g8.c	-O2 -G8 -ffunction-sections
 src/pal/game/00314678-g16.c	-O2 -G16 -ffunction-sections -Wa,-G16
 src/pal/levels/shared/L02_0038ECC0-rail-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/16_snivelak/L16_00412C28-g8.c	-O2 -G8 -ffunction-sections -mno-split-addresses
+src/pal/levels/07_siberius/L07_003F8CB0-ring-g8.c	-O2 -G8 -ffunction-sections
