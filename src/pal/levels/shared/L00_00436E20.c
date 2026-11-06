@@ -112,7 +112,36 @@ char *func_PAL_L00_00438B60(char *object)
 }
 
 
-INCLUDE_ASM("asm/pal/levels", func_PAL_L00_00438CC0);
+extern int func_00288FB8(int);
+extern void func_PAL_0033CF78(void *, int, int, int);
+extern void func_PAL_0033CD50(void *);
+extern void func_L00_00430948(void *, float, float);
+extern int func_002E5E58(int a, int b, int c);
+extern volatile unsigned char D_001A7BB2 __attribute__((sda));
+
+/* func_PAL_L00_00438CC0, the PAL copy of func_L00_00433560: the same C, with the child's three
+   text ids set up first and the two object fields 0x30 further on. */
+int func_PAL_L00_00438CC0(char *object, int flags)
+{
+    float *vec;
+    char *child = object + 8;
+    int text, second;
+
+    text = func_00288FB8(0xB72);
+    second = func_00288FB8(0xB5F);
+    func_PAL_0033CF78(child, text, second, func_00288FB8(0xB60));
+    func_PAL_0033CD50(child);
+    vec = *(float **)(object + 0x2DC);
+    func_L00_00430948(child, vec[0], vec[1]);
+
+    if ((flags & 0x40) && *(int *)(object + 0x2D8) == 0) {
+        int discarded = func_002E5E58(4, 0, 0);
+        (void)discarded;
+        D_001A7BB2 = (D_001A7BB2 < 1);
+    }
+
+    return (flags >> 6) & 1;
+}
 
 /* func_0033B540 is matched in 0033AE20-g8.c (-G8 small data). */
 
@@ -125,12 +154,6 @@ char *func_PAL_L00_00438E58(char *object)
 
 
 
-extern int func_00288FB8(int);
-extern void func_PAL_0033CF78(void *, int, int, int);
-extern void func_PAL_0033CD50(void *);
-extern void func_L00_00430948(void *, float, float);
-extern int func_002E5E58(int a, int b, int c);
-extern volatile unsigned char D_001A7BB2 __attribute__((sda));
 
 /* func_PAL_L00_00438FB8, the PAL copy of func_L00_00433810: the same C, with the child's three
    text ids set up first and the two object fields 0x30 further on. */
