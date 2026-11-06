@@ -3845,3 +3845,5 @@ src/pal/levels/03_endako/L03_004211B8-cc-g8.c	-O2 -G8 -ffunction-sections -frac2
 src/pal/game/00287018-g8.c	-O2 -G8 -ffunction-sections -frac2-zero-ti-por
 src/pal/levels/04_barlow/L04_0040B078-g8.c	-O2 -G8 -ffunction-sections -g
 src/pal/levels/04_barlow/L04_0040C050-g8.c	-O2 -G8 -ffunction-sections -g
+src/pal/game/00330020-g8.c	-O2 -G8 -ffunction-sections
+src/pal/game/0032F3B8-g8.c	-O2 -G8 -ffunction-sections -fstrict-aliasing -g
